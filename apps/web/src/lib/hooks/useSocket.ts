@@ -28,11 +28,15 @@ export function useRealtimeSync() {
     // Task events
     socket.on('task_created', (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['unreadCount'] })
       enqueueSnackbar(`Задача создана: ${data.title || 'Новая задача'}`, { variant: 'info', autoHideDuration: 3000 })
     })
 
     socket.on('task_updated', (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['unreadCount'] })
       if (data.id) {
         queryClient.invalidateQueries({ queryKey: ['task', data.id] })
       }
@@ -40,25 +44,42 @@ export function useRealtimeSync() {
 
     socket.on('task_deleted', (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['unreadCount'] })
       enqueueSnackbar('Задача удалена', { variant: 'warning', autoHideDuration: 2000 })
     })
 
     // Project events
     socket.on('project_created', () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['unreadCount'] })
     })
 
     socket.on('project_updated', () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['unreadCount'] })
     })
 
     socket.on('project_deleted', () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['unreadCount'] })
+    })
+
+    // Notification events
+    socket.on('notification', (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['unreadCount'] })
+      if (data.title) {
+        enqueueSnackbar(data.title, { variant: 'info', autoHideDuration: 4000 })
+      }
     })
 
     // Online users
     socket.on('user_online', (data: any) => {
-      enqueueSnackbar(`Пользователь онлайн`, { variant: 'default', autoHideDuration: 2000 })
+      enqueueSnackbar('Пользователь онлайн', { variant: 'default', autoHideDuration: 2000 })
     })
 
     return () => {
@@ -71,6 +92,7 @@ export function useRealtimeSync() {
       socket.off('project_created')
       socket.off('project_updated')
       socket.off('project_deleted')
+      socket.off('notification')
       socket.off('user_online')
       disconnectSocket()
     }
