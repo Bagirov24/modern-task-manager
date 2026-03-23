@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { projectApi } from '../lib/api/projectApi'
 import { useProjectStore } from '../store/projectStore'
-import type { Project } from '../lib/types'
 
-export type ProjectCreate = Partial<Project>
+export type ProjectCreate = Record<string, any>
 
 export function useProjects() {
   const { projects, setProjects, addProject, updateProject: updateProjectInStore, removeProject } = useProjectStore()
@@ -14,8 +13,17 @@ export function useProjects() {
     setLoading(true)
     setError(null)
     try {
-      const data = await projectApi.list()
-      setProjects(data.data)
+      const data: any = await projectApi.list()
+      const raw = data?.data ?? data
+      let items: any[] = []
+      if (Array.isArray(raw)) {
+        items = raw
+      } else if (raw?.projects && Array.isArray(raw.projects)) {
+        items = raw.projects
+      } else if (raw?.data && Array.isArray(raw.data)) {
+        items = raw.data
+      }
+      setProjects(items as any)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch projects')
     } finally {
@@ -30,20 +38,22 @@ export function useProjects() {
   const createProject = useCallback(async (project: ProjectCreate) => {
     setError(null)
     try {
-      const newProject = await projectApi.create(project)
-      addProject(newProject.data)
-      return newProject.data
+      const newProject: any = await projectApi.create(project)
+      const item = newProject?.data ?? newProject
+      addProject(item as any)
+      return item
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create project')
     }
   }, [addProject])
 
-  const updateProject = useCallback(async (id: string, project: ProjectCreate) => {
+  const updateProject = useCallback(async (id: string, project: Partial<any>) => {
     setError(null)
     try {
-      const updated = await projectApi.update(id, project)
-      updateProjectInStore(updated.data)
-      return updated.data
+      const updated: any = await projectApi.update(id, project)
+      const item = updated?.data ?? updated
+      updateProjectInStore(item as any)
+      return item
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update project')
     }
