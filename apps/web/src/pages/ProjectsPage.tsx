@@ -5,7 +5,6 @@ import {
   Grid,
   Card,
   CardContent,
-  CardActionArea,
   Box,
   Button,
   IconButton,
@@ -18,21 +17,28 @@ import {
   Chip,
   Avatar,
   Tooltip,
+  Alert,
+  Skeleton,
+  CircularProgress,
 } from '@mui/material'
 import {
   FolderOutlined as FolderIcon,
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Archive as ArchiveIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material'
-import { useProjectStore } from '@/lib/store/projectStore'
+import { useProjects, useCreateProject, useUpdateProject, useDeleteProject } from '@/lib/hooks/useProjects'
 import type { Project } from '@/lib/types'
 
 const colorOptions = ['#2196F3', '#4CAF50', '#FF9800', '#F44336', '#9C27B0', '#00BCD4', '#795548', '#607D8B']
 
 export default function ProjectsPage() {
-  const { projects, addProject, updateProject, removeProject } = useProjectStore()
+  const { data: projects = [], isLoading, isError, refetch } = useProjects()
+  const createMutation = useCreateProject()
+  const updateMutation = useUpdateProject()
+  const deleteMutation = useDeleteProject()
+
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editProject, setEditProject] = useState<Project | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<Project | null>(null)
@@ -55,132 +61,133 @@ export default function ProjectsPage() {
   const handleSave = () => {
     if (!form.name.trim()) return
     if (editProject) {
-      updateProject(editProject.id, { name: form.name.trim(), description: form.description, color: form.color })
+      updateMutation.mutate(
+        { id: editProject.id, data: { name: form.name.trim(), description: form.description, color: form.color } },
+        { onSuccess: () => setDialogOpen(false) }
+      )
     } else {
-      addProject({
-        id: crypto.randomUUID(),
-        name: form.name.trim(),
-        description: form.description,
-        color: form.color,
-        is_archived: false,
-        owner_id: '1',
-        created_at: new Date().toISOString(),
-        task_count: 0,
-      })
+      createMutation.mutate(
+        { name: form.name.trim(), description: form.description, color: form.color },
+        { onSuccess: () => setDialogOpen(false) }
+      )
     }
-    setDialogOpen(false)
   }
 
   const confirmDelete = () => {
     if (deleteConfirm) {
-      removeProject(deleteConfirm.id)
-      setDeleteConfirm(null)
+      deleteMutation.mutate(deleteConfirm.id, {
+        onSuccess: () => setDeleteConfirm(null),
+      })
     }
   }
 
+  const isSaving = createMutation.isPending || updateMutation.isPending
+
   return (
-    <Container maxWidth="lg" disableGutters>
-      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
+          <Typography variant="h4" fontWeight="bold">
             Проекты
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          <Typography variant="body2" color="text.secondary">
             Организуйте задачи по проектам
           </Typography>
         </Box>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
-          Новый проект
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Tooltip title="Обновить">
+            <IconButton onClick={() => refetch()}>
+              <RefreshIcon />
+            </IconButton>
+          </Tooltip>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
+            Новый проект
+          </Button>
+        </Stack>
       </Box>
 
-      <Grid container spacing={3}>
-        {activeProjects.map((project) => (
-          <Grid item xs={12} sm={6} md={4} key={project.id}>
-            <Card
-              sx={{
-                height: '100%',
-                border: '1px solid',
-                borderColor: 'divider',
-                borderTop: `4px solid ${project.color}`,
-                transition: 'all 0.2s',
-                '&:hover': { transform: 'translateY(-2px)', boxShadow: 4 },
-                '&:hover .project-actions': { opacity: 1 },
-              }}
-              elevation={0}
-            >
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
-                    <Avatar sx={{ bgcolor: project.color, width: 40, height: 40 }}>
-                      <FolderIcon />
-                    </Avatar>
-                    <Box>
-                      <Typography variant="h6" sx={{ fontWeight: 600 }}>
+      {isError && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Не удалось загрузить проекты с сервера.
+        </Alert>
+      )}
+
+      {isLoading ? (
+        <Grid container spacing={3}>
+          {[1, 2, 3].map((i) => (
+            <Grid item xs={12} sm={6} md={4} key={i}>
+              <Skeleton variant="rounded" height={180} />
+            </Grid>
+          ))}
+        </Grid>
+      ) : (
+        <Grid container spacing={3}>
+          {activeProjects.map((project) => (
+            <Grid item xs={12} sm={6} md={4} key={project.id}>
+              <Card
+                sx={{
+                  borderTop: `4px solid ${project.color}`,
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': { transform: 'translateY(-4px)', boxShadow: 4 },
+                }}
+              >
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Avatar sx={{ bgcolor: project.color, width: 36, height: 36 }}>
+                        <FolderIcon fontSize="small" />
+                      </Avatar>
+                      <Typography variant="h6" fontWeight="bold">
                         {project.name}
                       </Typography>
-                      <Chip label={`${project.task_count} задач`} size="small" variant="outlined" />
                     </Box>
-                  </Box>
-                  <Stack
-                    direction="row"
-                    className="project-actions"
-                    sx={{ opacity: 0, transition: 'opacity 0.2s' }}
-                  >
-                    <Tooltip title="Редактировать">
+                    <Box>
                       <IconButton size="small" onClick={() => openEdit(project)}>
                         <EditIcon fontSize="small" />
                       </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Удалить">
-                      <IconButton size="small" color="error" onClick={() => setDeleteConfirm(project)}>
+                      <IconButton size="small" onClick={() => setDeleteConfirm(project)}>
                         <DeleteIcon fontSize="small" />
                       </IconButton>
-                    </Tooltip>
-                  </Stack>
-                </Box>
-                {project.description && (
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    {project.description}
-                  </Typography>
-                )}
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
-                  Создан: {new Date(project.created_at).toLocaleDateString('ru-RU')}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
+                    </Box>
+                  </Box>
+                  {project.description && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                      {project.description}
+                    </Typography>
+                  )}
+                  <Chip
+                    size="small"
+                    label={`Создан: ${new Date(project.created_at).toLocaleDateString('ru-RU')}`}
+                    variant="outlined"
+                  />
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
 
-        <Grid item xs={12} sm={6} md={4}>
-          <Card
-            sx={{
-              height: '100%',
-              minHeight: 160,
-              border: '2px dashed',
-              borderColor: 'divider',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
-            }}
-            elevation={0}
-            onClick={openCreate}
-          >
-            <CardContent sx={{ textAlign: 'center' }}>
-              <AddIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
-              <Typography color="text.secondary">Создать проект</Typography>
-            </CardContent>
-          </Card>
+          {activeProjects.length === 0 && (
+            <Grid item xs={12}>
+              <Box sx={{ textAlign: 'center', py: 8 }}>
+                <FolderIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+                <Typography variant="h6" color="text.secondary">
+                  Нет проектов
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Создайте первый проект для организации задач
+                </Typography>
+                <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
+                  Создать проект
+                </Button>
+              </Box>
+            </Grid>
+          )}
         </Grid>
-      </Grid>
+      )}
 
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editProject ? 'Редактировать проект' : 'Новый проект'}</DialogTitle>
         <DialogContent>
-          <Stack spacing={3} sx={{ mt: 1 }}>
+          <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField
               label="Название"
               value={form.name}
@@ -198,7 +205,7 @@ export default function ProjectsPage() {
               rows={2}
             />
             <Box>
-              <Typography variant="body2" sx={{ mb: 1 }}>Цвет проекта</Typography>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>Цвет проекта</Typography>
               <Stack direction="row" spacing={1}>
                 {colorOptions.map((c) => (
                   <Box
@@ -220,9 +227,14 @@ export default function ProjectsPage() {
             </Box>
           </Stack>
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
+        <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>Отмена</Button>
-          <Button onClick={handleSave} variant="contained" disabled={!form.name.trim()}>
+          <Button
+            variant="contained"
+            onClick={handleSave}
+            disabled={!form.name.trim() || isSaving}
+            startIcon={isSaving ? <CircularProgress size={16} /> : undefined}
+          >
             {editProject ? 'Сохранить' : 'Создать'}
           </Button>
         </DialogActions>
@@ -237,7 +249,14 @@ export default function ProjectsPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteConfirm(null)}>Отмена</Button>
-          <Button onClick={confirmDelete} color="error" variant="contained">Удалить</Button>
+          <Button
+            onClick={confirmDelete}
+            color="error"
+            variant="contained"
+            disabled={deleteMutation.isPending}
+          >
+            Удалить
+          </Button>
         </DialogActions>
       </Dialog>
     </Container>
