@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { taskApi } from '../lib/api/taskApi'
 import { useTaskStore } from '../store/taskStore'
-import type { Task } from '../lib/types'
 
-export type TaskCreate = Partial<Task>
-export type TaskUpdate = Partial<Task>
+export type TaskCreate = Record<string, any>
+export type TaskUpdate = Record<string, any>
 
 export function useTasks(projectId?: string) {
   const { tasks, setTasks, addTask, updateTask: updateTaskInStore, removeTask } = useTaskStore()
@@ -15,8 +14,17 @@ export function useTasks(projectId?: string) {
     setLoading(true)
     setError(null)
     try {
-      const data = await taskApi.list(projectId ? { project_id: projectId } : undefined)
-      setTasks(data.data)
+      const data: any = await taskApi.list(projectId ? { project_id: projectId } : undefined)
+      const raw = data?.data ?? data
+      let items: any[] = []
+      if (Array.isArray(raw)) {
+        items = raw
+      } else if (raw?.tasks && Array.isArray(raw.tasks)) {
+        items = raw.tasks
+      } else if (raw?.data && Array.isArray(raw.data)) {
+        items = raw.data
+      }
+      setTasks(items as any)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch tasks')
     } finally {
@@ -31,9 +39,10 @@ export function useTasks(projectId?: string) {
   const createTask = useCallback(async (task: TaskCreate) => {
     setError(null)
     try {
-      const newTask = await taskApi.create(task)
-      addTask(newTask.data)
-      return newTask.data
+      const newTask: any = await taskApi.create(task)
+      const item = newTask?.data ?? newTask
+      addTask(item as any)
+      return item
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create task')
     }
@@ -42,9 +51,10 @@ export function useTasks(projectId?: string) {
   const updateTask = useCallback(async (id: string, task: TaskUpdate) => {
     setError(null)
     try {
-      const updated = await taskApi.update(id, task)
-      updateTaskInStore(updated.data)
-      return updated.data
+      const updated: any = await taskApi.update(id, task)
+      const item = updated?.data ?? updated
+      updateTaskInStore(item as any)
+      return item
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update task')
     }
@@ -60,11 +70,11 @@ export function useTasks(projectId?: string) {
     }
   }, [removeTask])
 
-  const reorderTask = useCallback(async (id: string, data: any) => {
+  const reorderTask = useCallback(async (id: string, position: number) => {
     try {
-      await taskApi.update(id, data)
+      await taskApi.update(id, { order: position })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to reorder task')
+      console.error('Failed to reorder task:', err)
     }
   }, [])
 
