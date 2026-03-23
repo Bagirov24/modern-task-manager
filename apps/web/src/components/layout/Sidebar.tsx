@@ -10,6 +10,8 @@ import {
   CheckCircle as TasksFilled,
   FolderOutlined as ProjectsIcon,
   Folder as ProjectsFilled,
+  CalendarTodayOutlined as CalendarIcon,
+  CalendarMonth as CalendarFilled,
   SettingsOutlined as SettingsIcon,
   Settings as SettingsFilled,
   RocketLaunch as RocketIcon,
@@ -22,6 +24,7 @@ const navItems = [
   { to: '/', icon: <DashboardIcon />, activeIcon: <DashboardFilled />, label: 'Главная' },
   { to: '/tasks', icon: <TasksIcon />, activeIcon: <TasksFilled />, label: 'Задачи' },
   { to: '/projects', icon: <ProjectsIcon />, activeIcon: <ProjectsFilled />, label: 'Проекты' },
+  { to: '/calendar', icon: <CalendarIcon />, activeIcon: <CalendarFilled />, label: 'Календарь' },
   { to: '/settings', icon: <SettingsIcon />, activeIcon: <SettingsFilled />, label: 'Настройки' },
 ]
 
@@ -62,27 +65,28 @@ export default function Sidebar({ drawerWidth }: { drawerWidth: number }) {
           sx={{
             width: 40,
             height: 40,
-            borderRadius: 3,
+            borderRadius: 2,
             bgcolor: 'primary.main',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <RocketIcon sx={{ color: 'white', fontSize: 22 }} />
+          <RocketIcon sx={{ color: '#fff', fontSize: 22 }} />
         </Box>
-        <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
+        <Typography variant="h6" fontWeight={700}>
           TaskManager
         </Typography>
       </Box>
 
       <Divider />
 
-      <List sx={{ flex: 1, px: 1.5, py: 1 }}>
+      <List sx={{ px: 1.5, py: 1, flex: 1 }}>
         {navItems.map((item) => {
           const isActive = item.to === '/'
             ? location.pathname === '/'
             : location.pathname.startsWith(item.to)
+
           return (
             <ListItem key={item.to} disablePadding sx={{ mb: 0.5 }}>
               <ListItemButton
@@ -103,26 +107,18 @@ export default function Sidebar({ drawerWidth }: { drawerWidth: number }) {
                   transition: 'all 0.2s ease',
                 }}
               >
-                <ListItemIcon
-                  sx={{
-                    minWidth: 40,
-                    color: isActive ? 'primary.main' : 'text.secondary',
-                  }}
-                >
+                <ListItemIcon sx={{ minWidth: 40, color: 'inherit' }}>
                   {isActive ? item.activeIcon : item.icon}
                 </ListItemIcon>
                 <ListItemText
                   primary={item.label}
-                  primaryTypographyProps={{
-                    variant: 'body2',
-                    fontWeight: isActive ? 600 : 400,
-                  }}
+                  primaryTypographyProps={{ fontWeight: isActive ? 600 : 400 }}
                 />
                 {isActive && (
                   <Box
                     sx={{
                       width: 4,
-                      height: 16,
+                      height: 20,
                       borderRadius: 2,
                       bgcolor: 'primary.main',
                     }}
@@ -142,14 +138,14 @@ export default function Sidebar({ drawerWidth }: { drawerWidth: number }) {
             width: 36,
             height: 36,
             bgcolor: 'primary.main',
-            fontSize: 14,
+            fontSize: '0.9rem',
             fontWeight: 600,
           }}
         >
           {userInitial.toUpperCase()}
         </Avatar>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="body2" noWrap fontWeight={500}>
+        <Box flex={1} minWidth={0}>
+          <Typography variant="body2" fontWeight={600} noWrap>
             {user?.full_name || user?.username || 'Пользователь'}
           </Typography>
           <Typography variant="caption" color="text.secondary" noWrap>
@@ -157,7 +153,7 @@ export default function Sidebar({ drawerWidth }: { drawerWidth: number }) {
           </Typography>
         </Box>
         <Tooltip title="Выйти">
-          <IconButton size="small" onClick={handleLogout} sx={{ color: 'text.secondary' }}>
+          <IconButton size="small" onClick={handleLogout}>
             <LogoutIcon fontSize="small" />
           </IconButton>
         </Tooltip>
