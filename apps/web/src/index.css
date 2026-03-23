@@ -3,10 +3,25 @@
 @tailwind utilities;
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons+Outlined');
 
 :root {
-  --color-bg: #121212;
-  --color-surface: #1e1e1e;
+  --color-bg: #1C1B1F;
+  --color-surface: #2B2930;
+  --color-primary: #D0BCFF;
+  --color-on-primary: #381E72;
+  --color-secondary: #CCC2DC;
+  --color-outline: rgba(230, 225, 229, 0.12);
+  --md-sys-elevation-1: 0px 1px 3px 1px rgba(0,0,0,0.15), 0px 1px 2px rgba(0,0,0,0.3);
+  --md-sys-elevation-2: 0px 2px 6px 2px rgba(0,0,0,0.15), 0px 1px 2px rgba(0,0,0,0.3);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
@@ -15,28 +30,81 @@ body {
   font-family: 'Inter', 'Roboto', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #121212;
-  color: #ffffff;
+  background-color: var(--color-bg);
+  color: #E6E1E5;
+  line-height: 1.5;
 }
 
+/* Material Design 3 scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1e1e1e;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #424242;
+  background: rgba(202, 196, 208, 0.3);
   border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #616161;
+  background: rgba(202, 196, 208, 0.5);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
-/* Ensure MUI compatibility */
-* {
-  box-sizing: border-box;
+/* Selection style */
+::selection {
+  background-color: rgba(208, 188, 255, 0.3);
+  color: #E6E1E5;
+}
+
+/* Focus visible outline for accessibility */
+*:focus-visible {
+  outline: 2px solid #D0BCFF;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Smooth transitions for theme changes */
+body, .MuiPaper-root, .MuiAppBar-root, .MuiDrawer-paper {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Material ripple animation enhancement */
+@keyframes md-ripple {
+  from {
+    opacity: 0.24;
+    transform: scale(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.5);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  .MuiDrawer-root, .MuiAppBar-root {
+    display: none !important;
+  }
+  body {
+    background: white;
+    color: black;
+  }
 }
