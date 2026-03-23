@@ -2,25 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 :root {
-  --color-bg: #0f172a;
-  --color-surface: #1e293b;
+  --color-bg: #121212;
+  --color-surface: #1e1e1e;
 }
 
 body {
-  @apply bg-slate-900 text-slate-100 antialiased;
-}
-
-* {
-  @apply border-slate-700;
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', 'Roboto', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #121212;
+  color: #ffffff;
 }
 
 ::-webkit-scrollbar {
-  @apply w-2;
+  width: 8px;
 }
+
 ::-webkit-scrollbar-track {
-  @apply bg-slate-800;
+  background: #1e1e1e;
 }
+
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-600 rounded-full;
+  background: #424242;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #616161;
+}
+
+/* Ensure MUI compatibility */
+* {
+  box-sizing: border-box;
 }
