@@ -1,11 +1,12 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
 import { SnackbarProvider } from 'notistack'
-import theme from '@/lib/theme'
+import { createAppTheme } from '@/lib/theme'
+import { useThemeStore } from '@/lib/store/themeStore'
 import App from './App'
 import './index.css'
 
@@ -15,8 +16,11 @@ const queryClient = new QueryClient({
   },
 })
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
+function Root() {
+  const mode = useThemeStore((s) => s.mode)
+  const theme = useMemo(() => createAppTheme(mode), [mode])
+
+  return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <SnackbarProvider
@@ -31,5 +35,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         </QueryClientProvider>
       </SnackbarProvider>
     </ThemeProvider>
+  )
+}
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <Root />
   </React.StrictMode>,
 )
