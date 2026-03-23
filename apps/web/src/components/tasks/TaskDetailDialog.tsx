@@ -14,10 +14,11 @@ import {
   IconButton,
   Typography,
   Box,
+  CircularProgress,
 } from '@mui/material'
 import { Close as CloseIcon, Delete as DeleteIcon } from '@mui/icons-material'
 import type { Task } from '@/lib/types'
-import { useTaskStore } from '@/lib/store/taskStore'
+import { useCreateTask, useUpdateTask, useDeleteTask } from '@/lib/hooks/useTasks'
 
 interface Props {
   open: boolean
@@ -35,7 +36,10 @@ const emptyTask = {
 }
 
 export default function TaskDetailDialog({ open, onClose, task, mode }: Props) {
-  const { addTask, updateTask, removeTask } = useTaskStore()
+  const createMutation = useCreateTask()
+  const updateMutation = useUpdateTask()
+  const deleteMutation = useDeleteTask()
+
   const [form, setForm] = useState(emptyTask)
   const [isEditing, setIsEditing] = useState(mode === 'edit' || mode === 'create')
 
@@ -55,36 +59,43 @@ export default function TaskDetailDialog({ open, onClose, task, mode }: Props) {
     }
   }, [task, mode, open])
 
+  const isSaving = createMutation.isPending || updateMutation.isPending
+
   const handleSave = () => {
     if (!form.title.trim()) return
     if (mode === 'create') {
-      addTask({
-        id: crypto.randomUUID(),
-        title: form.title.trim(),
-        description: form.description || undefined,
-        priority: form.priority,
-        status: form.status,
-        due_date: form.due_date || undefined,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      } as Task)
+      createMutation.mutate(
+        {
+          title: form.title.trim(),
+          description: form.description || undefined,
+          priority: form.priority,
+          status: form.status,
+          due_date: form.due_date || undefined,
+        },
+        { onSuccess: () => onClose() }
+      )
     } else if (task) {
-      updateTask(task.id, {
-        title: form.title.trim(),
-        description: form.description || undefined,
-        priority: form.priority,
-        status: form.status,
-        due_date: form.due_date || undefined,
-        updated_at: new Date().toISOString(),
-      })
+      updateMutation.mutate(
+        {
+          id: task.id,
+          data: {
+            title: form.title.trim(),
+            description: form.description || undefined,
+            priority: form.priority,
+            status: form.status,
+            due_date: form.due_date || undefined,
+          },
+        },
+        { onSuccess: () => onClose() }
+      )
     }
-    onClose()
   }
 
   const handleDelete = () => {
     if (task) {
-      removeTask(task.id)
-      onClose()
+      deleteMutation.mutate(task.id, {
+        onSuccess: () => onClose(),
+      })
     }
   }
 
@@ -104,23 +115,21 @@ export default function TaskDetailDialog({ open, onClose, task, mode }: Props) {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography variant="h6">
-          {mode === 'create' ? 'Новая задача' : isEditing ? 'Редактирование' : task?.title}
-        </Typography>
+      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {mode === 'create' ? 'Новая задача' : isEditing ? 'Редактирование' : task?.title}
         <Box>
           {task && mode !== 'create' && (
-            <IconButton onClick={handleDelete} color="error" size="small" sx={{ mr: 1 }}>
+            <IconButton onClick={handleDelete} color="error" disabled={deleteMutation.isPending}>
               <DeleteIcon />
             </IconButton>
           )}
-          <IconButton onClick={onClose} size="small">
+          <IconButton onClick={onClose}>
             <CloseIcon />
           </IconButton>
         </Box>
       </DialogTitle>
-      <DialogContent dividers>
-        <Stack spacing={3} sx={{ mt: 1 }}>
+      <DialogContent>
+        <Stack spacing={2} sx={{ mt: 1 }}>
           <TextField
             label="Название"
             value={form.title}
@@ -139,38 +148,36 @@ export default function TaskDetailDialog({ open, onClose, task, mode }: Props) {
             rows={3}
             disabled={!isEditing}
           />
-          <Stack direction="row" spacing={2}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Приоритет</InputLabel>
-              <Select
-                value={form.priority}
-                label="Приоритет"
-                onChange={(e) => setForm({ ...form, priority: e.target.value as Task['priority'] })}
-                disabled={!isEditing}
-              >
-                {priorityOptions.map((o) => (
-                  <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl fullWidth size="small">
-              <InputLabel>Статус</InputLabel>
-              <Select
-                value={form.status}
-                label="Статус"
-                onChange={(e) => setForm({ ...form, status: e.target.value as Task['status'] })}
-                disabled={!isEditing}
-              >
-                {statusOptions.map((o) => (
-                  <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Stack>
+          <FormControl fullWidth size="small">
+            <InputLabel>Приоритет</InputLabel>
+            <Select
+              value={form.priority}
+              label="Приоритет"
+              onChange={(e) => setForm({ ...form, priority: e.target.value as Task['priority'] })}
+              disabled={!isEditing}
+            >
+              {priorityOptions.map((o) => (
+                <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl fullWidth size="small">
+            <InputLabel>Статус</InputLabel>
+            <Select
+              value={form.status}
+              label="Статус"
+              onChange={(e) => setForm({ ...form, status: e.target.value as Task['status'] })}
+              disabled={!isEditing}
+            >
+              {statusOptions.map((o) => (
+                <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
           <TextField
             label="Срок"
             type="date"
-            value={form.due_date ? form.due_date.slice(0, 10) : ''}
+            value={form.due_date}
             onChange={(e) => setForm({ ...form, due_date: e.target.value })}
             InputLabelProps={{ shrink: true }}
             fullWidth
@@ -178,15 +185,13 @@ export default function TaskDetailDialog({ open, onClose, task, mode }: Props) {
             disabled={!isEditing}
           />
           {task && !isEditing && (
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                Создано: {new Date(task.created_at).toLocaleDateString('ru-RU')}
-              </Typography>
-            </Box>
+            <Typography variant="caption" color="text.secondary">
+              Создано: {new Date(task.created_at).toLocaleDateString('ru-RU')}
+            </Typography>
           )}
         </Stack>
       </DialogContent>
-      <DialogActions sx={{ px: 3, py: 2 }}>
+      <DialogActions>
         {!isEditing && mode !== 'create' ? (
           <Button onClick={() => setIsEditing(true)} variant="outlined">
             Редактировать
@@ -194,7 +199,12 @@ export default function TaskDetailDialog({ open, onClose, task, mode }: Props) {
         ) : (
           <>
             <Button onClick={onClose}>Отмена</Button>
-            <Button onClick={handleSave} variant="contained" disabled={!form.title.trim()}>
+            <Button
+              variant="contained"
+              onClick={handleSave}
+              disabled={!form.title.trim() || isSaving}
+              startIcon={isSaving ? <CircularProgress size={16} /> : undefined}
+            >
               {mode === 'create' ? 'Создать' : 'Сохранить'}
             </Button>
           </>
