@@ -10,6 +10,7 @@ import {
   Logout as LogoutIcon, DarkMode as DarkModeIcon,
   LightMode as LightModeIcon, TaskAlt, Comment, FolderOpen,
   AlternateEmail, DoneAll, Close,
+  Menu as MenuIcon,
 } from '@mui/icons-material'
 import { useAuthStore } from '@/lib/store/authStore'
 import { useThemeStore } from '@/lib/store/themeStore'
@@ -24,13 +25,16 @@ const notifIcon: Record<string, JSX.Element> = {
   mention: <AlternateEmail color="warning" fontSize="small" />,
 }
 
-export default function Header() {
+interface HeaderProps {
+  onToggleSidebar: () => void
+}
+
+export default function Header({ onToggleSidebar }: HeaderProps) {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const { mode, toggleTheme } = useThemeStore()
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [notifAnchor, setNotifAnchor] = useState<null | HTMLElement>(null)
-
   const { data: notifData } = useNotifications()
   const markAllRead = useMarkAllNotificationsRead()
   const markRead = useMarkNotificationRead()
@@ -41,11 +45,11 @@ export default function Header() {
   const timeAgo = (date: string) => {
     const diff = Date.now() - new Date(date).getTime()
     const mins = Math.floor(diff / 60000)
-    if (mins < 1) return 'только что'
-    if (mins < 60) return `${mins} мин назад`
+    if (mins < 1) return '\u0442\u043e\u043b\u044c\u043a\u043e \u0447\u0442\u043e'
+    if (mins < 60) return `${mins} \u043c\u0438\u043d \u043d\u0430\u0437\u0430\u0434`
     const hrs = Math.floor(mins / 60)
-    if (hrs < 24) return `${hrs} ч назад`
-    return `${Math.floor(hrs / 24)} д назад`
+    if (hrs < 24) return `${hrs} \u0447 \u043d\u0430\u0437\u0430\u0434`
+    return `${Math.floor(hrs / 24)} \u0434 \u043d\u0430\u0437\u0430\u0434`
   }
 
   return (
@@ -61,8 +65,21 @@ export default function Header() {
       }}
     >
       <Toolbar sx={{ gap: 2 }}>
+        <Tooltip title="\u0421\u0432\u0435\u0440\u043d\u0443\u0442\u044c/\u0440\u0430\u0437\u0432\u0435\u0440\u043d\u0443\u0442\u044c \u043c\u0435\u043d\u044e">
+          <IconButton
+            edge="start"
+            onClick={onToggleSidebar}
+            sx={{
+              color: 'text.secondary',
+              mr: 1,
+            }}
+          >
+            <MenuIcon />
+          </IconButton>
+        </Tooltip>
+
         <TextField
-          placeholder="Поиск задач..."
+          placeholder="\u041f\u043e\u0438\u0441\u043a \u0437\u0430\u0434\u0430\u0447..."
           size="small"
           sx={{
             flexGrow: 1,
@@ -89,7 +106,7 @@ export default function Header() {
 
         <Box sx={{ flexGrow: 1 }} />
 
-        <Tooltip title={mode === 'dark' ? 'Светлая тема' : 'Тёмная тема'}>
+        <Tooltip title={mode === 'dark' ? '\u0421\u0432\u0435\u0442\u043b\u0430\u044f \u0442\u0435\u043c\u0430' : '\u0422\u0451\u043c\u043d\u0430\u044f \u0442\u0435\u043c\u0430'}>
           <IconButton
             size="small"
             onClick={toggleTheme}
@@ -103,7 +120,7 @@ export default function Header() {
           </IconButton>
         </Tooltip>
 
-        <Tooltip title="Уведомления">
+        <Tooltip title="\u0423\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u044f">
           <IconButton
             size="small"
             onClick={(e) => setNotifAnchor(e.currentTarget)}
@@ -129,10 +146,10 @@ export default function Header() {
           PaperProps={{ sx: { width: 380, maxHeight: 480, borderRadius: 3, mt: 1 } }}
         >
           <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">Уведомления</Typography>
+            <Typography variant="h6">\u0423\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u044f</Typography>
             {unreadCount > 0 && (
               <Button size="small" startIcon={<DoneAll />} onClick={() => markAllRead.mutate()}>
-                Прочитать все
+                \u041f\u0440\u043e\u0447\u0438\u0442\u0430\u0442\u044c \u0432\u0441\u0435
               </Button>
             )}
           </Box>
@@ -140,7 +157,7 @@ export default function Header() {
           {notifications.length === 0 ? (
             <Box sx={{ p: 4, textAlign: 'center' }}>
               <BellIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
-              <Typography color="text.secondary">Нет уведомлений</Typography>
+              <Typography color="text.secondary">\u041d\u0435\u0442 \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0439</Typography>
             </Box>
           ) : (
             <List dense sx={{ p: 0 }}>
@@ -179,9 +196,8 @@ export default function Header() {
             {user?.username?.charAt(0)?.toUpperCase() || 'U'}
           </Avatar>
         </IconButton>
-
         <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', md: 'block' } }}>
-          {user?.username || 'Пользователь'}
+          {user?.username || '\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c'}
         </Typography>
 
         <Menu
@@ -195,7 +211,7 @@ export default function Header() {
             sx={{ gap: 1.5, color: 'error.main' }}
           >
             <LogoutIcon fontSize="small" />
-            Выйти
+            \u0412\u044b\u0439\u0442\u0438
           </MenuItem>
         </Menu>
       </Toolbar>
