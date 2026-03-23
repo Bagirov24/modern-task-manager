@@ -1,5 +1,5 @@
 import { ReactNode, useState } from 'react'
-import { Box, Tooltip, Badge, useMediaQuery, useTheme } from '@mui/material'
+import { Box, Tooltip, useMediaQuery, useTheme } from '@mui/material'
 import { Circle as CircleIcon } from '@mui/icons-material'
 import Sidebar from './Sidebar'
 import Header from './Header'
@@ -52,7 +52,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             zIndex: 1000,
           }}
         >
-          <Tooltip title={connected ? '\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u043e (real-time)' : '\u041d\u0435\u0442 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u044f'}>
+          <Tooltip title={connected ? 'Подключено (real-time)' : 'Нет подключения'}>
             <CircleIcon
               sx={{
                 fontSize: 12,
