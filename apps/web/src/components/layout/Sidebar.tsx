@@ -19,18 +19,17 @@ import {
   Settings as SettingsFilled,
   RocketLaunch as RocketIcon,
   Logout as LogoutIcon,
-  ChevronLeft as CollapseIcon,
 } from '@mui/icons-material'
 import { useAuthStore } from '@/lib/store/authStore'
 import { disconnectSocket } from '@/lib/socket/socketClient'
 
 const navItems = [
-  { to: '/', icon: <DashboardIcon />, activeIcon: <DashboardFilled />, label: '\u0413\u043b\u0430\u0432\u043d\u0430\u044f' },
-  { to: '/tasks', icon: <TasksIcon />, activeIcon: <TasksFilled />, label: '\u0417\u0430\u0434\u0430\u0447\u0438' },
-  { to: '/projects', icon: <ProjectsIcon />, activeIcon: <ProjectsFilled />, label: '\u041f\u0440\u043e\u0435\u043a\u0442\u044b' },
-  { to: '/calendar', icon: <CalendarIcon />, activeIcon: <CalendarFilled />, label: '\u041a\u0430\u043b\u0435\u043d\u0434\u0430\u0440\u044c' },
-  { to: '/analytics', icon: <AnalyticsIcon />, activeIcon: <AnalyticsFilled />, label: '\u0410\u043d\u0430\u043b\u0438\u0442\u0438\u043a\u0430' },
-  { to: '/settings', icon: <SettingsIcon />, activeIcon: <SettingsFilled />, label: '\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438' },
+  { to: '/', icon: <DashboardIcon />, activeIcon: <DashboardFilled />, label: 'Главная' },
+  { to: '/tasks', icon: <TasksIcon />, activeIcon: <TasksFilled />, label: 'Задачи' },
+  { to: '/projects', icon: <ProjectsIcon />, activeIcon: <ProjectsFilled />, label: 'Проекты' },
+  { to: '/calendar', icon: <CalendarIcon />, activeIcon: <CalendarFilled />, label: 'Календарь' },
+  { to: '/analytics', icon: <AnalyticsIcon />, activeIcon: <AnalyticsFilled />, label: 'Аналитика' },
+  { to: '/settings', icon: <SettingsIcon />, activeIcon: <SettingsFilled />, label: 'Настройки' },
 ]
 
 interface SidebarProps {
@@ -161,27 +160,18 @@ export default function Sidebar({ drawerWidth, collapsedWidth, open, mobileOpen,
         {open && (
           <Box flex={1} minWidth={0}>
             <Typography variant="body2" fontWeight={600} noWrap>
-              {user?.full_name || user?.username || '\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c'}
+              {user?.full_name || user?.username || 'Пользователь'}
             </Typography>
             <Typography variant="caption" color="text.secondary" noWrap>
               {user?.email || ''}
             </Typography>
           </Box>
         )}
-        {open && (
-          <Tooltip title="\u0412\u044b\u0439\u0442\u0438">
-            <IconButton size="small" onClick={handleLogout}>
-              <LogoutIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        )}
-        {!open && (
-          <Tooltip title="\u0412\u044b\u0439\u0442\u0438" placement="right">
-            <IconButton size="small" onClick={handleLogout}>
-              <LogoutIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        )}
+        <Tooltip title="Выйти" placement={open ? 'top' : 'right'}>
+          <IconButton size="small" onClick={handleLogout}>
+            <LogoutIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
       </Box>
     </Box>
   )
