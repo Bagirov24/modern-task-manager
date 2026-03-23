@@ -1,15 +1,20 @@
 import { ReactNode } from 'react'
+import { Box } from '@mui/material'
 import Sidebar from './Sidebar'
 import Header from './Header'
 
+const DRAWER_WIDTH = 260
+
 export default function Layout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex h-screen bg-slate-900">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
+      <Sidebar drawerWidth={DRAWER_WIDTH} />
+      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', ml: `${DRAWER_WIDTH}px` }}>
         <Header />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
-      </div>
-    </div>
+        <Box component="main" sx={{ flexGrow: 1, p: 3, overflow: 'auto' }}>
+          {children}
+        </Box>
+      </Box>
+    </Box>
   )
 }
