@@ -38,8 +38,9 @@ export interface User {
   username: string
   full_name?: string
   avatar_url?: string
+}
 
-  export interface Notification {
+export interface Notification {
   id: string
   type: 'task_assigned' | 'task_updated' | 'comment_added' | 'project_invited' | 'mention'
   title: string
@@ -60,4 +61,16 @@ export interface Comment {
   created_at: string
   updated_at: string
 }
+
+export interface ApiError {
+  detail: string
+  status_code?: number
+}
+
+export interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  page: number
+  size: number
+  pages: number
 }
