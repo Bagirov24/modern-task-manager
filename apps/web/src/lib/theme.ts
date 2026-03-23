@@ -1,8 +1,8 @@
-import { createTheme } from '@mui/material/styles'
+import { createTheme, PaletteMode } from '@mui/material'
 
-const theme = createTheme({
+const getDesignTokens = (mode: PaletteMode) => ({
   palette: {
-    mode: 'dark',
+    mode,
     primary: {
       main: '#7C4DFF',
       light: '#B388FF',
@@ -13,10 +13,29 @@ const theme = createTheme({
       light: '#4DD0E1',
       dark: '#00838F',
     },
-    background: {
-      default: '#121212',
-      paper: '#1E1E1E',
-    },
+    ...(mode === 'dark'
+      ? {
+          background: {
+            default: '#121212',
+            paper: '#1E1E1E',
+          },
+          text: {
+            primary: '#FFFFFF',
+            secondary: 'rgba(255, 255, 255, 0.7)',
+          },
+          divider: 'rgba(255, 255, 255, 0.12)',
+        }
+      : {
+          background: {
+            default: '#F5F5F5',
+            paper: '#FFFFFF',
+          },
+          text: {
+            primary: '#212121',
+            secondary: 'rgba(0, 0, 0, 0.6)',
+          },
+          divider: 'rgba(0, 0, 0, 0.12)',
+        }),
     error: {
       main: '#EF5350',
     },
@@ -29,11 +48,6 @@ const theme = createTheme({
     success: {
       main: '#66BB6A',
     },
-    text: {
-      primary: '#FFFFFF',
-      secondary: 'rgba(255, 255, 255, 0.7)',
-    },
-    divider: 'rgba(255, 255, 255, 0.12)',
   },
   typography: {
     fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
@@ -54,7 +68,7 @@ const theme = createTheme({
     MuiButton: {
       styleOverrides: {
         root: {
-          textTransform: 'none',
+          textTransform: 'none' as const,
           fontWeight: 500,
           borderRadius: 8,
         },
@@ -63,47 +77,22 @@ const theme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          backgroundImage: 'none',
           borderRadius: 12,
         },
       },
     },
-    MuiDrawer: {
-      styleOverrides: {
-        paper: {
-          borderRight: 'none',
-          backgroundColor: '#1E1E1E',
-        },
-      },
-    },
-    MuiAppBar: {
+    MuiPaper: {
       styleOverrides: {
         root: {
           backgroundImage: 'none',
-        },
-      },
-    },
-    MuiTextField: {
-      defaultProps: {
-        variant: 'outlined',
-        size: 'small',
-      },
-    },
-    MuiChip: {
-      styleOverrides: {
-        root: {
-          fontWeight: 500,
-        },
-      },
-    },
-    MuiFab: {
-      styleOverrides: {
-        root: {
-          boxShadow: '0 4px 12px rgba(124, 77, 255, 0.4)',
         },
       },
     },
   },
 })
 
+export const createAppTheme = (mode: PaletteMode) =>
+  createTheme(getDesignTokens(mode))
+
+const theme = createAppTheme('dark')
 export default theme
