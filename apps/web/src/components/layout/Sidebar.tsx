@@ -4,6 +4,7 @@ import {
   Typography, Box, Divider, Avatar, IconButton, Tooltip, alpha,
   SwipeableDrawer,
 } from '@mui/material'
+import type { Theme } from '@mui/material/styles'
 import {
   DashboardOutlined as DashboardIcon,
   Dashboard as DashboardFilled,
@@ -63,6 +64,8 @@ export default function Sidebar({ drawerWidth, collapsedWidth, open, mobileOpen,
   const userInitial = user?.full_name?.charAt(0) || user?.username?.charAt(0) || user?.email?.charAt(0) || '?'
   const currentWidth = open ? drawerWidth : collapsedWidth
 
+  const activeBg = (opacity: number) => (t: Theme) => alpha(t.palette.primary.main, opacity)
+
   const drawerContent = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <Box sx={{ p: open ? 2.5 : 1.5, display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: open ? 'flex-start' : 'center' }}>
@@ -106,14 +109,10 @@ export default function Sidebar({ drawerWidth, collapsedWidth, open, mobileOpen,
                     px: open ? 2 : 1.5,
                     minHeight: 44,
                     justifyContent: open ? 'flex-start' : 'center',
-                    bgcolor: isActive
-                      ? (t: any) => alpha(t.palette.primary.main, 0.12)
-                      : 'transparent',
+                    bgcolor: isActive ? activeBg(0.12) : 'transparent',
                     color: isActive ? 'primary.main' : 'text.primary',
                     '&:hover': {
-                      bgcolor: isActive
-                        ? (t: any) => alpha(t.palette.primary.main, 0.18)
-                        : 'action.hover',
+                      bgcolor: isActive ? activeBg(0.18) : 'action.hover',
                     },
                     transition: SIDEBAR_TRANSITION,
                   }}
@@ -128,14 +127,7 @@ export default function Sidebar({ drawerWidth, collapsedWidth, open, mobileOpen,
                     />
                   )}
                   {open && isActive && (
-                    <Box
-                      sx={{
-                        width: 4,
-                        height: 20,
-                        borderRadius: 2,
-                        bgcolor: 'primary.main',
-                      }}
-                    />
+                    <Box sx={{ width: 4, height: 20, borderRadius: 2, bgcolor: 'primary.main' }} />
                   )}
                 </ListItemButton>
               </Tooltip>
