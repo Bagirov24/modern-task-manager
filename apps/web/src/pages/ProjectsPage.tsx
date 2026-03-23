@@ -1,15 +1,70 @@
-import { FolderKanban } from 'lucide-react'
+import {
+  Container,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
+  CardActionArea,
+  Box,
+  Button,
+} from '@mui/material'
+import {
+  FolderOutlined as FolderIcon,
+  Add as AddIcon,
+  CreateNewFolder as NewFolderIcon,
+} from '@mui/icons-material'
 
 export default function ProjectsPage() {
   return (
-    <div className="max-w-4xl mx-auto">
-      <h2 className="text-xl font-semibold text-slate-200 mb-4">Проекты</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <button className="p-6 bg-slate-800 border-2 border-dashed border-slate-600 rounded-xl flex flex-col items-center gap-2 text-slate-500 hover:text-sky-400 hover:border-sky-400/50 transition-colors">
-          <FolderKanban size={32} />
-          <span className="text-sm">Создать проект</span>
-        </button>
-      </div>
-    </div>
+    <Container maxWidth="lg" disableGutters>
+      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 700 }}>
+            Проекты
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            Организуйте задачи по проектам
+          </Typography>
+        </Box>
+        <Button variant="contained" startIcon={<AddIcon />}>
+          Новый проект
+        </Button>
+      </Box>
+
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6} md={4}>
+          <Card
+            sx={{
+              border: '2px dashed',
+              borderColor: 'divider',
+              bgcolor: 'transparent',
+              height: '100%',
+              minHeight: 160,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            elevation={0}
+          >
+            <CardActionArea
+              sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 1.5,
+                p: 3,
+              }}
+            >
+              <NewFolderIcon sx={{ fontSize: 40, color: 'text.secondary', opacity: 0.6 }} />
+              <Typography variant="body2" color="text.secondary">
+                Создать проект
+              </Typography>
+            </CardActionArea>
+          </Card>
+        </Grid>
+      </Grid>
+    </Container>
   )
 }
