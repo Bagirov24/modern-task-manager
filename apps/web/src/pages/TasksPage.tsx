@@ -19,38 +19,47 @@ import {
   DialogContent,
   DialogActions,
   Button,
+  Skeleton,
+  Alert,
 } from '@mui/material'
 import {
   Search as SearchIcon,
-  FilterList as FilterIcon,
   Add as AddIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material'
-import { useTaskStore } from '@/lib/store/taskStore'
+import { useTasks, useDeleteTask } from '@/lib/hooks/useTasks'
 import type { Task } from '@/lib/types'
 
 export default function TasksPage() {
-  const tasks = useTaskStore((s) => s.tasks)
-  const setFilter = useTaskStore((s) => s.setFilter)
-  const filter = useTaskStore((s) => s.filter)
-  const removeTask = useTaskStore((s) => s.removeTask)
+  const [statusFilter, setStatusFilter] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
 
-  const todoCount = tasks.filter((t) => t.status === 'todo').length
-  const inProgressCount = tasks.filter((t) => t.status === 'in_progress').length
-  const doneCount = tasks.filter((t) => t.status === 'done').length
+  const { data, isLoading, isError, refetch } = useTasks({
+    status: statusFilter || undefined,
+    search: debouncedSearch || undefined,
+  })
+  const deleteMutation = useDeleteTask()
+
+  const tasks = data?.tasks || []
+  const todoCount = tasks.filter((t: Task) => t.status === 'todo').length
+  const inProgressCount = tasks.filter((t: Task) => t.status === 'in_progress').length
+  const doneCount = tasks.filter((t: Task) => t.status === 'done').length
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogTask, setDialogTask] = useState<Task | null>(null)
   const [dialogMode, setDialogMode] = useState<'view' | 'edit' | 'create'>('create')
   const [deleteConfirm, setDeleteConfirm] = useState<Task | null>(null)
-  const [search, setSearch] = useState('')
 
+  let searchTimeout: ReturnType<typeof setTimeout>
   const handleSearchChange = (value: string) => {
     setSearch(value)
-    setFilter({ search: value })
+    clearTimeout(searchTimeout)
+    searchTimeout = setTimeout(() => setDebouncedSearch(value), 300)
   }
 
   const handleStatusFilter = (_: any, value: string | null) => {
-    setFilter({ status: value || undefined })
+    setStatusFilter(value)
   }
 
   const handleEdit = useCallback((task: Task) => {
@@ -65,7 +74,7 @@ export default function TasksPage() {
 
   const confirmDelete = () => {
     if (deleteConfirm) {
-      removeTask(deleteConfirm.id)
+      deleteMutation.mutate(deleteConfirm.id)
       setDeleteConfirm(null)
     }
   }
@@ -87,12 +96,23 @@ export default function TasksPage() {
             Управляйте своими задачами эффективно
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1} alignItems="center">
           <Chip label={`${todoCount} активных`} color="primary" variant="outlined" size="small" />
           <Chip label={`${inProgressCount} в работе`} color="warning" variant="outlined" size="small" />
           <Chip label={`${doneCount} выполнено`} color="success" variant="outlined" size="small" />
+          <Tooltip title="Обновить">
+            <IconButton size="small" onClick={() => refetch()}>
+              <RefreshIcon />
+            </IconButton>
+          </Tooltip>
         </Stack>
       </Box>
+
+      {isError && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Не удалось загрузить задачи с сервера. Показаны локальные данные.
+        </Alert>
+      )}
 
       <Stack direction="row" spacing={2} sx={{ mb: 3 }} alignItems="center">
         <TextField
@@ -110,7 +130,7 @@ export default function TasksPage() {
           }}
         />
         <ToggleButtonGroup
-          value={filter.status || null}
+          value={statusFilter}
           exclusive
           onChange={handleStatusFilter}
           size="small"
@@ -129,7 +149,15 @@ export default function TasksPage() {
       <AddTask />
 
       <Box sx={{ mt: 3 }}>
-        <TaskList onEdit={handleEdit} onDelete={handleDelete} />
+        {isLoading ? (
+          <Stack spacing={1.5}>
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} variant="rounded" height={72} />
+            ))}
+          </Stack>
+        ) : (
+          <TaskList tasks={tasks} onEdit={handleEdit} onDelete={handleDelete} />
+        )}
       </Box>
 
       <TaskDetailDialog
@@ -148,7 +176,7 @@ export default function TasksPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteConfirm(null)}>Отмена</Button>
-          <Button onClick={confirmDelete} color="error" variant="contained">
+          <Button onClick={confirmDelete} color="error" variant="contained" disabled={deleteMutation.isPending}>
             Удалить
           </Button>
         </DialogActions>
