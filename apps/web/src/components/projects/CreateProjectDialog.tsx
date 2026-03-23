@@ -30,7 +30,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
   onClose,
   editProject,
 }) => {
-  const { createProject, editProject: updateProject } = useProjects()
+    const { createProject, updateProject } = useProjects()
   const [name, setName] = useState(editProject?.name || '')
   const [description, setDescription] = useState(editProject?.description || '')
   const [color, setColor] = useState(editProject?.color || '#1976d2')
