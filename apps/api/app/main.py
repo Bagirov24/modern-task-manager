@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1 import auth, tasks, projects, comments, labels
+from app.api.v1 import auth, tasks, projects, comments, labels, notifications
 from app.websocket.manager import setup_websocket
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.core.config import settings
@@ -29,6 +29,7 @@ app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["Tasks"])
 app.include_router(projects.router, prefix="/api/v1/projects", tags=["Projects"])
 app.include_router(comments.router, prefix="/api/v1/comments", tags=["Comments"])
 app.include_router(labels.router, prefix="/api/v1/labels", tags=["Labels"])
+app.include_router(notifications.router, prefix="/api/v1/notifications", tags=["Notifications"])
 
 # WebSocket
 setup_websocket(app)
