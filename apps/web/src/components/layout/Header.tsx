@@ -3,13 +3,13 @@ import {
   AppBar, Toolbar, TextField, IconButton, Badge, Avatar,
   Typography, Box, InputAdornment, Menu, MenuItem, Tooltip,
   Popover, List, ListItem, ListItemText, ListItemAvatar,
-  Divider, Button, Chip, alpha,
+  Divider, Button, alpha,
 } from '@mui/material'
 import {
   Search as SearchIcon, NotificationsOutlined as BellIcon,
   Logout as LogoutIcon, DarkMode as DarkModeIcon,
   LightMode as LightModeIcon, TaskAlt, Comment, FolderOpen,
-  AlternateEmail, DoneAll, Close,
+  AlternateEmail, DoneAll,
   Menu as MenuIcon,
 } from '@mui/icons-material'
 import { useAuthStore } from '@/lib/store/authStore'
@@ -45,11 +45,11 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
   const timeAgo = (date: string) => {
     const diff = Date.now() - new Date(date).getTime()
     const mins = Math.floor(diff / 60000)
-    if (mins < 1) return '\u0442\u043e\u043b\u044c\u043a\u043e \u0447\u0442\u043e'
-    if (mins < 60) return `${mins} \u043c\u0438\u043d \u043d\u0430\u0437\u0430\u0434`
+    if (mins < 1) return 'только что'
+    if (mins < 60) return `${mins} мин назад`
     const hrs = Math.floor(mins / 60)
-    if (hrs < 24) return `${hrs} \u0447 \u043d\u0430\u0437\u0430\u0434`
-    return `${Math.floor(hrs / 24)} \u0434 \u043d\u0430\u0437\u0430\u0434`
+    if (hrs < 24) return `${hrs} ч назад`
+    return `${Math.floor(hrs / 24)} д назад`
   }
 
   return (
@@ -65,7 +65,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
       }}
     >
       <Toolbar sx={{ gap: 2 }}>
-        <Tooltip title="\u0421\u0432\u0435\u0440\u043d\u0443\u0442\u044c/\u0440\u0430\u0437\u0432\u0435\u0440\u043d\u0443\u0442\u044c \u043c\u0435\u043d\u044e">
+        <Tooltip title="Свернуть/развернуть меню">
           <IconButton
             edge="start"
             onClick={onToggleSidebar}
@@ -79,7 +79,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
         </Tooltip>
 
         <TextField
-          placeholder="\u041f\u043e\u0438\u0441\u043a \u0437\u0430\u0434\u0430\u0447..."
+          placeholder="Поиск задач..."
           size="small"
           sx={{
             flexGrow: 1,
@@ -106,7 +106,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
 
         <Box sx={{ flexGrow: 1 }} />
 
-        <Tooltip title={mode === 'dark' ? '\u0421\u0432\u0435\u0442\u043b\u0430\u044f \u0442\u0435\u043c\u0430' : '\u0422\u0451\u043c\u043d\u0430\u044f \u0442\u0435\u043c\u0430'}>
+        <Tooltip title={mode === 'dark' ? 'Светлая тема' : 'Тёмная тема'}>
           <IconButton
             size="small"
             onClick={toggleTheme}
@@ -120,7 +120,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           </IconButton>
         </Tooltip>
 
-        <Tooltip title="\u0423\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u044f">
+        <Tooltip title="Уведомления">
           <IconButton
             size="small"
             onClick={(e) => setNotifAnchor(e.currentTarget)}
@@ -146,10 +146,10 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           PaperProps={{ sx: { width: 380, maxHeight: 480, borderRadius: 3, mt: 1 } }}
         >
           <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">\u0423\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u044f</Typography>
+            <Typography variant="h6">Уведомления</Typography>
             {unreadCount > 0 && (
               <Button size="small" startIcon={<DoneAll />} onClick={() => markAllRead.mutate()}>
-                \u041f\u0440\u043e\u0447\u0438\u0442\u0430\u0442\u044c \u0432\u0441\u0435
+                Прочитать все
               </Button>
             )}
           </Box>
@@ -157,7 +157,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           {notifications.length === 0 ? (
             <Box sx={{ p: 4, textAlign: 'center' }}>
               <BellIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
-              <Typography color="text.secondary">\u041d\u0435\u0442 \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0439</Typography>
+              <Typography color="text.secondary">Нет уведомлений</Typography>
             </Box>
           ) : (
             <List dense sx={{ p: 0 }}>
@@ -197,7 +197,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           </Avatar>
         </IconButton>
         <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', md: 'block' } }}>
-          {user?.username || '\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c'}
+          {user?.username || 'Пользователь'}
         </Typography>
 
         <Menu
@@ -211,7 +211,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
             sx={{ gap: 1.5, color: 'error.main' }}
           >
             <LogoutIcon fontSize="small" />
-            \u0412\u044b\u0439\u0442\u0438
+            Выйти
           </MenuItem>
         </Menu>
       </Toolbar>
