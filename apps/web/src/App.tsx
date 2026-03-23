@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { useAuthStore } from '@/lib/store/authStore'
 import Layout from '@/components/layout/Layout'
 import LoginPage from '@/pages/LoginPage'
+import DashboardPage from '@/pages/DashboardPage'
 import TasksPage from '@/pages/TasksPage'
 import ProjectsPage from '@/pages/ProjectsPage'
 import SettingsPage from '@/pages/SettingsPage'
@@ -45,7 +46,7 @@ function GuestGuard() {
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/tasks" replace />
+    return <Navigate to="/" replace />
   }
 
   return <Outlet />
@@ -67,7 +68,7 @@ export default function App() {
 
       {/* Protected routes */}
       <Route element={<AuthGuard />}>
-        <Route path="/" element={<Navigate to="/tasks" replace />} />
+        <Route path="/" element={<DashboardPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
