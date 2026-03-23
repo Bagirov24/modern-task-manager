@@ -1,6 +1,17 @@
 import { useState } from 'react'
 import { useAuthStore } from '@/lib/store/authStore'
 import api from '@/lib/api/client'
+import {
+  Box,
+  Card,
+  CardContent,
+  TextField,
+  Button,
+  Typography,
+  Alert,
+  Stack,
+} from '@mui/material'
+import { RocketLaunch as RocketIcon } from '@mui/icons-material'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -22,29 +33,70 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
-        <h1 className="text-2xl font-bold text-sky-400 text-center">🚀 Task Manager</h1>
-        <p className="text-slate-500 text-center text-sm">Войдите в свой аккаунт</p>
-        {error && <p className="text-red-400 text-sm text-center">{error}</p>}
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
-          className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 outline-none focus:border-sky-500"
-        />
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Пароль"
-          className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 outline-none focus:border-sky-500"
-        />
-        <button className="w-full py-2.5 bg-sky-500 text-white rounded-lg font-medium hover:bg-sky-600 transition-colors">
-          Войти
-        </button>
-      </form>
-    </div>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        bgcolor: 'background.default',
+        p: 2,
+      }}
+    >
+      <Card
+        sx={{
+          width: '100%',
+          maxWidth: 400,
+          bgcolor: 'background.paper',
+          border: '1px solid',
+          borderColor: 'divider',
+        }}
+        elevation={8}
+      >
+        <CardContent sx={{ p: 4 }}>
+          <Stack spacing={3} component="form" onSubmit={handleSubmit}>
+            <Box sx={{ textAlign: 'center', mb: 1 }}>
+              <RocketIcon sx={{ fontSize: 48, color: 'primary.main', mb: 1 }} />
+              <Typography variant="h5" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                Task Manager
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                Войдите в свой аккаунт
+              </Typography>
+            </Box>
+
+            {error && <Alert severity="error">{error}</Alert>}
+
+            <TextField
+              type="email"
+              label="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              fullWidth
+              required
+            />
+
+            <TextField
+              type="password"
+              label="Пароль"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              fullWidth
+              required
+            />
+
+            <Button
+              type="submit"
+              variant="contained"
+              size="large"
+              fullWidth
+              sx={{ py: 1.5, fontSize: '1rem', fontWeight: 600 }}
+            >
+              Войти
+            </Button>
+          </Stack>
+        </CardContent>
+      </Card>
+    </Box>
   )
 }
