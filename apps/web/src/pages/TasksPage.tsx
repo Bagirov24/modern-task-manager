@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react'
 import TaskList from '@/components/tasks/TaskList'
-import AddTask from '@/components/tasks/AddTask'
-import TaskDetailDialog from '@/components/tasks/TaskDetailDialog'
 import KanbanBoard from '@/components/tasks/KanbanBoard'
+import TaskDetailDialog from '@/components/tasks/TaskDetailDialog'
 import {
   Container,
   Typography,
@@ -22,7 +21,6 @@ import {
   Button,
   Skeleton,
   Alert,
-  Divider,
 } from '@mui/material'
 import {
   Search as SearchIcon,
@@ -31,42 +29,30 @@ import {
   ViewList as ListIcon,
   ViewKanban as KanbanIcon,
 } from '@mui/icons-material'
-import { useTasks, useDeleteTask, useUpdateTask } from '@/lib/hooks/useTasks'
+import { useTasks } from '../hooks/useTasks'
 import type { Task } from '@/lib/types'
 
 export default function TasksPage() {
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list')
-
-  const { data, isLoading, isError, refetch } = useTasks({
-    status: statusFilter || undefined,
-    search: debouncedSearch || undefined,
-  })
-  const deleteMutation = useDeleteTask()
-  const updateMutation = useUpdateTask()
-
-  const tasks = data?.tasks || []
-  const todoCount = tasks.filter((t: Task) => t.status === 'todo').length
-  const inProgressCount = tasks.filter((t: Task) => t.status === 'in_progress').length
-  const doneCount = tasks.filter((t: Task) => t.status === 'done').length
-
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogTask, setDialogTask] = useState<Task | null>(null)
   const [dialogMode, setDialogMode] = useState<'view' | 'edit' | 'create'>('create')
   const [deleteConfirm, setDeleteConfirm] = useState<Task | null>(null)
 
-  let searchTimeout: ReturnType<typeof setTimeout>
-  const handleSearchChange = (value: string) => {
-    setSearch(value)
-    clearTimeout(searchTimeout)
-    searchTimeout = setTimeout(() => setDebouncedSearch(value), 300)
-  }
+  const { tasks: rawTasks, loading, error, fetchTasks, deleteTask, updateTask } = useTasks()
+  const tasks = Array.isArray(rawTasks) ? rawTasks : []
 
-  const handleStatusFilter = (_: any, value: string | null) => {
-    setStatusFilter(value)
-  }
+  const filteredTasks = tasks.filter((t: Task) => {
+    const matchStatus = !statusFilter || t.status === statusFilter
+    const matchSearch = !search || t.title.toLowerCase().includes(search.toLowerCase())
+    return matchStatus && matchSearch
+  })
+
+  const todoCount = tasks.filter((t: Task) => t.status === 'todo').length
+  const inProgressCount = tasks.filter((t: Task) => t.status === 'in_progress').length
+  const doneCount = tasks.filter((t: Task) => t.status === 'done').length
 
   const handleEdit = useCallback((task: Task) => {
     setDialogTask(task)
@@ -78,9 +64,9 @@ export default function TasksPage() {
     setDeleteConfirm(task)
   }, [])
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deleteConfirm) {
-      deleteMutation.mutate(deleteConfirm.id)
+      await deleteTask(deleteConfirm.id)
       setDeleteConfirm(null)
     }
   }
@@ -91,110 +77,72 @@ export default function TasksPage() {
     setDialogOpen(true)
   }
 
-  const handleStatusChange = (taskId: string, newStatus: string) => {
-    updateMutation.mutate({ id: taskId, data: { status: newStatus as Task['status'] } })
+  const handleStatusFilter = (_: any, value: string | null) => {
+    setStatusFilter(value)
   }
 
   return (
     <Container maxWidth="xl" sx={{ py: 3 }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <Box>
-          <Typography variant="h4" fontWeight={700}>
-            Мои задачи
-          </Typography>
+          <Typography variant="h4" fontWeight={700}>Мои задачи</Typography>
           <Typography variant="body2" color="text.secondary">
             Управляйте своими задачами эффективно
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1} alignItems="center">
+        <Stack direction="row" spacing={1}>
           <Tooltip title="Обновить">
-            <IconButton onClick={() => refetch()}>
+            <IconButton onClick={fetchTasks} disabled={loading}>
               <RefreshIcon />
             </IconButton>
           </Tooltip>
           <ToggleButtonGroup
             value={viewMode}
             exclusive
-            onChange={(_: any, v: string | null) => { if (v) setViewMode(v as 'list' | 'kanban') }}
+            onChange={(_, v) => { if (v) setViewMode(v as 'list' | 'kanban') }}
             size="small"
-            sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}
           >
-            <ToggleButton value="list" sx={{ px: 1.5 }}>
-              <Tooltip title="Список">
-                <ListIcon fontSize="small" />
-              </Tooltip>
-            </ToggleButton>
-            <ToggleButton value="kanban" sx={{ px: 1.5 }}>
-              <Tooltip title="Канбан">
-                <KanbanIcon fontSize="small" />
-              </Tooltip>
-            </ToggleButton>
+            <ToggleButton value="list"><ListIcon /></ToggleButton>
+            <ToggleButton value="kanban"><KanbanIcon /></ToggleButton>
           </ToggleButtonGroup>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={handleCreate}
-            sx={{ borderRadius: 2 }}
-          >
+          <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate}>
             Задача
           </Button>
         </Stack>
-      </Stack>
+      </Box>
 
-      {isError && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          Не удалось загрузить задачи с сервера.
-        </Alert>
-      )}
+      {error && <Alert severity="error" sx={{ mb: 2 }}>Не удалось загрузить задачи</Alert>}
 
-      <Stack direction="row" spacing={2} alignItems="center" mb={3} flexWrap="wrap" gap={1}>
+      <Stack direction="row" spacing={2} sx={{ mb: 2 }} alignItems="center">
         <TextField
           placeholder="Поиск задач..."
           value={search}
-          onChange={(e) => handleSearchChange(e.target.value)}
+          onChange={(e) => setSearch(e.target.value)}
           size="small"
           sx={{ flexGrow: 1, maxWidth: 400 }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon fontSize="small" />
-              </InputAdornment>
-            ),
-          }}
+          InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }}
         />
-        <ToggleButtonGroup
-          value={statusFilter}
-          exclusive
-          onChange={handleStatusFilter}
-          size="small"
-        >
+        <ToggleButtonGroup value={statusFilter} exclusive onChange={handleStatusFilter} size="small">
           <ToggleButton value="todo">
-            <Chip label={`К вып. ${todoCount}`} size="small" clickable />
+            <Chip label={`Новые ${todoCount}`} size="small" />
           </ToggleButton>
           <ToggleButton value="in_progress">
-            <Chip label={`В работе ${inProgressCount}`} size="small" clickable />
+            <Chip label={`В работе ${inProgressCount}`} size="small" color="warning" />
           </ToggleButton>
           <ToggleButton value="done">
-            <Chip label={`Готово ${doneCount}`} size="small" clickable />
+            <Chip label={`Готово ${doneCount}`} size="small" color="success" />
           </ToggleButton>
         </ToggleButtonGroup>
       </Stack>
 
-      {isLoading ? (
-        <Stack spacing={2}>
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} variant="rounded" height={80} />
-          ))}
+      {loading ? (
+        <Stack spacing={1}>
+          {[1, 2, 3].map((i) => <Skeleton key={i} height={60} variant="rounded" />)}
         </Stack>
       ) : viewMode === 'kanban' ? (
-        <KanbanBoard
-          tasks={tasks}
-          onStatusChange={handleStatusChange}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
+        <KanbanBoard />
       ) : (
-        <TaskList tasks={tasks} onEdit={handleEdit} onDelete={handleDelete} />
+        <TaskList onEdit={handleEdit} onDelete={handleDelete} />
       )}
 
       <TaskDetailDialog
@@ -207,11 +155,11 @@ export default function TasksPage() {
       <Dialog open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)}>
         <DialogTitle>Удалить задачу?</DialogTitle>
         <DialogContent>
-          Вы уверены, что хотите удалить задачу "{deleteConfirm?.title}"?
+          <Typography>Вы уверены, что хотите удалить «{deleteConfirm?.title}»?</Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteConfirm(null)}>Отмена</Button>
-          <Button color="error" onClick={confirmDelete}>Удалить</Button>
+          <Button color="error" variant="contained" onClick={confirmDelete}>Удалить</Button>
         </DialogActions>
       </Dialog>
     </Container>
