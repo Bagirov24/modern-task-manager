@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
-import { apiClient } from '../lib/api'
+import api from '../lib/api/client'
 
 export interface User {
   id: string
