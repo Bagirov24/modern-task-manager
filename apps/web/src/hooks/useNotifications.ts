@@ -1,30 +1,19 @@
 import { useState, useEffect, useCallback } from 'react'
 import { notificationApi } from '../lib/api/notificationApi'
-import { useUIStore } from '../store/uiStore'
-
-export interface Notification {
-  id: string
-  type: 'info' | 'success' | 'warning' | 'error'
-  title: string
-  message: string
-  read: boolean
-  created_at: string
-  task_id?: string
-  project_id?: string
-}
+import type { Notification } from '../lib/types'
 
 export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(false)
-  const { addSnackbar } = useUIStore()
 
   const fetchNotifications = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await notificationApi.getNotifications()
-      setNotifications(data)
-      setUnreadCount(data.filter((n: Notification) => !n.read).length)
+      const data = await notificationApi.list()
+      const items = data.data?.notifications ?? data.data ?? []
+      setNotifications(items)
+      setUnreadCount(items.filter((n: Notification) => !n.is_read).length)
     } catch (err) {
       console.error('Failed to fetch notifications:', err)
     } finally {
@@ -34,15 +23,13 @@ export function useNotifications() {
 
   useEffect(() => {
     fetchNotifications()
-    const interval = setInterval(fetchNotifications, 30000)
-    return () => clearInterval(interval)
   }, [fetchNotifications])
 
-  const markAsRead = useCallback(async (notificationId: string) => {
+  const markAsRead = useCallback(async (id: string) => {
     try {
-      await notificationApi.markAsRead(notificationId)
+      await notificationApi.markRead(id)
       setNotifications(prev =>
-        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+        prev.map(n => n.id === id ? { ...n, is_read: true } : n)
       )
       setUnreadCount(prev => Math.max(0, prev - 1))
     } catch (err) {
@@ -52,26 +39,22 @@ export function useNotifications() {
 
   const markAllAsRead = useCallback(async () => {
     try {
-      await notificationApi.markAllAsRead()
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+      await notificationApi.markAllRead()
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
       setUnreadCount(0)
     } catch (err) {
-      console.error('Failed to mark all as read:', err)
+      console.error('Failed to mark all notifications as read:', err)
     }
   }, [])
 
-  const deleteNotification = useCallback(async (notificationId: string) => {
+  const deleteNotification = useCallback(async (id: string) => {
     try {
-      await notificationApi.deleteNotification(notificationId)
-      setNotifications(prev => prev.filter(n => n.id !== notificationId))
+      await notificationApi.delete(id)
+      setNotifications(prev => prev.filter(n => n.id !== id))
     } catch (err) {
       console.error('Failed to delete notification:', err)
     }
   }, [])
-
-  const showToast = useCallback((message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
-    addSnackbar({ message, type, duration: 4000 })
-  }, [addSnackbar])
 
   return {
     notifications,
@@ -81,6 +64,5 @@ export function useNotifications() {
     markAsRead,
     markAllAsRead,
     deleteNotification,
-    showToast,
   }
 }
