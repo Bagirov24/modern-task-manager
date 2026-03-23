@@ -13,8 +13,57 @@ interface TaskState {
   setFilter: (filter: Partial<TaskState['filter']>) => void
 }
 
+const sampleTasks: Task[] = [
+  {
+    id: '1',
+    title: 'Настроить CI/CD пайплайн',
+    description: 'Настроить GitHub Actions для автоматического деплоя',
+    status: 'todo',
+    priority: 'high',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: '2',
+    title: 'Рефакторинг компонентов',
+    description: 'Разбить крупные компоненты на меньшие',
+    status: 'in_progress',
+    priority: 'medium',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: '3',
+    title: 'Написать тесты',
+    description: 'Покрыть основные функции юнит-тестами',
+    status: 'todo',
+    priority: 'urgent',
+    due_date: new Date(Date.now() + 3 * 86400000).toISOString(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: '4',
+    title: 'Обновить документацию',
+    status: 'done',
+    priority: 'low',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: '5',
+    title: 'Добавить тёмную тему',
+    description: 'Реализовать переключение темы в настройках',
+    status: 'todo',
+    priority: 'medium',
+    due_date: new Date(Date.now() + 7 * 86400000).toISOString(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+]
+
 export const useTaskStore = create<TaskState>((set) => ({
-  tasks: [],
+  tasks: sampleTasks,
   selectedTask: null,
   filter: {},
   setTasks: (tasks) => set({ tasks }),
