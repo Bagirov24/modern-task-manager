@@ -1,4 +1,4 @@
-import { apiClient } from './client'
+import apiClient from './client'
 import type { Task } from '@/lib/types'
 
 export interface SubtaskCreate {
