@@ -9,15 +9,19 @@ import {
   Typography,
   Box,
   Divider,
-  Fab,
+  Avatar,
+  IconButton,
+  Tooltip,
 } from '@mui/material'
 import {
   CheckCircleOutline as TasksIcon,
   FolderOutlined as ProjectsIcon,
   SettingsOutlined as SettingsIcon,
-  Add as AddIcon,
   RocketLaunch as RocketIcon,
+  Logout as LogoutIcon,
 } from '@mui/icons-material'
+import { useAuthStore } from '@/lib/store/authStore'
+import { disconnectSocket } from '@/lib/socket/socketClient'
 
 const navItems = [
   { to: '/tasks', icon: <TasksIcon />, label: 'Задачи' },
@@ -28,6 +32,16 @@ const navItems = [
 export default function Sidebar({ drawerWidth }: { drawerWidth: number }) {
   const location = useLocation()
   const navigate = useNavigate()
+  const user = useAuthStore((s) => s.user)
+  const logout = useAuthStore((s) => s.logout)
+
+  const handleLogout = () => {
+    disconnectSocket()
+    logout()
+    navigate('/login')
+  }
+
+  const userInitial = user?.full_name?.charAt(0) || user?.username?.charAt(0) || user?.email?.charAt(0) || '?'
 
   return (
     <Drawer
@@ -41,6 +55,8 @@ export default function Sidebar({ drawerWidth }: { drawerWidth: number }) {
           bgcolor: 'background.paper',
           borderRight: '1px solid',
           borderColor: 'divider',
+          display: 'flex',
+          flexDirection: 'column',
         },
       }}
     >
@@ -75,26 +91,40 @@ export default function Sidebar({ drawerWidth }: { drawerWidth: number }) {
                 }}
               >
                 <ListItemIcon>{icon}</ListItemIcon>
-                <ListItemText
-                  primary={label}
-                  primaryTypographyProps={{ fontSize: 14, fontWeight: isActive ? 600 : 400 }}
-                />
+                <ListItemText primary={label} />
               </ListItemButton>
             </ListItem>
           )
         })}
       </List>
 
-      <Box sx={{ p: 2 }}>
-        <Fab
-          color="primary"
-          variant="extended"
-          onClick={() => navigate('/tasks')}
-          sx={{ width: '100%' }}
+      <Divider />
+
+      <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Avatar
+          sx={{
+            width: 36,
+            height: 36,
+            bgcolor: 'primary.main',
+            fontSize: 16,
+            fontWeight: 700,
+          }}
         >
-          <AddIcon sx={{ mr: 1 }} />
-          Новая задача
-        </Fab>
+          {userInitial.toUpperCase()}
+        </Avatar>
+        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+          <Typography variant="body2" fontWeight={600} noWrap>
+            {user?.full_name || user?.username || 'Пользователь'}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+            {user?.email || ''}
+          </Typography>
+        </Box>
+        <Tooltip title="Выйти">
+          <IconButton size="small" onClick={handleLogout} color="default">
+            <LogoutIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
       </Box>
     </Drawer>
   )
