@@ -36,7 +36,8 @@
     "@mui/material": "^5.15.0",
     "@mui/icons-material": "^5.15.0",
     "@emotion/react": "^11.11.0",
-    "@emotion/styled": "^11.11.0"
+    "@emotion/styled": "^11.11.0",
+    "notistack": "^3.0.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.47",
