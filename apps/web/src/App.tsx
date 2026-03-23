@@ -7,6 +7,7 @@ import DashboardPage from '@/pages/DashboardPage'
 import TasksPage from '@/pages/TasksPage'
 import ProjectsPage from '@/pages/ProjectsPage'
 import CalendarPage from '@/pages/CalendarPage'
+import AnalyticsPage from '@/pages/AnalyticsPage'
 import SettingsPage from '@/pages/SettingsPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 import { Box, CircularProgress } from '@mui/material'
@@ -73,6 +74,7 @@ export default function App() {
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/calendar" element={<CalendarPage />} />
+        <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
 
