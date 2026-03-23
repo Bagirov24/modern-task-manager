@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { notificationApi } from '../lib/api/notificationApi'
 import type { Notification } from '../lib/types'
 
+export { type Notification }
+
 export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -10,8 +12,18 @@ export function useNotifications() {
   const fetchNotifications = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await notificationApi.list()
-      const items = data.data?.notifications ?? data.data ?? []
+      const data: any = await notificationApi.list()
+      const raw = data?.data ?? data
+      let items: Notification[] = []
+      if (Array.isArray(raw)) {
+        items = raw
+      } else if (raw?.notifications && Array.isArray(raw.notifications)) {
+        items = raw.notifications
+      } else if (raw?.data && Array.isArray(raw.data)) {
+        items = raw.data
+      } else if (raw?.data?.notifications && Array.isArray(raw.data.notifications)) {
+        items = raw.data.notifications
+      }
       setNotifications(items)
       setUnreadCount(items.filter((n: Notification) => !n.is_read).length)
     } catch (err) {
