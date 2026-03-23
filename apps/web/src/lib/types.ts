@@ -1,29 +1,33 @@
 export interface Task {
   id: string
   title: string
-  description?: string
+  description: string
   status: 'todo' | 'in_progress' | 'done' | 'archived'
   priority: 'low' | 'medium' | 'high' | 'urgent'
   due_date?: string
   completed_at?: string
-  project_id?: string
+  project_id: string
   assignee_id?: string
   parent_id?: string
   created_at: string
   updated_at: string
-  labels?: Label[]
+  labels: string[]
+  order: number
 }
 
 export interface Project {
   id: string
   name: string
-  description?: string
+  description: string
   color: string
-  icon?: string
-  is_archived: boolean
-  owner_id: string
-  created_at: string
+  icon: string
+  is_favorite: boolean
+  is_archived?: boolean
+  owner_id?: string
   task_count: number
+  completed_count: number
+  created_at: string
+  updated_at: string
 }
 
 export interface Label {
@@ -38,6 +42,7 @@ export interface User {
   username: string
   full_name?: string
   avatar_url?: string
+  created_at?: string
 }
 
 export interface Notification {
@@ -46,6 +51,7 @@ export interface Notification {
   title: string
   message: string
   is_read: boolean
+  read?: boolean
   task_id?: string
   project_id?: string
   sender_id?: string
