@@ -22,6 +22,7 @@ import {
 } from '@mui/icons-material'
 import { useAuthStore } from '@/lib/store/authStore'
 import { disconnectSocket } from '@/lib/socket/socketClient'
+import { SIDEBAR_TRANSITION } from './Layout'
 
 const navItems = [
   { to: '/', icon: <DashboardIcon />, activeIcon: <DashboardFilled />, label: 'Главная' },
@@ -39,9 +40,10 @@ interface SidebarProps {
   mobileOpen: boolean
   isMobile: boolean
   onClose: () => void
+  onOpen: () => void
 }
 
-export default function Sidebar({ drawerWidth, collapsedWidth, open, mobileOpen, isMobile, onClose }: SidebarProps) {
+export default function Sidebar({ drawerWidth, collapsedWidth, open, mobileOpen, isMobile, onClose, onOpen }: SidebarProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
@@ -113,7 +115,7 @@ export default function Sidebar({ drawerWidth, collapsedWidth, open, mobileOpen,
                         ? (t: any) => alpha(t.palette.primary.main, 0.18)
                         : 'action.hover',
                     },
-                    transition: 'all 0.2s ease',
+                    transition: SIDEBAR_TRANSITION,
                   }}
                 >
                   <ListItemIcon sx={{ minWidth: open ? 40 : 0, color: 'inherit', justifyContent: 'center' }}>
@@ -181,7 +183,7 @@ export default function Sidebar({ drawerWidth, collapsedWidth, open, mobileOpen,
       <SwipeableDrawer
         open={mobileOpen}
         onClose={onClose}
-        onOpen={() => {}}
+        onOpen={onOpen}
         sx={{
           '& .MuiDrawer-paper': {
             width: drawerWidth,
@@ -210,7 +212,7 @@ export default function Sidebar({ drawerWidth, collapsedWidth, open, mobileOpen,
           display: 'flex',
           flexDirection: 'column',
           borderRadius: 0,
-          transition: 'width 0.3s ease',
+          transition: SIDEBAR_TRANSITION,
           overflowX: 'hidden',
         },
       }}
