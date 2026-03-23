@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import TaskList from '@/components/tasks/TaskList'
 import AddTask from '@/components/tasks/AddTask'
 import TaskDetailDialog from '@/components/tasks/TaskDetailDialog'
+import KanbanBoard from '@/components/tasks/KanbanBoard'
 import {
   Container,
   Typography,
@@ -21,25 +22,30 @@ import {
   Button,
   Skeleton,
   Alert,
+  Divider,
 } from '@mui/material'
 import {
   Search as SearchIcon,
   Add as AddIcon,
   Refresh as RefreshIcon,
+  ViewList as ListIcon,
+  ViewKanban as KanbanIcon,
 } from '@mui/icons-material'
-import { useTasks, useDeleteTask } from '@/lib/hooks/useTasks'
+import { useTasks, useDeleteTask, useUpdateTask } from '@/lib/hooks/useTasks'
 import type { Task } from '@/lib/types'
 
 export default function TasksPage() {
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list')
 
   const { data, isLoading, isError, refetch } = useTasks({
     status: statusFilter || undefined,
     search: debouncedSearch || undefined,
   })
   const deleteMutation = useDeleteTask()
+  const updateMutation = useUpdateTask()
 
   const tasks = data?.tasks || []
   const todoCount = tasks.filter((t: Task) => t.status === 'todo').length
@@ -85,46 +91,73 @@ export default function TasksPage() {
     setDialogOpen(true)
   }
 
+  const handleStatusChange = (taskId: string, newStatus: string) => {
+    updateMutation.mutate({ id: taskId, data: { status: newStatus as Task['status'] } })
+  }
+
   return (
-    <Container maxWidth="md" disableGutters>
-      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <Container maxWidth="xl" sx={{ py: 3 }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
+          <Typography variant="h4" fontWeight={700}>
             Мои задачи
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          <Typography variant="body2" color="text.secondary">
             Управляйте своими задачами эффективно
           </Typography>
         </Box>
         <Stack direction="row" spacing={1} alignItems="center">
-          <Chip label={`${todoCount} активных`} color="primary" variant="outlined" size="small" />
-          <Chip label={`${inProgressCount} в работе`} color="warning" variant="outlined" size="small" />
-          <Chip label={`${doneCount} выполнено`} color="success" variant="outlined" size="small" />
           <Tooltip title="Обновить">
-            <IconButton size="small" onClick={() => refetch()}>
+            <IconButton onClick={() => refetch()}>
               <RefreshIcon />
             </IconButton>
           </Tooltip>
+          <ToggleButtonGroup
+            value={viewMode}
+            exclusive
+            onChange={(_: any, v: string | null) => { if (v) setViewMode(v as 'list' | 'kanban') }}
+            size="small"
+            sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}
+          >
+            <ToggleButton value="list" sx={{ px: 1.5 }}>
+              <Tooltip title="Список">
+                <ListIcon fontSize="small" />
+              </Tooltip>
+            </ToggleButton>
+            <ToggleButton value="kanban" sx={{ px: 1.5 }}>
+              <Tooltip title="Канбан">
+                <KanbanIcon fontSize="small" />
+              </Tooltip>
+            </ToggleButton>
+          </ToggleButtonGroup>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleCreate}
+            sx={{ borderRadius: 2 }}
+          >
+            Задача
+          </Button>
         </Stack>
-      </Box>
+      </Stack>
 
       {isError && (
         <Alert severity="warning" sx={{ mb: 2 }}>
-          Не удалось загрузить задачи с сервера. Показаны локальные данные.
+          Не удалось загрузить задачи с сервера.
         </Alert>
       )}
 
-      <Stack direction="row" spacing={2} sx={{ mb: 3 }} alignItems="center">
+      <Stack direction="row" spacing={2} alignItems="center" mb={3} flexWrap="wrap" gap={1}>
         <TextField
           placeholder="Поиск задач..."
-          size="small"
           value={search}
           onChange={(e) => handleSearchChange(e.target.value)}
-          sx={{ flexGrow: 1 }}
+          size="small"
+          sx={{ flexGrow: 1, maxWidth: 400 }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon color="action" />
+                <SearchIcon fontSize="small" />
               </InputAdornment>
             ),
           }}
@@ -135,30 +168,34 @@ export default function TasksPage() {
           onChange={handleStatusFilter}
           size="small"
         >
-          <ToggleButton value="todo">К выполнению</ToggleButton>
-          <ToggleButton value="in_progress">В работе</ToggleButton>
-          <ToggleButton value="done">Готово</ToggleButton>
+          <ToggleButton value="todo">
+            <Chip label={`К вып. ${todoCount}`} size="small" clickable />
+          </ToggleButton>
+          <ToggleButton value="in_progress">
+            <Chip label={`В работе ${inProgressCount}`} size="small" clickable />
+          </ToggleButton>
+          <ToggleButton value="done">
+            <Chip label={`Готово ${doneCount}`} size="small" clickable />
+          </ToggleButton>
         </ToggleButtonGroup>
-        <Tooltip title="Создать задачу">
-          <IconButton color="primary" onClick={handleCreate}>
-            <AddIcon />
-          </IconButton>
-        </Tooltip>
       </Stack>
 
-      <AddTask />
-
-      <Box sx={{ mt: 3 }}>
-        {isLoading ? (
-          <Stack spacing={1.5}>
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} variant="rounded" height={72} />
-            ))}
-          </Stack>
-        ) : (
-          <TaskList tasks={tasks} onEdit={handleEdit} onDelete={handleDelete} />
-        )}
-      </Box>
+      {isLoading ? (
+        <Stack spacing={2}>
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} variant="rounded" height={80} />
+          ))}
+        </Stack>
+      ) : viewMode === 'kanban' ? (
+        <KanbanBoard
+          tasks={tasks}
+          onStatusChange={handleStatusChange}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      ) : (
+        <TaskList tasks={tasks} onEdit={handleEdit} onDelete={handleDelete} />
+      )}
 
       <TaskDetailDialog
         open={dialogOpen}
@@ -170,15 +207,11 @@ export default function TasksPage() {
       <Dialog open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)}>
         <DialogTitle>Удалить задачу?</DialogTitle>
         <DialogContent>
-          <Typography>
-            Вы уверены, что хотите удалить задачу "{deleteConfirm?.title}"?
-          </Typography>
+          Вы уверены, что хотите удалить задачу "{deleteConfirm?.title}"?
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteConfirm(null)}>Отмена</Button>
-          <Button onClick={confirmDelete} color="error" variant="contained" disabled={deleteMutation.isPending}>
-            Удалить
-          </Button>
+          <Button color="error" onClick={confirmDelete}>Удалить</Button>
         </DialogActions>
       </Dialog>
     </Container>
