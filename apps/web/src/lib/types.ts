@@ -38,4 +38,26 @@ export interface User {
   username: string
   full_name?: string
   avatar_url?: string
+
+  export interface Notification {
+  id: string
+  type: 'task_assigned' | 'task_updated' | 'comment_added' | 'project_invited' | 'mention'
+  title: string
+  message: string
+  is_read: boolean
+  task_id?: string
+  project_id?: string
+  sender_id?: string
+  created_at: string
+}
+
+export interface Comment {
+  id: string
+  content: string
+  task_id: string
+  author_id: string
+  author?: User
+  created_at: string
+  updated_at: string
+}
 }
