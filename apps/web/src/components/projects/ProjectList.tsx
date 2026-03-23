@@ -27,6 +27,9 @@ interface Project {
   color?: string;
   icon?: string;
   is_archived?: boolean;
+    is_favorite?: boolean;
+  created_at?: string;
+  owner_id?: string;
   task_count?: number;
   completed_count?: number;
   updated_at?: string;
