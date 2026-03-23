@@ -1,40 +1,101 @@
-import { NavLink } from 'react-router-dom'
-import { CheckSquare, FolderKanban, Settings, Plus } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import {
+  Drawer,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Typography,
+  Box,
+  Divider,
+  Fab,
+} from '@mui/material'
+import {
+  CheckCircleOutline as TasksIcon,
+  FolderOutlined as ProjectsIcon,
+  SettingsOutlined as SettingsIcon,
+  Add as AddIcon,
+  RocketLaunch as RocketIcon,
+} from '@mui/icons-material'
 
 const navItems = [
-  { to: '/tasks', icon: CheckSquare, label: 'Задачи' },
-  { to: '/projects', icon: FolderKanban, label: 'Проекты' },
-  { to: '/settings', icon: Settings, label: 'Настройки' },
+  { to: '/tasks', icon: <TasksIcon />, label: 'Задачи' },
+  { to: '/projects', icon: <ProjectsIcon />, label: 'Проекты' },
+  { to: '/settings', icon: <SettingsIcon />, label: 'Настройки' },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({ drawerWidth }: { drawerWidth: number }) {
+  const location = useLocation()
+  const navigate = useNavigate()
+
   return (
-    <aside className="w-64 bg-slate-800 border-r border-slate-700 flex flex-col">
-      <div className="p-4 border-b border-slate-700">
-        <h1 className="text-xl font-bold text-sky-400">🚀 Task Manager</h1>
-      </div>
-      <nav className="flex-1 p-3 space-y-1">
-        {navItems.map(({ to, icon: Icon, label }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-                isActive ? 'bg-sky-500/10 text-sky-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700'
-              }`
-            }
-          >
-            <Icon size={20} />
-            <span>{label}</span>
-          </NavLink>
-        ))}
-      </nav>
-      <div className="p-3 border-t border-slate-700">
-        <button className="w-full flex items-center gap-2 px-3 py-2 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-colors">
-          <Plus size={20} />
-          <span>Новая задача</span>
-        </button>
-      </div>
-    </aside>
+    <Drawer
+      variant="permanent"
+      sx={{
+        width: drawerWidth,
+        flexShrink: 0,
+        '& .MuiDrawer-paper': {
+          width: drawerWidth,
+          boxSizing: 'border-box',
+          bgcolor: 'background.paper',
+          borderRight: '1px solid',
+          borderColor: 'divider',
+        },
+      }}
+    >
+      <Box sx={{ p: 2.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <RocketIcon sx={{ color: 'primary.main', fontSize: 28 }} />
+        <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main' }}>
+          Task Manager
+        </Typography>
+      </Box>
+
+      <Divider />
+
+      <List sx={{ px: 1.5, py: 2, flexGrow: 1 }}>
+        {navItems.map(({ to, icon, label }) => {
+          const isActive = location.pathname === to || (to === '/tasks' && location.pathname === '/')
+          return (
+            <ListItem key={to} disablePadding sx={{ mb: 0.5 }}>
+              <ListItemButton
+                onClick={() => navigate(to)}
+                sx={{
+                  borderRadius: 2,
+                  py: 1.2,
+                  bgcolor: isActive ? 'primary.main' : 'transparent',
+                  color: isActive ? 'white' : 'text.secondary',
+                  '&:hover': {
+                    bgcolor: isActive ? 'primary.dark' : 'action.hover',
+                  },
+                  '& .MuiListItemIcon-root': {
+                    color: isActive ? 'white' : 'text.secondary',
+                    minWidth: 40,
+                  },
+                }}
+              >
+                <ListItemIcon>{icon}</ListItemIcon>
+                <ListItemText
+                  primary={label}
+                  primaryTypographyProps={{ fontSize: 14, fontWeight: isActive ? 600 : 400 }}
+                />
+              </ListItemButton>
+            </ListItem>
+          )
+        })}
+      </List>
+
+      <Box sx={{ p: 2 }}>
+        <Fab
+          color="primary"
+          variant="extended"
+          onClick={() => navigate('/tasks')}
+          sx={{ width: '100%' }}
+        >
+          <AddIcon sx={{ mr: 1 }} />
+          Новая задача
+        </Fab>
+      </Box>
+    </Drawer>
   )
 }
