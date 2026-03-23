@@ -4,8 +4,14 @@ import TaskItem from './TaskItem'
 import { staggerChildren, taskItem } from '@/lib/animations/variants'
 import { Stack, Typography, Box } from '@mui/material'
 import { InboxOutlined as EmptyIcon } from '@mui/icons-material'
+import type { Task } from '@/lib/types'
 
-export default function TaskList() {
+interface Props {
+  onEdit?: (task: Task) => void
+  onDelete?: (task: Task) => void
+}
+
+export default function TaskList({ onEdit, onDelete }: Props) {
   const tasks = useTaskStore((s) => s.tasks)
   const filter = useTaskStore((s) => s.filter)
 
@@ -36,7 +42,7 @@ export default function TaskList() {
         <AnimatePresence mode="popLayout">
           {filtered.map((task) => (
             <motion.div key={task.id} variants={taskItem} layout>
-              <TaskItem task={task} />
+              <TaskItem task={task} onEdit={onEdit} onDelete={onDelete} />
             </motion.div>
           ))}
         </AnimatePresence>
