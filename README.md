@@ -1,97 +1,208 @@
-# 🚀 Modern Task Manager
+# Modern Task Manager
 
-Полнофункциональное приложение для управления задачами с AI, голосовым вводом, real-time коллаборацией.
+[![CI](https://github.com/Bagirov24/modern-task-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/Bagirov24/modern-task-manager/actions/workflows/ci.yml)
+[![CD](https://github.com/Bagirov24/modern-task-manager/actions/workflows/cd.yml/badge.svg)](https://github.com/Bagirov24/modern-task-manager/actions/workflows/cd.yml)
+
+Полнофункциональное приложение для управления задачами с real-time коллаборацией, уведомлениями и мониторингом. Построено на FastAPI + React + PostgreSQL + Redis.
+
+## Возможности
+
+- Управление задачами с подзадачами, приоритетами и статусами
+- Проекты с группировкой задач
+- Комментарии к задачам
+- Система меток (labels) с цветами
+- Уведомления (in-app, email, push, WebSocket)
+- Real-time обновления через WebSocket
+- Аутентификация через Supabase Auth (JWT)
+- Health check эндпоинты для мониторинга
+- Rate limiting и логирование запросов
+- CI/CD через GitHub Actions
+- Мониторинг: Prometheus + Grafana
 
 ## Стек технологий
 
 ### Backend
-- **FastAPI** — REST API + WebSocket
-- **SQLAlchemy** + **Alembic** — ORM и миграции
-- **PostgreSQL** — основная БД
-- **Redis** — кэширование и очереди
-- **Celery** — фоновые задачи
-- **Supabase Auth** — аутентификация
-- **OpenAI API** — AI-функции
-- **Whisper** — распознавание речи
+
+| Технология | Назначение |
+|------------|------------|
+| FastAPI | REST API + WebSocket |
+| SQLAlchemy 2.0 | Async ORM |
+| Alembic | Миграции БД |
+| PostgreSQL 16 | Основная БД |
+| Redis 7 | Кэширование и очереди |
+| Celery | Фоновые задачи |
+| Pydantic v2 | Валидация данных |
+| Supabase Auth | Аутентификация |
 
 ### Frontend
-- **React 18** + **TypeScript**
-- **Tailwind CSS** + **shadcn/ui**
-- **Zustand** + **React Query** — стейт-менеджмент
-- **Framer Motion** — анимации
-- **Socket.IO** — real-time
-- **Workbox** — PWA/оффлайн
+
+| Технология | Назначение |
+|------------|------------|
+| React 18 | UI фреймворк |
+| TypeScript | Типизация |
+| Tailwind CSS | Стилизация |
+| shadcn/ui | UI компоненты |
+| Zustand | Стейт-менеджмент |
+| React Query | Серверный стейт |
+| Framer Motion | Анимации |
+| Socket.IO | Real-time |
+
+### Инфраструктура
+
+| Технология | Назначение |
+|------------|------------|
+| Docker & Compose | Контейнеризация |
+| Nginx | Reverse proxy, rate limiting |
+| GitHub Actions | CI/CD |
+| GHCR | Docker Registry |
+| Prometheus | Метрики |
+| Grafana | Дашборды |
 
 ## Структура проекта
 
 ```
 modern-task-manager/
-├── apps/
-│   ├── api/                    # FastAPI Backend
-│   │   ├── app/
-│   │   │   ├── api/v1/         # API endpoints
-│   │   │   ├── models/         # SQLAlchemy models
-│   │   │   ├── schemas/        # Pydantic schemas
-│   │   │   ├── services/       # Business logic
-│   │   │   ├── middleware/     # CORS, Auth, Rate Limit
-│   │   │   ├── websocket/      # WebSocket manager
-│   │   │   ├── workers/        # Celery tasks
-│   │   │   └── integrations/   # External APIs
-│   │   ├── tests/
-│   │   └── requirements.txt
-│   └── web/                    # React Frontend
-│       ├── src/
-│       │   ├── components/     # UI компоненты
-│       │   ├── lib/            # Утилиты, API, стор
-│       │   └── pages/          # Страницы
-│       ├── public/
-│       └── package.json
-└── packages/
-    ├── types/                  # Shared TypeScript типы
-    └── utils/                  # Shared утилиты
+|-- .github/workflows/     # CI/CD пайплайны
+|-- apps/
+|   |-- api/               # FastAPI Backend
+|   |   |-- alembic/       # Миграции БД
+|   |   |-- app/
+|   |   |   |-- api/       # Роутеры (v1, health)
+|   |   |   |-- core/      # Конфиг, БД, безопасность
+|   |   |   |-- integrations/  # Внешние сервисы
+|   |   |   |-- middleware/    # Logging, rate limit
+|   |   |   |-- models/    # SQLAlchemy модели
+|   |   |   |-- schemas/   # Pydantic схемы
+|   |   |   |-- services/  # Бизнес-логика
+|   |   |   |-- websocket/ # WS менеджер
+|   |   |   |-- workers/   # Celery задачи
+|   |   |   '-- main.py    # Точка входа
+|   |   |-- tests/         # Unit + E2E тесты
+|   |   |-- Dockerfile
+|   |   '-- requirements.txt
+|   '-- web/               # React Frontend
+|       |-- src/
+|       |   |-- components/ # UI компоненты
+|       |   |-- hooks/      # React хуки
+|       |   |-- lib/        # Утилиты
+|       |   |-- pages/      # Страницы
+|       |   '-- stores/     # Zustand сторы
+|       |-- Dockerfile
+|       '-- package.json
+|-- docs/                  # Документация
+|   |-- API.md             # API справочник
+|   '-- DEPLOYMENT.md      # Гайд по деплою
+|-- monitoring/            # Prometheus конфиг
+|-- nginx/                 # Nginx конфиг
+|-- packages/              # Общие пакеты
+|-- docker-compose.yml     # Development
+'-- docker-compose.prod.yml # Production
 ```
 
 ## Быстрый старт
 
-### Backend
+### Требования
+
+- Docker & Docker Compose v2+
+- Git
+
+### Запуск
+
 ```bash
-cd apps/api
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+# Клонировать репозиторий
+git clone https://github.com/Bagirov24/modern-task-manager.git
+cd modern-task-manager
+
+# Скопировать переменные окружения
 cp .env.example .env
-alembic upgrade head
-uvicorn app.main:app --reload --port 8000
+
+# Запустить все сервисы
+docker compose up -d
+
+# Применить миграции
+docker compose exec api alembic upgrade head
 ```
 
-### Frontend
+После запуска:
+
+| Сервис | URL |
+|--------|-----|
+| API | http://localhost:8000 |
+| Swagger Docs | http://localhost:8000/docs |
+| Frontend | http://localhost:3000 |
+| Health Check | http://localhost:8000/health |
+
+## API
+
+Основные эндпоинты:
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| POST | /api/v1/auth/register | Регистрация |
+| POST | /api/v1/auth/login | Авторизация |
+| GET/POST | /api/v1/tasks | Список / создание задач |
+| GET/PUT/DELETE | /api/v1/tasks/{id} | CRUD задачи |
+| GET/POST | /api/v1/projects | Список / создание проектов |
+| GET/POST | /api/v1/labels | Список / создание меток |
+| GET | /api/v1/notifications | Уведомления |
+| GET | /health | Проверка здоровья |
+| GET | /health/ready | Readiness probe |
+| WS | /ws/{token} | Real-time обновления |
+
+Полная документация: [docs/API.md](docs/API.md)
+
+## Тестирование
+
 ```bash
-cd apps/web
-npm install
-cp .env.example .env.local
-npm run dev
+# Запустить все тесты
+docker compose exec api pytest
+
+# С покрытием
+docker compose exec api pytest --cov=app
+
+# Только E2E
+docker compose exec api pytest tests/test_e2e.py -v
 ```
 
-### Docker
+## CI/CD
+
+### CI (каждый push/PR)
+
+- Линтинг (ruff, mypy, eslint)
+- Юнит-тесты (pytest)
+- Сборка Docker образов
+- Проверка типов
+
+### CD (merge в main)
+
+- Push Docker образов в GHCR
+- SSH деплой на сервер
+- Автоматические миграции
+
+## Production деплой
+
 ```bash
-docker-compose up -d
+# Настроить переменные окружения
+cp .env.example .env.production
+
+# Запустить production стек
+docker compose -f docker-compose.prod.yml up -d
 ```
 
-## Модули (28)
+Production стек включает: API, Web, PostgreSQL, Redis, Nginx, Prometheus, Grafana.
 
-| Модуль | Тип | Технологии |
-|--------|-----|------------|
-| Auth Module | Backend | FastAPI, JWT, Supabase Auth, OAuth 2.0 |
-| Tasks Service | Backend | FastAPI, SQLAlchemy, Pydantic |
-| Projects Module | Backend | FastAPI, PostgreSQL |
-| WebSocket Manager | Backend | Socket.IO, Redis, FastAPI |
-| AI Service | Backend | OpenAI API, LangChain |
-| Voice Service | Backend | Whisper, AssemblyAI |
-| Notification Service | Backend | Celery, Redis, SMTP, FCM |
-| UI Components | Frontend | React, TypeScript, Tailwind, shadcn/ui |
-| Task Components | Frontend | React, Framer Motion |
-| State Management | Frontend | Zustand, React Query, Jotai |
-| PWA Service Worker | Frontend | Workbox, IndexedDB |
+Подробнее: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+
+## Мониторинг
+
+| Сервис | URL | Описание |
+|--------|-----|----------|
+| Prometheus | http://localhost:9090 | Метрики |
+| Grafana | http://localhost:3001 | Дашборды |
+| /health | http://localhost:8000/health | Статус API |
+| /health/ready | http://localhost:8000/health/ready | Readiness |
+| /health/db | http://localhost:8000/health/db | Статус БД |
+| /health/redis | http://localhost:8000/health/redis | Статус Redis |
 
 ## Лицензия
 
