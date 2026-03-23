@@ -48,9 +48,11 @@ function StatCard({ title, value, icon, color, loading }: any) {
 export default function DashboardPage() {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
-  const { data: tasks = [], isLoading: tasksLoading } = useTasks({})
-  const { data: projects = [], isLoading: projectsLoading } = useProjects()
+    const { tasks: rawTasks, loading: tasksLoading } = useTasks()
+    const { projects: rawProjects, loading: projectsLoading } = useProjects()
 
+    const tasks = Array.isArray(rawTasks) ? rawTasks : []
+  const projects = Array.isArray(rawProjects) ? rawProjects : []
   const todoCount = tasks.filter((t: any) => t.status === 'todo').length
   const inProgressCount = tasks.filter((t: any) => t.status === 'in_progress').length
   const doneCount = tasks.filter((t: any) => t.status === 'done').length
