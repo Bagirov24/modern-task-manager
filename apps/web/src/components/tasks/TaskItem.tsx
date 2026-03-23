@@ -7,11 +7,14 @@ import {
   Box,
   IconButton,
   Stack,
+  Tooltip,
 } from '@mui/material'
 import {
   CheckCircle as CheckIcon,
   RadioButtonUnchecked as UncheckedIcon,
   CalendarToday as CalendarIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material'
 import type { Task } from '@/lib/types'
 import { useTaskStore } from '@/lib/store/taskStore'
@@ -25,7 +28,13 @@ const priorityConfig: Record<string, { color: 'default' | 'info' | 'warning' | '
   urgent: { color: 'error', label: 'Срочный' },
 }
 
-export default function TaskItem({ task }: { task: Task }) {
+interface Props {
+  task: Task
+  onEdit?: (task: Task) => void
+  onDelete?: (task: Task) => void
+}
+
+export default function TaskItem({ task, onEdit, onDelete }: Props) {
   const updateTask = useTaskStore((s) => s.updateTask)
   const selectTask = useTaskStore((s) => s.selectTask)
   const isDone = task.status === 'done'
@@ -33,6 +42,16 @@ export default function TaskItem({ task }: { task: Task }) {
   const toggle = (e: React.MouseEvent) => {
     e.stopPropagation()
     updateTask(task.id, { status: isDone ? 'todo' : 'done' })
+  }
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onEdit?.(task)
+  }
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onDelete?.(task)
   }
 
   const priority = priorityConfig[task.priority] || priorityConfig.low
@@ -46,6 +65,7 @@ export default function TaskItem({ task }: { task: Task }) {
         opacity: isDone ? 0.6 : 1,
         transition: 'all 0.2s',
         '&:hover': { borderColor: 'primary.main', transform: 'translateY(-1px)' },
+        '&:hover .task-actions': { opacity: 1 },
       }}
       elevation={0}
     >
@@ -61,7 +81,10 @@ export default function TaskItem({ task }: { task: Task }) {
               sx={{
                 fontWeight: 500,
                 textDecoration: isDone ? 'line-through' : 'none',
-                color: isDone ? 'text.secondary' : 'text.primary',
+                color: isDone ? 'text.disabled' : 'text.primary',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
               }}
             >
               {task.title}
@@ -71,19 +94,36 @@ export default function TaskItem({ task }: { task: Task }) {
                 {task.description}
               </Typography>
             )}
+            <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
+              <Chip label={priority.label} color={priority.color} size="small" />
+              {task.due_date && (
+                <Chip
+                  icon={<CalendarIcon />}
+                  label={format(new Date(task.due_date), 'd MMM', { locale: ru })}
+                  size="small"
+                  variant="outlined"
+                  sx={{ color: 'text.secondary' }}
+                />
+              )}
+            </Stack>
           </Box>
 
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Chip label={priority.label} color={priority.color} size="small" variant="outlined" />
-            {task.due_date && (
-              <Chip
-                icon={<CalendarIcon sx={{ fontSize: 14 }} />}
-                label={format(new Date(task.due_date), 'd MMM', { locale: ru })}
-                size="small"
-                variant="outlined"
-                sx={{ color: 'text.secondary' }}
-              />
-            )}
+          <Stack
+            direction="row"
+            spacing={0.5}
+            className="task-actions"
+            sx={{ opacity: 0, transition: 'opacity 0.2s' }}
+          >
+            <Tooltip title="Редактировать">
+              <IconButton size="small" onClick={handleEdit}>
+                <EditIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Удалить">
+              <IconButton size="small" onClick={handleDelete} color="error">
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
           </Stack>
         </CardContent>
       </CardActionArea>
