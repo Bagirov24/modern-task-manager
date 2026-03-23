@@ -1,19 +1,10 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
-  Drawer,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Typography,
-  Box,
-  Divider,
-  Avatar,
-  IconButton,
-  Tooltip,
+  Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText,
+  Typography, Box, Divider, Avatar, IconButton, Tooltip,
 } from '@mui/material'
 import {
+  DashboardOutlined as DashboardIcon,
   CheckCircleOutline as TasksIcon,
   FolderOutlined as ProjectsIcon,
   SettingsOutlined as SettingsIcon,
@@ -24,6 +15,7 @@ import { useAuthStore } from '@/lib/store/authStore'
 import { disconnectSocket } from '@/lib/socket/socketClient'
 
 const navItems = [
+  { to: '/', icon: <DashboardIcon />, label: 'Главная' },
   { to: '/tasks', icon: <TasksIcon />, label: 'Задачи' },
   { to: '/projects', icon: <ProjectsIcon />, label: 'Проекты' },
   { to: '/settings', icon: <SettingsIcon />, label: 'Настройки' },
@@ -63,35 +55,30 @@ export default function Sidebar({ drawerWidth }: { drawerWidth: number }) {
       <Box sx={{ p: 2.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
         <RocketIcon sx={{ color: 'primary.main', fontSize: 28 }} />
         <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main' }}>
-          Task Manager
+          TaskManager
         </Typography>
       </Box>
 
       <Divider />
 
-      <List sx={{ px: 1.5, py: 2, flexGrow: 1 }}>
-        {navItems.map(({ to, icon, label }) => {
-          const isActive = location.pathname === to || (to === '/tasks' && location.pathname === '/')
+      <List sx={{ px: 1.5, py: 1, flex: 1 }}>
+        {navItems.map((item) => {
+          const isActive = item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to)
           return (
-            <ListItem key={to} disablePadding sx={{ mb: 0.5 }}>
+            <ListItem key={item.to} disablePadding sx={{ mb: 0.5 }}>
               <ListItemButton
-                onClick={() => navigate(to)}
+                onClick={() => navigate(item.to)}
                 sx={{
                   borderRadius: 2,
-                  py: 1.2,
                   bgcolor: isActive ? 'primary.main' : 'transparent',
-                  color: isActive ? 'white' : 'text.secondary',
-                  '&:hover': {
-                    bgcolor: isActive ? 'primary.dark' : 'action.hover',
-                  },
-                  '& .MuiListItemIcon-root': {
-                    color: isActive ? 'white' : 'text.secondary',
-                    minWidth: 40,
-                  },
+                  color: isActive ? 'white' : 'text.primary',
+                  '&:hover': { bgcolor: isActive ? 'primary.dark' : 'action.hover' },
                 }}
               >
-                <ListItemIcon>{icon}</ListItemIcon>
-                <ListItemText primary={label} />
+                <ListItemIcon sx={{ color: isActive ? 'white' : 'text.secondary', minWidth: 40 }}>
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText primary={item.label} primaryTypographyProps={{ fontSize: 14, fontWeight: isActive ? 600 : 400 }} />
               </ListItemButton>
             </ListItem>
           )
@@ -101,27 +88,19 @@ export default function Sidebar({ drawerWidth }: { drawerWidth: number }) {
       <Divider />
 
       <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <Avatar
-          sx={{
-            width: 36,
-            height: 36,
-            bgcolor: 'primary.main',
-            fontSize: 16,
-            fontWeight: 700,
-          }}
-        >
+        <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main', fontSize: 14 }}>
           {userInitial.toUpperCase()}
         </Avatar>
-        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-          <Typography variant="body2" fontWeight={600} noWrap>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography variant="body2" noWrap sx={{ fontWeight: 600 }}>
             {user?.full_name || user?.username || 'Пользователь'}
           </Typography>
-          <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+          <Typography variant="caption" color="text.secondary" noWrap>
             {user?.email || ''}
           </Typography>
         </Box>
         <Tooltip title="Выйти">
-          <IconButton size="small" onClick={handleLogout} color="default">
+          <IconButton size="small" onClick={handleLogout} sx={{ color: 'text.secondary' }}>
             <LogoutIcon fontSize="small" />
           </IconButton>
         </Tooltip>
