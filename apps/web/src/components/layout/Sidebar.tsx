@@ -12,6 +12,8 @@ import {
   Folder as ProjectsFilled,
   CalendarTodayOutlined as CalendarIcon,
   CalendarMonth as CalendarFilled,
+  BarChartOutlined as AnalyticsIcon,
+  BarChart as AnalyticsFilled,
   SettingsOutlined as SettingsIcon,
   Settings as SettingsFilled,
   RocketLaunch as RocketIcon,
@@ -25,6 +27,7 @@ const navItems = [
   { to: '/tasks', icon: <TasksIcon />, activeIcon: <TasksFilled />, label: 'Задачи' },
   { to: '/projects', icon: <ProjectsIcon />, activeIcon: <ProjectsFilled />, label: 'Проекты' },
   { to: '/calendar', icon: <CalendarIcon />, activeIcon: <CalendarFilled />, label: 'Календарь' },
+  { to: '/analytics', icon: <AnalyticsIcon />, activeIcon: <AnalyticsFilled />, label: 'Аналитика' },
   { to: '/settings', icon: <SettingsIcon />, activeIcon: <SettingsFilled />, label: 'Настройки' },
 ]
 
