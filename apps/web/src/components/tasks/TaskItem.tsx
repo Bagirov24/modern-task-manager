@@ -1,14 +1,28 @@
-import { CheckCircle2, Circle, Calendar, Flag } from 'lucide-react'
+import {
+  Card,
+  CardActionArea,
+  CardContent,
+  Typography,
+  Chip,
+  Box,
+  IconButton,
+  Stack,
+} from '@mui/material'
+import {
+  CheckCircle as CheckIcon,
+  RadioButtonUnchecked as UncheckedIcon,
+  CalendarToday as CalendarIcon,
+} from '@mui/icons-material'
 import type { Task } from '@/lib/types'
 import { useTaskStore } from '@/lib/store/taskStore'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 
-const priorityColors = {
-  low: 'text-slate-400',
-  medium: 'text-blue-400',
-  high: 'text-orange-400',
-  urgent: 'text-red-400',
+const priorityConfig: Record<string, { color: 'default' | 'info' | 'warning' | 'error'; label: string }> = {
+  low: { color: 'default', label: 'Низкий' },
+  medium: { color: 'info', label: 'Средний' },
+  high: { color: 'warning', label: 'Высокий' },
+  urgent: { color: 'error', label: 'Срочный' },
 }
 
 export default function TaskItem({ task }: { task: Task }) {
@@ -21,30 +35,58 @@ export default function TaskItem({ task }: { task: Task }) {
     updateTask(task.id, { status: isDone ? 'todo' : 'done' })
   }
 
+  const priority = priorityConfig[task.priority] || priorityConfig.low
+
   return (
-    <div
-      onClick={() => selectTask(task)}
-      className="flex items-center gap-3 p-3 bg-slate-800 rounded-lg border border-slate-700 hover:border-slate-600 cursor-pointer transition-colors group"
+    <Card
+      sx={{
+        bgcolor: 'background.paper',
+        border: '1px solid',
+        borderColor: 'divider',
+        opacity: isDone ? 0.6 : 1,
+        transition: 'all 0.2s',
+        '&:hover': { borderColor: 'primary.main', transform: 'translateY(-1px)' },
+      }}
+      elevation={0}
     >
-      <button onClick={toggle} className="flex-shrink-0">
-        {isDone ? (
-          <CheckCircle2 size={20} className="text-green-400" />
-        ) : (
-          <Circle size={20} className="text-slate-500 group-hover:text-slate-300" />
-        )}
-      </button>
-      <div className="flex-1 min-w-0">
-        <p className={`text-sm ${isDone ? 'line-through text-slate-500' : 'text-slate-200'}`}>
-          {task.title}
-        </p>
-        {task.due_date && (
-          <div className="flex items-center gap-1 mt-1 text-xs text-slate-500">
-            <Calendar size={12} />
-            <span>{format(new Date(task.due_date), 'd MMM', { locale: ru })}</span>
-          </div>
-        )}
-      </div>
-      <Flag size={14} className={priorityColors[task.priority]} />
-    </div>
+      <CardActionArea onClick={() => selectTask(task)} sx={{ p: 0 }}>
+        <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1.5, '&:last-child': { pb: 1.5 } }}>
+          <IconButton onClick={toggle} size="small" sx={{ color: isDone ? 'success.main' : 'text.secondary' }}>
+            {isDone ? <CheckIcon /> : <UncheckedIcon />}
+          </IconButton>
+
+          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+            <Typography
+              variant="body1"
+              sx={{
+                fontWeight: 500,
+                textDecoration: isDone ? 'line-through' : 'none',
+                color: isDone ? 'text.secondary' : 'text.primary',
+              }}
+            >
+              {task.title}
+            </Typography>
+            {task.description && (
+              <Typography variant="body2" color="text.secondary" noWrap>
+                {task.description}
+              </Typography>
+            )}
+          </Box>
+
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Chip label={priority.label} color={priority.color} size="small" variant="outlined" />
+            {task.due_date && (
+              <Chip
+                icon={<CalendarIcon sx={{ fontSize: 14 }} />}
+                label={format(new Date(task.due_date), 'd MMM', { locale: ru })}
+                size="small"
+                variant="outlined"
+                sx={{ color: 'text.secondary' }}
+              />
+            )}
+          </Stack>
+        </CardContent>
+      </CardActionArea>
+    </Card>
   )
 }
