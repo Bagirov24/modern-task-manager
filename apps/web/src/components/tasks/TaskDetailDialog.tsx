@@ -2,17 +2,11 @@ import { useState, useEffect } from 'react'
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button,
   TextField, FormControl, InputLabel, Select, MenuItem, Stack,
-  IconButton, Typography, Box, CircularProgress, Divider, Avatar,
-  List, ListItem, ListItemAvatar, ListItemText, Chip,
+  IconButton, Typography, Box, CircularProgress, Divider,
 } from '@mui/material'
-import {
-  Close as CloseIcon, Delete as DeleteIcon,
-  Send as SendIcon, Comment as CommentIcon,
-} from '@mui/icons-material'
-import type { Task } from '@/lib/types'
-import { useCreateTask, useUpdateTask, useDeleteTask } from '@/lib/hooks/useTasks'
-import { useComments, useCreateComment, useDeleteComment } from '@/lib/hooks/useComments'
-import { useLabels } from '@/lib/hooks/useLabels'
+import { Close as CloseIcon } from '@mui/icons-material'
+import { useTasks } from '../../hooks/useTasks'
+import type { Task } from '../../lib/types'
 
 interface Props {
   open: boolean
@@ -21,26 +15,30 @@ interface Props {
   mode: 'view' | 'edit' | 'create'
 }
 
-const emptyTask = {
-  title: '',
-  description: '',
-  priority: 'medium' as const,
-  status: 'todo' as const,
-  due_date: '',
-}
+const priorities = [
+  { value: 'low', label: 'Низкий', color: '#4caf50' },
+  { value: 'medium', label: 'Средний', color: '#ff9800' },
+  { value: 'high', label: 'Высокий', color: '#f44336' },
+  { value: 'urgent', label: 'Срочный', color: '#9c27b0' },
+]
+
+const statuses = [
+  { value: 'todo', label: 'К выполнению' },
+  { value: 'in_progress', label: 'В работе' },
+  { value: 'done', label: 'Готово' },
+]
 
 export default function TaskDetailDialog({ open, onClose, task, mode }: Props) {
-  const createMutation = useCreateTask()
-  const updateMutation = useUpdateTask()
-  const deleteMutation = useDeleteTask()
-  const { data: comments = [], isLoading: commentsLoading } = useComments(task?.id)
-  const createComment = useCreateComment()
-  const deleteComment = useDeleteComment()
-  const { data: labels = [] } = useLabels()
-
-  const [form, setForm] = useState(emptyTask)
+  const { createTask, updateTask, deleteTask } = useTasks()
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    priority: 'medium' as string,
+    status: 'todo' as string,
+    due_date: '',
+  })
   const [isEditing, setIsEditing] = useState(mode === 'edit' || mode === 'create')
-  const [commentText, setCommentText] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (task && mode !== 'create') {
@@ -53,178 +51,129 @@ export default function TaskDetailDialog({ open, onClose, task, mode }: Props) {
       })
       setIsEditing(mode === 'edit')
     } else {
-      setForm(emptyTask)
+      setForm({ title: '', description: '', priority: 'medium', status: 'todo', due_date: '' })
       setIsEditing(true)
     }
-    setCommentText('')
   }, [task, mode, open])
 
-  const isSaving = createMutation.isPending || updateMutation.isPending
-
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.title.trim()) return
-    if (mode === 'create') {
-      createMutation.mutate(
-        { title: form.title.trim(), description: form.description || undefined, priority: form.priority, status: form.status, due_date: form.due_date || undefined },
-        { onSuccess: () => onClose() }
-      )
-    } else if (task) {
-      updateMutation.mutate(
-        { id: task.id, data: { title: form.title.trim(), description: form.description || undefined, priority: form.priority, status: form.status, due_date: form.due_date || undefined } },
-        { onSuccess: () => onClose() }
-      )
+    setSaving(true)
+    try {
+      if (mode === 'create') {
+        await createTask(form)
+      } else if (task) {
+        await updateTask(task.id, form)
+      }
+      onClose()
+    } finally {
+      setSaving(false)
     }
   }
 
-  const handleDelete = () => {
-    if (task) deleteMutation.mutate(task.id, { onSuccess: () => onClose() })
+  const handleDelete = async () => {
+    if (task) {
+      await deleteTask(task.id)
+      onClose()
+    }
   }
-
-  const handleAddComment = () => {
-    if (!commentText.trim() || !task) return
-    createComment.mutate({ content: commentText.trim(), task_id: task.id })
-    setCommentText('')
-  }
-
-  const priorityOptions = [
-    { value: 'low', label: 'Низкий' },
-    { value: 'medium', label: 'Средний' },
-    { value: 'high', label: 'Высокий' },
-    { value: 'urgent', label: 'Срочный' },
-  ]
-
-  const statusOptions = [
-    { value: 'todo', label: 'К выполнению' },
-    { value: 'in_progress', label: 'В работе' },
-    { value: 'done', label: 'Готово' },
-    { value: 'archived', label: 'Архив' },
-  ]
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        {mode === 'create' ? 'Новая задача' : isEditing ? 'Редактирование' : task?.title}
-        <Box>
-          {task && mode !== 'create' && (
-            <IconButton onClick={handleDelete} color="error" size="small">
-              <DeleteIcon />
-            </IconButton>
-          )}
-          <IconButton onClick={onClose} size="small">
-            <CloseIcon />
-          </IconButton>
-        </Box>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Typography variant="h6">
+          {mode === 'create' ? 'Новая задача' : isEditing ? 'Редактирование' : task?.title}
+        </Typography>
+        <IconButton onClick={onClose}><CloseIcon /></IconButton>
       </DialogTitle>
 
-      <DialogContent dividers>
-        <Stack spacing={2}>
-          <TextField label="Название" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} fullWidth required disabled={!isEditing} autoFocus={isEditing} />
-          <TextField label="Описание" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} fullWidth multiline rows={3} disabled={!isEditing} />
-
-          <FormControl fullWidth size="small">
-            <InputLabel>Приоритет</InputLabel>
-            <Select value={form.priority} label="Приоритет" onChange={(e) => setForm({ ...form, priority: e.target.value as Task['priority'] })} disabled={!isEditing}>
-              {priorityOptions.map((o) => (<MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>))}
-            </Select>
-          </FormControl>
-
-          <FormControl fullWidth size="small">
-            <InputLabel>Статус</InputLabel>
-            <Select value={form.status} label="Статус" onChange={(e) => setForm({ ...form, status: e.target.value as Task['status'] })} disabled={!isEditing}>
-              {statusOptions.map((o) => (<MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>))}
-            </Select>
-          </FormControl>
-
-          <TextField label="Срок" type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} InputLabelProps={{ shrink: true }} fullWidth size="small" disabled={!isEditing} />
-
-          {/* Метки */}
-          {labels.length > 0 && (
-            <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>Метки</Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                {labels.map((label: any) => (
-                  <Chip key={label.id} label={label.name} size="small" sx={{ bgcolor: label.color + '20', color: label.color, borderColor: label.color, border: '1px solid' }} />
-                ))}
+      <DialogContent>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          {isEditing ? (
+            <>
+              <TextField
+                label="Название"
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                fullWidth required autoFocus
+              />
+              <TextField
+                label="Описание"
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                fullWidth multiline rows={3}
+              />
+              <Stack direction="row" spacing={2}>
+                <FormControl fullWidth>
+                  <InputLabel>Приоритет</InputLabel>
+                  <Select
+                    value={form.priority}
+                    label="Приоритет"
+                    onChange={(e) => setForm({ ...form, priority: e.target.value })}
+                  >
+                    {priorities.map(p => (
+                      <MenuItem key={p.value} value={p.value}>{p.label}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl fullWidth>
+                  <InputLabel>Статус</InputLabel>
+                  <Select
+                    value={form.status}
+                    label="Статус"
+                    onChange={(e) => setForm({ ...form, status: e.target.value })}
+                  >
+                    {statuses.map(s => (
+                      <MenuItem key={s.value} value={s.value}>{s.label}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Stack>
+              <TextField
+                label="Срок"
+                type="date"
+                value={form.due_date}
+                onChange={(e) => setForm({ ...form, due_date: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+              />
+            </>
+          ) : (
+            <>
+              {task?.description && (
+                <Typography variant="body1">{task.description}</Typography>
+              )}
+              <Divider />
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Приоритет: {priorities.find(p => p.value === task?.priority)?.label}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Статус: {statuses.find(s => s.value === task?.status)?.label}
+                </Typography>
               </Box>
-            </Box>
-          )}
-
-          {task && !isEditing && (
-            <Typography variant="caption" color="text.secondary">
-              Создано: {new Date(task.created_at).toLocaleDateString('ru-RU')}
-            </Typography>
-          )}
-        </Stack>
-
-        {/* Комментарии */}
-        {task && mode !== 'create' && (
-          <>
-            <Divider sx={{ my: 2 }} />
-            <Box>
-              <Typography variant="subtitle2" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <CommentIcon fontSize="small" /> Комментарии ({comments.length})
-              </Typography>
-
-              {commentsLoading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                  <CircularProgress size={24} />
-                </Box>
-              ) : comments.length > 0 ? (
-                <List dense disablePadding>
-                  {comments.map((c: any) => (
-                    <ListItem key={c.id} secondaryAction={
-                      <IconButton edge="end" size="small" onClick={() => deleteComment.mutate({ commentId: c.id, taskId: task.id })}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    }>
-                      <ListItemAvatar>
-                        <Avatar sx={{ width: 28, height: 28, fontSize: 12, bgcolor: 'primary.main' }}>
-                          {(c.author_id || '?').charAt(0).toUpperCase()}
-                        </Avatar>
-                      </ListItemAvatar>
-                      <ListItemText
-                        primary={c.content}
-                        secondary={new Date(c.created_at).toLocaleString('ru-RU')}
-                        primaryTypographyProps={{ variant: 'body2' }}
-                        secondaryTypographyProps={{ variant: 'caption' }}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              ) : (
-                <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
-                  Нет комментариев
+              {task?.due_date && (
+                <Typography variant="body2" color="text.secondary">
+                  Срок: {new Date(task.due_date).toLocaleDateString('ru-RU')}
                 </Typography>
               )}
-
-              <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-                <TextField
-                  placeholder="Напишите комментарий..."
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  fullWidth
-                  size="small"
-                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleAddComment())}
-                />
-                <IconButton onClick={handleAddComment} color="primary" disabled={!commentText.trim() || createComment.isPending}>
-                  <SendIcon />
-                </IconButton>
-              </Box>
-            </Box>
-          </>
-        )}
+            </>
+          )}
+        </Stack>
       </DialogContent>
 
-      <DialogActions>
-        {!isEditing && mode !== 'create' ? (
-          <Button onClick={() => setIsEditing(true)} variant="outlined">Редактировать</Button>
-        ) : (
-          <>
-            <Button onClick={onClose}>Отмена</Button>
-            <Button onClick={handleSave} variant="contained" disabled={isSaving || !form.title.trim()} startIcon={isSaving ? <CircularProgress size={16} /> : undefined}>
-              {mode === 'create' ? 'Создать' : 'Сохранить'}
-            </Button>
-          </>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        {task && mode !== 'create' && (
+          <Button color="error" onClick={handleDelete} sx={{ mr: 'auto' }}>Удалить</Button>
+        )}
+        {!isEditing && mode === 'view' && (
+          <Button onClick={() => setIsEditing(true)}>Редактировать</Button>
+        )}
+        <Button onClick={onClose}>Отмена</Button>
+        {isEditing && (
+          <Button variant="contained" onClick={handleSave} disabled={saving}>
+            {saving ? <CircularProgress size={20} /> : mode === 'create' ? 'Создать' : 'Сохранить'}
+          </Button>
         )}
       </DialogActions>
     </Dialog>
