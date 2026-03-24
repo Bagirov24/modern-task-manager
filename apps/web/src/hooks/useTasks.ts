@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { taskApi } from '../lib/api/taskApi'
 import { useTaskStore } from '../store/taskStore'
+import type { Task } from '../lib/types'
 
 export type TaskCreate = Record<string, any>
 export type TaskUpdate = Record<string, any>
@@ -24,7 +25,7 @@ export function useTasks(projectId?: string) {
       } else if (raw?.data && Array.isArray(raw.data)) {
         items = raw.data
       }
-      setTasks(items as any)
+      setTasks(items as Task[])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch tasks')
     } finally {
@@ -41,7 +42,7 @@ export function useTasks(projectId?: string) {
     try {
       const newTask: any = await taskApi.create(task)
       const item = newTask?.data ?? newTask
-      addTask(item as any)
+      addTask(item as Task)
       return item
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create task')
@@ -53,7 +54,7 @@ export function useTasks(projectId?: string) {
     try {
       const updated: any = await taskApi.update(id, task)
       const item = updated?.data ?? updated
-      updateTaskInStore(item as any)
+      updateTaskInStore(item as Task)
       return item
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update task')
