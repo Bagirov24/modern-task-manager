@@ -7,7 +7,7 @@ from datetime import datetime
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.user import User
-from app.models.notification import Notification, NotificationType
+from app.models.notification import Notification
 
 router = APIRouter()
 
@@ -43,7 +43,7 @@ async def list_notifications(
 ):
     query = db.query(Notification).filter(Notification.user_id == current_user.id)
     if unread_only:
-        query = query.filter(Notification.is_read == False)
+        query = query.filter(Notification.is_read.is_(False))
     return query.order_by(Notification.created_at.desc()).limit(limit).all()
 
 
@@ -54,7 +54,7 @@ async def unread_count(
 ):
     count = (
         db.query(Notification)
-        .filter(Notification.user_id == current_user.id, Notification.is_read == False)
+        .filter(Notification.user_id == current_user.id, Notification.is_read.is_(False))
         .count()
     )
     return {"count": count}
@@ -105,7 +105,7 @@ async def mark_all_as_read(
     current_user: User = Depends(get_current_user),
 ):
     db.query(Notification).filter(
-        Notification.user_id == current_user.id, Notification.is_read == False
+        Notification.user_id == current_user.id, Notification.is_read.is_(False)
     ).update({"is_read": True})
     db.commit()
     return {"status": "ok"}
