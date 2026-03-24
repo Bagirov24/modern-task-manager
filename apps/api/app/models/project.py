@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, String, Text, Integer, DateTime, ForeignKey, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -15,9 +15,9 @@ class Project(Base):
     color = Column(String(7), default="#38bdf8")
     icon = Column(String(50))
     is_archived = Column(Boolean, default=False)
-    
+
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -36,5 +36,3 @@ class Section(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     project = relationship("Project", back_populates="sections")
-
-from sqlalchemy import Integer
