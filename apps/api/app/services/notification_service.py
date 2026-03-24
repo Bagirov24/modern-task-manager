@@ -18,7 +18,7 @@ class NotificationService:
         user_id: UUID,
         title: str,
         message: str,
-        notification_type: NotificationType = NotificationType.INFO,
+        notification_type: NotificationType = NotificationType.SYSTEM,
         related_task_id: Optional[UUID] = None,
     ) -> Notification:
         notification = Notification(
