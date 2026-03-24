@@ -1,6 +1,11 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
-import apiClient from '../lib/api/client'
+import axios from 'axios'
+
+const apiClient = axios.create({
+  baseURL: '/api/v1',
+  headers: { 'Content-Type': 'application/json' },
+})
 
 export interface User {
   id: string
@@ -48,7 +53,7 @@ export const useAuthStore = create<AuthState>()(
         login: async (email, password) => {
           set({ isLoading: true, error: null })
           try {
-            const resp = await apiClient.post('/api/v1/auth/login', { email, password })
+            const resp = await apiClient.post('/auth/login', { email, password })
             const { access_token, user } = resp.data
             set({ token: access_token, user, isAuthenticated: true, isLoading: false })
             apiClient.defaults.headers.common['Authorization'] = `Bearer ${access_token}`
@@ -64,7 +69,7 @@ export const useAuthStore = create<AuthState>()(
         register: async (data) => {
           set({ isLoading: true, error: null })
           try {
-            await apiClient.post('/api/v1/auth/register', data)
+            await apiClient.post('/auth/register', data)
             await get().login(data.email, data.password)
           } catch (err: any) {
             set({
@@ -83,7 +88,7 @@ export const useAuthStore = create<AuthState>()(
         updateProfile: async (data) => {
           set({ isLoading: true })
           try {
-            const resp = await apiClient.patch('/api/v1/auth/profile', data)
+            const resp = await apiClient.patch('/auth/profile', data)
             set({ user: resp.data, isLoading: false })
           } catch (err: any) {
             set({ error: err.response?.data?.detail || 'Update failed', isLoading: false })
@@ -101,13 +106,12 @@ export const useAuthStore = create<AuthState>()(
           }
         },
         clearError: () => set({ error: null }),
-
         checkAuth: async () => {
           const token = get().token
           if (!token) return
           try {
             apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`
-            const resp = await apiClient.get('/api/v1/auth/me')
+            const resp = await apiClient.get('/auth/me')
             set({ user: resp.data, isAuthenticated: true })
           } catch {
             get().logout()
