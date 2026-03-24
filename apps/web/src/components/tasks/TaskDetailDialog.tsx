@@ -30,11 +30,11 @@ const statuses = [
 
 export default function TaskDetailDialog({ open, onClose, task, mode }: Props) {
   const { createTask, updateTask, deleteTask } = useTasks()
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<Record<string, string>>({
     title: '',
     description: '',
-    priority: 'medium' as string,
-    status: 'todo' as string,
+    priority: 'medium' ,
+    status: 'todo' ,
     due_date: '',
   })
   const [isEditing, setIsEditing] = useState(mode === 'edit' || mode === 'create')
