@@ -12,9 +12,5 @@ passlib[bcrypt]==1.7.4
 python-multipart==0.0.6
 httpx==0.26.0
 python-socketio==5.11.0
-openai==1.9.0
-langchain==0.1.1
-whisper==1.1.10
-pyaudio==0.2.14
 pytest==7.4.4
 pytest-asyncio==0.23.3
