@@ -39,7 +39,7 @@ class ProjectService:
     ) -> List[Project]:
         query = self.db.query(Project).filter(Project.owner_id == owner_id)
         if not include_archived:
-            query = query.filter(Project.is_archived == False)
+            query = query.filter(Project.is_archived.is_(False))
         return query.order_by(Project.updated_at.desc()).all()
 
     def update_project(
@@ -89,7 +89,6 @@ class ProjectService:
         }
 
     # --- Sections ---
-
     def create_section(self, project_id: UUID, name: str) -> Section:
         position = self.db.query(func.count(Section.id)).filter(
             Section.project_id == project_id
