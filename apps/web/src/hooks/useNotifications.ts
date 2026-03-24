@@ -14,18 +14,16 @@ export function useNotifications() {
     try {
       const data: any = await notificationApi.list()
       const raw = data?.data ?? data
-      let items: Notification[] = []
+      let items: any[] = []
       if (Array.isArray(raw)) {
         items = raw
       } else if (raw?.notifications && Array.isArray(raw.notifications)) {
         items = raw.notifications
       } else if (raw?.data && Array.isArray(raw.data)) {
         items = raw.data
-      } else if (raw?.data?.notifications && Array.isArray(raw.data.notifications)) {
-        items = raw.data.notifications
       }
-      setNotifications(items)
-      setUnreadCount(items.filter((n: Notification) => !n.is_read).length)
+      setNotifications(items as Notification[])
+      setUnreadCount((items as Notification[]).filter((n) => !n.is_read).length)
     } catch (err) {
       console.error('Failed to fetch notifications:', err)
     } finally {
@@ -62,7 +60,11 @@ export function useNotifications() {
   const deleteNotification = useCallback(async (id: string) => {
     try {
       await notificationApi.delete(id)
-      setNotifications(prev => prev.filter(n => n.id !== id))
+      setNotifications(prev => {
+        const updated = prev.filter(n => n.id !== id)
+        setUnreadCount(updated.filter(n => !n.is_read).length)
+        return updated
+      })
     } catch (err) {
       console.error('Failed to delete notification:', err)
     }
