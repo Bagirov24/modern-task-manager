@@ -70,8 +70,8 @@ export default function CalendarPage() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [taskDialogOpen, setTaskDialogOpen] = useState(false)
 
-  const { data } = useTasks({})
-  const tasks = data?.tasks || []
+  const { tasks } = useTasks()
+
 
   const tasksByDate = useMemo(() => {
     const map: Record<string, Task[]> = {}
