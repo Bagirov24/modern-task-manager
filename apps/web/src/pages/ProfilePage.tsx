@@ -19,7 +19,7 @@ export default function ProfilePage() {
       await updateProfile({ full_name: fullName, username } as any)
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
-    } catch {}
+    } catch {/* handled */}
   }
 
   if (!user) return <Box display="flex" justifyContent="center" mt={8}><CircularProgress /></Box>
