@@ -1,6 +1,6 @@
 from openai import OpenAI
 from app.core.config import settings
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 import json
 
 client = OpenAI(api_key=settings.OPENAI_API_KEY)
