@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1 import auth, tasks, projects, comments, labels, notifications, subtasks
 from app.websocket.manager import setup_websocket
 from app.core.database import engine, Base
-from app.models import user, task, project, comment, label, notification
+from app.models import user, task, project, comment, label, notification  # noqa: F401
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.core.config import settings
 
