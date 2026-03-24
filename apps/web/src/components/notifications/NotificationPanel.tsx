@@ -22,7 +22,8 @@ import {
   Delete,
   NotificationsNone,
 } from '@mui/icons-material'
-import { useNotifications, Notification } from '../../hooks/useNotifications'
+import { useNotifications } from '../../hooks/useNotifications'
+import type { Notification } from '../../lib/types'
 import { formatDistanceToNow } from 'date-fns'
 import { ru } from 'date-fns/locale'
 
@@ -84,7 +85,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({ open, onCl
               <ListItem
                 key={notification.id}
                 sx={{
-                  backgroundColor: notification.read ? 'transparent' : 'action.hover',
+                  backgroundColor: notification.is_read ? 'transparent' : 'action.hover',
                   cursor: 'pointer',
                   '&:hover': { backgroundColor: 'action.selected' },
                 }}
@@ -103,20 +104,14 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({ open, onCl
                   {getIcon(notification.type)}
                 </ListItemIcon>
                 <ListItemText
-                  primary={notification.title}
+                  primary={notification.message}
                   secondary={
-                    <>
-                      <Typography variant="body2" component="span">
-                        {notification.message}
-                      </Typography>
-                      <br />
-                      <Typography variant="caption" color="text.disabled">
-                        {formatDistanceToNow(new Date(notification.created_at), {
-                          addSuffix: true,
-                          locale: ru,
-                        })}
-                      </Typography>
-                    </>
+                    <Typography variant="caption" color="text.disabled">
+                      {formatDistanceToNow(new Date(notification.created_at), {
+                        addSuffix: true,
+                        locale: ru,
+                      })}
+                    </Typography>
                   }
                 />
               </ListItem>
