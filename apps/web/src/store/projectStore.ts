@@ -11,6 +11,8 @@ export interface Project {
   task_count: number
   completed_count: number
   created_at: string
+    is_archived?: boolean
+  owner_id?: string
   updated_at: string
 }
 
