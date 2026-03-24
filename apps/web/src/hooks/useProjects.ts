@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { projectApi } from '../lib/api/projectApi'
 import { useProjectStore } from '../store/projectStore'
+import type { Project } from '../lib/types'
 
 export type ProjectCreate = Record<string, any>
 
@@ -23,7 +24,7 @@ export function useProjects() {
       } else if (raw?.data && Array.isArray(raw.data)) {
         items = raw.data
       }
-      setProjects(items as any)
+      setProjects(items as Project[])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch projects')
     } finally {
@@ -35,27 +36,29 @@ export function useProjects() {
     fetchProjects()
   }, [fetchProjects])
 
-  const createProject = useCallback(async (project: ProjectCreate) => {
+  const createProject = useCallback(async (project: Partial<Project>) => {
     setError(null)
     try {
       const newProject: any = await projectApi.create(project)
       const item = newProject?.data ?? newProject
-      addProject(item as any)
-      return item
+      addProject(item as Project)
+      return item as Project
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create project')
+      throw err
     }
   }, [addProject])
 
-  const updateProject = useCallback(async (id: string, project: Partial<any>) => {
+  const updateProject = useCallback(async (id: string, project: Partial<Project>) => {
     setError(null)
     try {
       const updated: any = await projectApi.update(id, project)
       const item = updated?.data ?? updated
-      updateProjectInStore(item as any)
-      return item
+      updateProjectInStore(item as Project)
+      return item as Project
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update project')
+      throw err
     }
   }, [updateProjectInStore])
 
