@@ -36,47 +36,25 @@ export interface Label {
   color: string
 }
 
-export interface User {
-  id: string
-  email: string
-  username: string
-  full_name?: string
-  avatar_url?: string
-  created_at?: string
-}
-
 export interface Notification {
   id: string
-  type: 'task_assigned' | 'task_updated' | 'comment_added' | 'project_invited' | 'mention'
-  title: string
+  type: 'info' | 'success' | 'warning' | 'error'
   message: string
   is_read: boolean
-  read?: boolean
-  task_id?: string
-  project_id?: string
-  sender_id?: string
   created_at: string
+}
+
+export interface Subtask {
+  id: string
+  title: string
+  completed: boolean
+  task_id: string
 }
 
 export interface Comment {
   id: string
-  content: string
+  text: string
+  user_id: string
   task_id: string
-  author_id: string
-  author?: User
   created_at: string
-  updated_at: string
-}
-
-export interface ApiError {
-  detail: string
-  status_code?: number
-}
-
-export interface PaginatedResponse<T> {
-  items: T[]
-  total: number
-  page: number
-  size: number
-  pages: number
 }
