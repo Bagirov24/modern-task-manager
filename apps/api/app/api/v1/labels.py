@@ -10,7 +10,6 @@ from app.schemas.label import (
     LabelCreate,
     LabelUpdate,
     LabelResponse,
-    LabelListResponse,
     LabelAssign,
 )
 from app.services.label_service import LabelService
