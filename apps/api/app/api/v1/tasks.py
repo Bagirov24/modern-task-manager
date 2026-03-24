@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import Optional, List
+from typing import Optional
 from uuid import UUID
 from app.core.database import get_db
 from app.core.security import get_current_user
@@ -24,7 +24,7 @@ async def list_tasks(
     current_user: User = Depends(get_current_user),
 ):
     query = db.query(Task).filter(Task.assignee_id == current_user.id)
-    
+
     if status:
         query = query.filter(Task.status == status)
     if priority:
@@ -33,10 +33,10 @@ async def list_tasks(
         query = query.filter(Task.project_id == project_id)
     if search:
         query = query.filter(Task.title.ilike(f"%{search}%"))
-    
+
     total = query.count()
     tasks = query.offset((page - 1) * per_page).limit(per_page).all()
-    
+
     return TaskListResponse(tasks=tasks, total=total, page=page, per_page=per_page)
 
 
@@ -78,14 +78,14 @@ async def update_task(
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     update_data = task_data.model_dump(exclude_unset=True)
     if "status" in update_data and update_data["status"] == TaskStatus.DONE:
         update_data["completed_at"] = datetime.utcnow()
-    
+
     for field, value in update_data.items():
         setattr(task, field, value)
-    
+
     db.commit()
     db.refresh(task)
     return task
