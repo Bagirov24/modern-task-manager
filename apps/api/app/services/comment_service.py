@@ -4,7 +4,6 @@ from typing import Optional, List
 from datetime import datetime
 
 from app.models.comment import Comment
-from app.models.user import User
 from app.schemas.comment import CommentCreate, CommentUpdate
 
 
