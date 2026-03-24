@@ -25,6 +25,9 @@ interface ProjectCardProps {
   onSelect: (project: Project) => void
   onEdit: (project: Project) => void
   onDelete: (projectId: string) => void
+    onArchive?: () => void
+  onClick?: () => void
+  variant?: 'grid' | 'list'
   onToggleFavorite: (projectId: string) => void
 }
 
