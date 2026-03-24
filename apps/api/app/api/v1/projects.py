@@ -10,7 +10,6 @@ from app.schemas.project import (
     ProjectCreate,
     ProjectUpdate,
     ProjectResponse,
-    ProjectListResponse,
 )
 from app.services.project_service import ProjectService
 
