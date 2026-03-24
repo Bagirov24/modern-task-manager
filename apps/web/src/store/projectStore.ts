@@ -1,20 +1,8 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
+import type { Project } from '../lib/types'
 
-export interface Project {
-  id: string
-  name: string
-  description: string
-  color: string
-  icon: string
-  is_favorite: boolean
-  task_count: number
-  completed_count: number
-  created_at: string
-    is_archived?: boolean
-  owner_id?: string
-  updated_at: string
-}
+export type { Project }
 
 interface ProjectState {
   projects: Project[]
