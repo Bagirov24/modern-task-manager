@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1 import auth, tasks, projects, comments, labels, notifications, subtasks
 from app.websocket.manager import setup_websocket
+from app.core.database import engine, Base
+from app.models import user, task, project, comment, label, notification, subtask
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.core.config import settings
 
@@ -10,6 +12,9 @@ app = FastAPI(
     description="Full-featured task management API with AI and real-time collaboration",
     version="1.0.0",
 )
+
+# Create database tables
+Base.metadata.create_all(bind=engine)
 
 # CORS
 app.add_middleware(
