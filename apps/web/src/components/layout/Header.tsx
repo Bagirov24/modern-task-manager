@@ -14,7 +14,7 @@ import {
 } from '@mui/icons-material'
 import { useAuthStore } from '@/lib/store/authStore'
 import { useThemeStore } from '@/lib/store/themeStore'
-import { useNotifications, useMarkAllNotificationsRead, useMarkNotificationRead } from '@/lib/hooks/useNotifications'
+import { useNotifications } from '@/lib/hooks/useNotifications'
 import type { Notification } from '@/lib/types'
 
 const notifIcon: Record<string, JSX.Element> = {
@@ -35,21 +35,16 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
   const { mode, toggleTheme } = useThemeStore()
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [notifAnchor, setNotifAnchor] = useState<null | HTMLElement>(null)
-  const { data: notifData } = useNotifications()
-  const markAllRead = useMarkAllNotificationsRead()
-  const markRead = useMarkNotificationRead()
-
-  const notifications: Notification[] = notifData?.notifications || []
-  const unreadCount = notifications.filter((n) => !n.is_read).length
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
 
   const timeAgo = (date: string) => {
     const diff = Date.now() - new Date(date).getTime()
     const mins = Math.floor(diff / 60000)
-    if (mins < 1) return 'только что'
-    if (mins < 60) return `${mins} мин назад`
+    if (mins < 1) return '\u0442\u043e\u043b\u044c\u043a\u043e \u0447\u0442\u043e'
+    if (mins < 60) return `${mins} \u043c\u0438\u043d \u043d\u0430\u0437\u0430\u0434`
     const hrs = Math.floor(mins / 60)
-    if (hrs < 24) return `${hrs} ч назад`
-    return `${Math.floor(hrs / 24)} д назад`
+    if (hrs < 24) return `${hrs} \u0447 \u043d\u0430\u0437\u0430\u0434`
+    return `${Math.floor(hrs / 24)} \u0434 \u043d\u0430\u0437\u0430\u0434`
   }
 
   return (
@@ -60,81 +55,48 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
         bgcolor: 'background.paper',
         borderBottom: '1px solid',
         borderColor: 'divider',
-        backdropFilter: 'blur(20px)',
+        backdropFilter: 'blur(8px)',
         backgroundColor: (t) => alpha(t.palette.background.paper, 0.8),
       }}
     >
-      <Toolbar sx={{ gap: 2 }}>
-        <Tooltip title="Свернуть/развернуть меню">
-          <IconButton
-            edge="start"
-            onClick={onToggleSidebar}
-            sx={{
-              color: 'text.secondary',
-              mr: 1,
-            }}
-          >
-            <MenuIcon />
-          </IconButton>
-        </Tooltip>
+      <Toolbar sx={{ gap: 1 }}>
+        <IconButton onClick={onToggleSidebar} sx={{ color: 'text.secondary' }}>
+          <MenuIcon />
+        </IconButton>
 
         <TextField
-          placeholder="Поиск задач..."
           size="small"
-          sx={{
-            flexGrow: 1,
-            maxWidth: 480,
-            '& .MuiOutlinedInput-root': {
-              borderRadius: 28,
-              bgcolor: 'action.hover',
-              '& fieldset': { border: 'none' },
-              '&:hover': { bgcolor: 'action.selected' },
-              '&.Mui-focused': {
-                bgcolor: 'background.paper',
-                '& fieldset': { border: '2px solid', borderColor: 'primary.main' },
-              },
-            },
-          }}
+          placeholder="\u041f\u043e\u0438\u0441\u043a..."
+          sx={{ flex: 1, maxWidth: 400 }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+                <SearchIcon fontSize="small" />
               </InputAdornment>
             ),
           }}
         />
 
-        <Box sx={{ flexGrow: 1 }} />
+        <Box sx={{ flex: 1 }} />
 
-        <Tooltip title={mode === 'dark' ? 'Светлая тема' : 'Тёмная тема'}>
-          <IconButton
-            size="small"
-            onClick={toggleTheme}
-            sx={{
-              color: 'text.secondary',
-              bgcolor: 'action.hover',
-              '&:hover': { bgcolor: 'action.selected' },
-            }}
-          >
+        <Tooltip title={mode === 'dark' ? '\u0421\u0432\u0435\u0442\u043b\u0430\u044f \u0442\u0435\u043c\u0430' : '\u0422\u0451\u043c\u043d\u0430\u044f \u0442\u0435\u043c\u0430'}>
+          <IconButton onClick={toggleTheme} sx={{ color: 'text.secondary' }}>
             {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
           </IconButton>
         </Tooltip>
 
-        <Tooltip title="Уведомления">
-          <IconButton
-            size="small"
-            onClick={(e) => setNotifAnchor(e.currentTarget)}
-            sx={{
-              color: 'text.secondary',
-              bgcolor: 'action.hover',
-              '&:hover': { bgcolor: 'action.selected' },
-            }}
-          >
-            <Badge badgeContent={unreadCount} color="error" variant={unreadCount > 0 ? 'standard' : 'dot'}>
-              <BellIcon />
-            </Badge>
-          </IconButton>
-        </Tooltip>
+        <IconButton
+          onClick={(e) => setNotifAnchor(e.currentTarget)}
+          sx={{
+            color: 'text.secondary',
+            bgcolor: 'action.hover',
+            '&:hover': { bgcolor: 'action.selected' },
+          }}
+        >
+          <Badge badgeContent={unreadCount} color="error" variant={unreadCount > 0 ? 'standard' : 'dot'}>
+            <BellIcon />
+          </Badge>
+        </IconButton>
 
         {/* Notification Popover */}
         <Popover
@@ -146,25 +108,24 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           PaperProps={{ sx: { width: 380, maxHeight: 480, borderRadius: 3, mt: 1 } }}
         >
           <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">Уведомления</Typography>
+            <Typography variant="subtitle1" fontWeight={600}>\u0423\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u044f</Typography>
             {unreadCount > 0 && (
-              <Button size="small" startIcon={<DoneAll />} onClick={() => markAllRead.mutate()}>
-                Прочитать все
+              <Button size="small" startIcon={<DoneAll />} onClick={() => markAllAsRead()}>
+                \u041f\u0440\u043e\u0447\u0438\u0442\u0430\u0442\u044c \u0432\u0441\u0435
               </Button>
             )}
           </Box>
           <Divider />
           {notifications.length === 0 ? (
-            <Box sx={{ p: 4, textAlign: 'center' }}>
-              <BellIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
-              <Typography color="text.secondary">Нет уведомлений</Typography>
-            </Box>
+            <Typography sx={{ p: 3, textAlign: 'center' }} color="text.secondary">
+              \u041d\u0435\u0442 \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0439
+            </Typography>
           ) : (
-            <List dense sx={{ p: 0 }}>
-              {notifications.slice(0, 10).map((n) => (
+            <List disablePadding>
+              {notifications.slice(0, 10).map((n: Notification) => (
                 <ListItem
                   key={n.id}
-                  onClick={() => !n.is_read && markRead.mutate(n.id)}
+                  onClick={() => !n.is_read && markAsRead(n.id)}
                   sx={{
                     cursor: 'pointer',
                     bgcolor: n.is_read ? 'transparent' : 'action.hover',
@@ -173,14 +134,10 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
                     py: 1.5,
                   }}
                 >
-                  <ListItemAvatar sx={{ minWidth: 40 }}>
-                    {notifIcon[n.type] || <BellIcon fontSize="small" />}
-                  </ListItemAvatar>
+                  <ListItemAvatar>{notifIcon[n.type] || <BellIcon />}</ListItemAvatar>
                   <ListItemText
-                    primary={n.title}
+                    primary={n.message}
                     secondary={timeAgo(n.created_at)}
-                    primaryTypographyProps={{ variant: 'body2', fontWeight: n.is_read ? 400 : 600 }}
-                    secondaryTypographyProps={{ variant: 'caption' }}
                   />
                   {!n.is_read && (
                     <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'primary.main', ml: 1 }} />
@@ -191,13 +148,13 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           )}
         </Popover>
 
-        <IconButton size="small" onClick={(e) => setAnchorEl(e.currentTarget)}>
-          <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main', fontSize: 14, fontWeight: 600 }}>
+        <IconButton onClick={(e) => setAnchorEl(e.currentTarget)}>
+          <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 14 }}>
             {user?.username?.charAt(0)?.toUpperCase() || 'U'}
           </Avatar>
         </IconButton>
-        <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', md: 'block' } }}>
-          {user?.username || 'Пользователь'}
+        <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
+          {user?.username || '\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c'}
         </Typography>
 
         <Menu
@@ -211,7 +168,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
             sx={{ gap: 1.5, color: 'error.main' }}
           >
             <LogoutIcon fontSize="small" />
-            Выйти
+            \u0412\u044b\u0439\u0442\u0438
           </MenuItem>
         </Menu>
       </Toolbar>
