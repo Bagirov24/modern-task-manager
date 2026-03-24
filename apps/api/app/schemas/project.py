@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
 
@@ -32,3 +32,11 @@ class ProjectResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+
+class ProjectListResponse(BaseModel):
+    projects: List[ProjectResponse]
+    total: int
+    page: int
+    per_page: int
