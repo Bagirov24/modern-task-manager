@@ -1,31 +1,31 @@
 export interface Task {
   id: string
   title: string
-  description: string
+  description?: string
   status: 'todo' | 'in_progress' | 'done' | 'archived'
   priority: 'low' | 'medium' | 'high' | 'urgent'
   due_date?: string
   completed_at?: string
-  project_id: string
+  project_id?: string
   assignee_id?: string
   parent_id?: string
   created_at: string
   updated_at: string
-  labels: string[]
-  order: number
+  labels?: string[]
+  order?: number
 }
 
 export interface Project {
   id: string
   name: string
-  description: string
+  description?: string
   color: string
   icon: string
-  is_favorite: boolean
+  is_favorite?: boolean
   is_archived?: boolean
   owner_id?: string
-  task_count: number
-  completed_count: number
+  task_count?: number
+  completed_count?: number
   created_at: string
   updated_at: string
 }
