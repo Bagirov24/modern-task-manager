@@ -9,8 +9,8 @@ export interface Task {
   project_id?: string
   assignee_id?: string
   parent_id?: string
-  created_at: string
-  updated_at: string
+  created_at?: string
+  updated_at?: string
   labels?: string[]
   order?: number
 }
@@ -19,15 +19,15 @@ export interface Project {
   id: string
   name: string
   description?: string
-  color: string
-  icon: string
+  color?: string
+  icon?: string
   is_favorite?: boolean
   is_archived?: boolean
   owner_id?: string
   task_count?: number
   completed_count?: number
-  created_at: string
-  updated_at: string
+  created_at?: string
+  updated_at?: string
 }
 
 export interface Label {
