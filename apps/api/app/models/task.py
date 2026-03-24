@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Text, Boolean, Integer, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, String, Text, Integer, DateTime, ForeignKey, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -32,11 +32,11 @@ class Task(Base):
     due_date = Column(DateTime)
     completed_at = Column(DateTime)
     position = Column(Integer, default=0)
-    
+
     project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id"), nullable=True)
     assignee_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     parent_id = Column(UUID(as_uuid=True), ForeignKey("tasks.id"), nullable=True)
-    
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
