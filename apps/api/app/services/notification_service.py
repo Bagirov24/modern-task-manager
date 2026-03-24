@@ -40,7 +40,7 @@ class NotificationService:
             Notification.user_id == user_id
         )
         if unread_only:
-            query = query.filter(Notification.is_read == False)
+            query = query.filter(Notification.is_read.is_(False))
         return query.order_by(Notification.created_at.desc()).all()
 
     def mark_as_read(self, notification_id: UUID) -> Optional[Notification]:
@@ -57,7 +57,7 @@ class NotificationService:
     def mark_all_as_read(self, user_id: UUID) -> int:
         count = self.db.query(Notification).filter(
             Notification.user_id == user_id,
-            Notification.is_read == False,
+            Notification.is_read.is_(False),
         ).update({"is_read": True, "read_at": datetime.utcnow()})
         self.db.commit()
         return count
@@ -75,7 +75,7 @@ class NotificationService:
     def get_unread_count(self, user_id: UUID) -> int:
         return self.db.query(Notification).filter(
             Notification.user_id == user_id,
-            Notification.is_read == False,
+            Notification.is_read.is_(False),
         ).count()
 
     def notify_task_assigned(self, user_id: UUID, task_title: str, task_id: UUID):
