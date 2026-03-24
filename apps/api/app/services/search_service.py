@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, func
+from sqlalchemy import or_
 from app.models.task import Task
 from app.models.project import Project
 from typing import List, Dict, Any
