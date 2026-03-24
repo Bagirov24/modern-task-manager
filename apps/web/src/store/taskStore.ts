@@ -1,20 +1,8 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
+import type { Task } from '../lib/types'
 
-export interface Task {
-  id: string
-  title: string
-  description: string
-  status: 'todo' | 'in_progress' | 'done'
-  priority: 'low' | 'medium' | 'high' | 'urgent'
-  project_id: string
-  assignee_id?: string
-  due_date?: string
-  labels: string[]
-  order: number
-  created_at: string
-  updated_at: string
-}
+export type { Task }
 
 interface TaskState {
   tasks: Task[]
@@ -70,7 +58,6 @@ export const useTaskStore = create<TaskState>()(
         setSortBy: (sortBy) => set({ sortBy }),
         setSortOrder: (sortOrder) => set({ sortOrder }),
         setViewMode: (viewMode) => set({ viewMode }),
-
         getFilteredTasks: () => {
           const { tasks, filter, sortBy, sortOrder } = get()
           let filtered = [...tasks]
@@ -92,12 +79,12 @@ export const useTaskStore = create<TaskState>()(
             filtered = filtered.filter(t => t.labels.includes(filter.label!))
           }
 
-          const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 }
+          const priorityOrder: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 }
           filtered.sort((a, b) => {
             let comparison = 0
             switch (sortBy) {
               case 'priority':
-                comparison = priorityOrder[a.priority] - priorityOrder[b.priority]
+                comparison = (priorityOrder[a.priority] ?? 2) - (priorityOrder[b.priority] ?? 2)
                 break
               case 'due_date':
                 comparison = (a.due_date || '').localeCompare(b.due_date || '')
@@ -110,7 +97,6 @@ export const useTaskStore = create<TaskState>()(
             }
             return sortOrder === 'asc' ? comparison : -comparison
           })
-
           return filtered
         },
       }),
