@@ -1,38 +1,29 @@
-"""Project Pydantic schemas.
-
-Validation rules
-----------------
-- name: 1–255 chars, whitespace-stripped, must not be blank.
-- color: #RRGGBB hex.
-- description: up to 2 000 chars.
-- icon: up to 50 chars.
-- start_date must be before due_date when both are set.
-- initial_tasks: optional list of TaskCreate objects bulk-inserted
-  together with the project in one transaction (see create_project).
-
-is_overdue
-----------
-Computed in Python (not SQL) on the Response model:
-  True when due_date is set, has passed, and status is not
-  completed/cancelled.
-"""
+"""Project Pydantic schemas — final version (all 10 features)."""
 from __future__ import annotations
 
 import re
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, List, Optional
+from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.models.project import ProjectStatus
+from app.models.project import ProjectStatus, ReadmeFormat
 from app.schemas.user import UserPublicResponse
-
-if TYPE_CHECKING:
-    from app.schemas.task import TaskCreate  # avoid circular at runtime
 
 _HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
 _CLOSED_STATUSES = {ProjectStatus.COMPLETED, ProjectStatus.CANCELLED}
+
+
+# ---------------------------------------------------------------------------
+# Tag schema (inline — small)
+# ---------------------------------------------------------------------------
+class TagResponse(BaseModel):
+    id: UUID
+    name: str
+    slug: str
+    color: str
+    model_config = {"from_attributes": True}
 
 
 # ---------------------------------------------------------------------------
@@ -46,12 +37,9 @@ class ProjectCreate(BaseModel):
     status: ProjectStatus = ProjectStatus.ACTIVE
     start_date: Optional[datetime] = None
     due_date: Optional[datetime] = None
-    # Bulk task creation — imported lazily to avoid circular import
-    initial_tasks: Optional[List[dict]] = Field(
-        default_factory=list,
-        description="Optional list of TaskCreate-compatible dicts. "
-                    "All tasks are bulk-inserted in the same transaction.",
-    )
+    readme: Optional[str] = None                          # #6
+    readme_format: ReadmeFormat = ReadmeFormat.HTML       # #6
+    initial_tasks: Optional[List[dict]] = Field(default_factory=list)
 
     @field_validator("name", mode="before")
     @classmethod
@@ -76,7 +64,7 @@ class ProjectCreate(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Update (all fields optional)
+# Update
 # ---------------------------------------------------------------------------
 class ProjectUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
@@ -87,6 +75,10 @@ class ProjectUpdate(BaseModel):
     is_archived: Optional[bool] = None
     start_date: Optional[datetime] = None
     due_date: Optional[datetime] = None
+    readme: Optional[str] = None                          # #6
+    readme_format: Optional[ReadmeFormat] = None          # #6
+    is_pinned: Optional[bool] = None                      # #8
+    position: Optional[int] = Field(None, ge=0)           # #8
 
     @field_validator("name", mode="before")
     @classmethod
@@ -113,6 +105,21 @@ class ProjectUpdate(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# README update (dedicated body — not via PATCH to keep it atomic)
+# ---------------------------------------------------------------------------
+class ReadmeUpdate(BaseModel):
+    readme: str = Field(..., max_length=50_000)   # 50k chars for wiki
+    readme_format: ReadmeFormat = ReadmeFormat.HTML
+
+
+# ---------------------------------------------------------------------------
+# Reorder body
+# ---------------------------------------------------------------------------
+class ProjectReorder(BaseModel):
+    position: int = Field(..., ge=0)
+
+
+# ---------------------------------------------------------------------------
 # Response
 # ---------------------------------------------------------------------------
 class ProjectResponse(BaseModel):
@@ -123,21 +130,23 @@ class ProjectResponse(BaseModel):
     icon: Optional[str] = None
     status: ProjectStatus = ProjectStatus.ACTIVE
     is_archived: bool
+    is_pinned: bool = False                               # #8
+    position: int = 0                                     # #8
     start_date: Optional[datetime] = None
     due_date: Optional[datetime] = None
+    readme: Optional[str] = None                          # #6
+    readme_format: ReadmeFormat = ReadmeFormat.HTML       # #6
     owner_id: UUID
     owner: Optional[UserPublicResponse] = None
+    tags: List[TagResponse] = []                          # #9
     created_at: datetime
     task_count: Optional[int] = 0
-
-    # Computed: overdue flag — not stored in DB
-    is_overdue: bool = False
+    is_overdue: bool = False                              # computed
 
     model_config = {"from_attributes": True}
 
     @model_validator(mode="after")
     def compute_is_overdue(self) -> "ProjectResponse":
-        """Mark overdue when due_date is past and project is still open."""
         if (
             self.due_date
             and self.due_date < datetime.now(timezone.utc)
