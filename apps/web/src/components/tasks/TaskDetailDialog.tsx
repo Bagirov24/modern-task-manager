@@ -6,7 +6,7 @@ import {
 } from '@mui/material'
 import { Close as CloseIcon } from '@mui/icons-material'
 import { useTasks } from '../../hooks/useTasks'
-import type { Task } from '../../lib/types'
+import type { Task, TaskCreate, TaskPriority, TaskStatus } from '../../lib/types'
 
 interface Props {
   open: boolean
@@ -30,7 +30,7 @@ const statuses = [
 
 export default function TaskDetailDialog({ open, onClose, task, mode }: Props) {
   const { createTask, updateTask, deleteTask } = useTasks()
-  const [form, setForm] = useState<Record<string, string>>({
+  const [form, setForm] = useState<TaskCreate>({
     title: '',
     description: '',
     priority: 'medium' ,
@@ -109,7 +109,7 @@ export default function TaskDetailDialog({ open, onClose, task, mode }: Props) {
                   <Select
                     value={form.priority}
                     label="Приоритет"
-                    onChange={(e) => setForm({ ...form, priority: e.target.value })}
+                    onChange={(e) => setForm({ ...form, priority: e.target.value as TaskPriority })}
                   >
                     {priorities.map(p => (
                       <MenuItem key={p.value} value={p.value}>{p.label}</MenuItem>
@@ -121,7 +121,7 @@ export default function TaskDetailDialog({ open, onClose, task, mode }: Props) {
                   <Select
                     value={form.status}
                     label="Статус"
-                    onChange={(e) => setForm({ ...form, status: e.target.value })}
+                    onChange={(e) => setForm({ ...form, status: e.target.value as TaskStatus })}
                   >
                     {statuses.map(s => (
                       <MenuItem key={s.value} value={s.value}>{s.label}</MenuItem>

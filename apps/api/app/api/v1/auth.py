@@ -16,7 +16,8 @@ import logging
 from datetime import timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from jose import JWTError, jwt
+import jwt
+from jwt import PyJWTError as JWTError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -116,7 +117,7 @@ async def refresh_tokens(
             refresh_token,
             settings.SECRET_KEY,
             algorithms=["HS256"],
-            options={"leeway": 10},
+            leeway=10,
         )
         user_id: str | None = payload.get("sub")
         token_type: str | None = payload.get("type")
@@ -154,14 +155,14 @@ async def logout(
 ):
     """Blacklist the current access token jti in Redis."""
     from datetime import datetime
-    from jose import JWTError, jwt
 
     try:
         payload = jwt.decode(
             token,
             settings.SECRET_KEY,
             algorithms=["HS256"],
-            options={"leeway": 10, "verify_exp": False},
+            options={"verify_exp": False},
+            leeway=10,
         )
         jti = payload.get("jti")
         exp = payload.get("exp")

@@ -77,7 +77,7 @@ class TestWebSocketAuth:
             "app.websocket.manager._is_jti_blacklisted",
             AsyncMock(return_value=True),
         )
-        from jose import jwt as jose_jwt
+        import jwt as jose_jwt
         from app.core.config import settings
         from app.core.security import create_access_token
         token = create_access_token({"sub": str(uuid4())})

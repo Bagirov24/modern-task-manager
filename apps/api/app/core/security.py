@@ -19,7 +19,8 @@ from uuid import uuid4
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
+import jwt
+from jwt import PyJWTError as JWTError
 from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -122,7 +123,7 @@ async def get_current_user(
             token,
             settings.SECRET_KEY,
             algorithms=_JWT_ALGORITHMS,
-            options={"leeway": 10},
+            leeway=10,
         )
         user_id: str | None = payload.get("sub")
         jti: str | None = payload.get("jti")

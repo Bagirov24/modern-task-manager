@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectApi } from '@/lib/api/projectApi'
+import { projectApi, type ProjectCreate } from '@/lib/api/projectApi'
 import { useProjectStore } from '@/store/projectStore'
 import type { Project } from '@/lib/types'
 
@@ -18,7 +18,7 @@ export function useProjectsQuery() {
   const resolvedProjects = query.data ?? projects
 
   const createMutation = useMutation({
-    mutationFn: async (data: Partial<Project>) => {
+    mutationFn: async (data: ProjectCreate) => {
       const response = await projectApi.create(data)
       return response.data
     },

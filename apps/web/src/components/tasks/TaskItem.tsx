@@ -39,12 +39,12 @@ interface Props {
 
 export default function TaskItem({ task, onEdit, onDelete }: Props) {
   const updateTask = useTaskStore((s) => s.updateTask)
-  const selectTask = useTaskStore((s) => s.selectTask)
+  const setSelectedTask = useTaskStore((s) => s.setSelectedTask)
   const isDone = task.status === 'done'
 
   const toggle = (e: React.MouseEvent) => {
     e.stopPropagation()
-    updateTask(task.id, { status: isDone ? 'todo' : 'done' })
+    updateTask({ ...task, status: isDone ? 'todo' : 'done' })
   }
 
   const handleEdit = (e: React.MouseEvent) => {
@@ -93,7 +93,7 @@ export default function TaskItem({ task, onEdit, onDelete }: Props) {
         transition: 'all 0.2s ease',
       }}
     >
-      <CardActionArea onClick={() => selectTask(task)} sx={{ p: 0 }}>
+      <CardActionArea onClick={() => setSelectedTask(task)} sx={{ p: 0 }}>
         <CardContent sx={{ p: 2, pl: 3, '&:last-child': { pb: 2 } }}>
           <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
             <IconButton size="small" onClick={toggle} sx={{ mt: -0.25, color: isDone ? 'success.main' : 'text.disabled' }}>

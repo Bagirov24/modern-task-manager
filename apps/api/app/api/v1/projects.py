@@ -34,7 +34,7 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.project import Project, ProjectStatus, ReadmeFormat
+from app.models.project import Project, ProjectStatus
 from app.models.project_activity import ProjectActivity
 from app.models.project_member import MemberRole, ProjectMember
 from app.models.project_tag import ProjectTag, project_tags_table
@@ -44,7 +44,7 @@ from app.models.user import User
 from app.schemas.empty_state import EmptyStateResponse, TemplateSuggestion
 from app.schemas.project import (
     ProjectCreate, ProjectListResponse, ProjectReorder,
-    ProjectResponse, ProjectUpdate, ReadmeUpdate, TagResponse,
+    ProjectResponse, ProjectUpdate, ReadmeUpdate,
 )
 from app.schemas.project_member import MemberInvite, MemberResponse, MemberRoleUpdate
 from app.schemas.task import TaskCreate

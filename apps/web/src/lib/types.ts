@@ -2,6 +2,13 @@
 export type TaskStatus = 'todo' | 'in_progress' | 'done' | 'archived'
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent'
 
+export interface UserSummary {
+  id: string
+  username: string
+  full_name?: string | null
+  avatar_url?: string | null
+}
+
 export interface Task {
   id: string
   title: string
@@ -18,6 +25,7 @@ export interface Task {
   created_at?: string
   updated_at?: string
   labels?: Label[]
+  assignee?: UserSummary | null
 }
 
 // ─── Strict API DTOs (replaces Record<string, any>) ──────────────────────────
@@ -78,9 +86,21 @@ export interface Label {
 // ─── Notification ────────────────────────────────────────────────────────────
 export interface AppNotification {
   id: string
-  type: 'info' | 'success' | 'warning' | 'error'
-  message: string
+  type:
+    | 'task_assigned'
+    | 'task_completed'
+    | 'task_updated'
+    | 'task_comment'
+    | 'project_invite'
+    | 'mention'
+    | 'deadline'
+    | 'system'
+  title?: string
+  message: string | null
   is_read: boolean
+  user_id?: string
+  task_id?: string | null
+  project_id?: string | null
   created_at: string
 }
 
