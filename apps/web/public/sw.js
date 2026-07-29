@@ -1,18 +1,32 @@
-import { precacheAndRoute } from 'workbox-precaching'
-import { registerRoute } from 'workbox-routing'
-import { NetworkFirst, CacheFirst } from 'workbox-strategies'
-import { ExpirationPlugin } from 'workbox-expiration'
+const CACHE_NAME = 'modern-task-manager-v1'
+const APP_SHELL = ['/', '/manifest.webmanifest']
 
-precacheAndRoute(self.__WB_MANIFEST)
+self.addEventListener('install', (event) => {
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)))
+  self.skipWaiting()
+})
 
-// API calls: network first
-registerRoute(
-  ({ url }) => url.pathname.startsWith('/api'),
-  new NetworkFirst({ cacheName: 'api-cache', plugins: [new ExpirationPlugin({ maxEntries: 100, maxAgeSeconds: 3600 })] }),
-)
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
+    )
+  )
+  self.clients.claim()
+})
 
-// Static assets: cache first
-registerRoute(
-  ({ request }) => ['style', 'script', 'image'].includes(request.destination),
-  new CacheFirst({ cacheName: 'static-cache', plugins: [new ExpirationPlugin({ maxEntries: 60, maxAgeSeconds: 86400 * 30 })] }),
-)
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached
+      return fetch(event.request)
+        .then((response) => {
+          const responseClone = response.clone()
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone))
+          return response
+        })
+        .catch(() => caches.match('/'))
+    })
+  )
+})

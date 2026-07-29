@@ -25,6 +25,14 @@ const queryClient = new QueryClient({
   },
 })
 
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((error) => {
+      console.error('[sw] registration failed', error)
+    })
+  })
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <GlobalErrorBoundary>

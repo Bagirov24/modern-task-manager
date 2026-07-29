@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useMemo } from 'react'
 import {
   Container,
   Typography,
@@ -27,16 +27,18 @@ import {
   Delete as DeleteIcon,
   Refresh as RefreshIcon,
 } from '@mui/icons-material'
-import { useProjects } from '../hooks/useProjects'
-import type { Project } from '../lib/types'
+import { useProjectsQuery } from '@/lib/hooks/useProjectsQuery'
+import { useUIStore } from '@/store/uiStore'
+import type { Project } from '@/lib/types'
 
 const colorOptions = ['#2196F3', '#4CAF50', '#FF9800', '#F44336', '#9C27B0', '#00BCD4', '#795548', '#607D8B']
 
 type ProjectForm = { name: string; description: string; color: string }
 
 export default function ProjectsPage() {
-  const { projects: rawProjects, loading, error, fetchProjects, createProject, updateProject, deleteProject } = useProjects()
+  const { projects: rawProjects, loading, error, fetchProjects, createProject, updateProject, deleteProject } = useProjectsQuery()
   const projects = Array.isArray(rawProjects) ? rawProjects : []
+  const addSnackbar = useUIStore((s) => s.addSnackbar)
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editProject, setEditProject] = useState<Project | null>(null)
@@ -44,11 +46,7 @@ export default function ProjectsPage() {
   const [form, setForm] = useState<ProjectForm>({ name: '', description: '', color: '#2196F3' })
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    fetchProjects()
-  }, [])
-
-  const activeProjects = projects.filter((p) => !p.is_archived)
+  const activeProjects = useMemo(() => projects.filter((p) => !p.is_archived), [projects])
 
   const openCreate = () => {
     setEditProject(null)
@@ -68,8 +66,10 @@ export default function ProjectsPage() {
     try {
       if (editProject) {
         await updateProject(editProject.id, { name: form.name.trim(), description: form.description, color: form.color })
+        addSnackbar({ message: 'Проект обновлён', type: 'success', duration: 3000 })
       } else {
         await createProject({ name: form.name.trim(), description: form.description, color: form.color })
+        addSnackbar({ message: 'Проект создан', type: 'success', duration: 3000 })
       }
       setDialogOpen(false)
     } finally {
@@ -80,6 +80,7 @@ export default function ProjectsPage() {
   const confirmDelete = async () => {
     if (!deleteConfirm) return
     await deleteProject(deleteConfirm.id)
+    addSnackbar({ message: `Проект «${deleteConfirm.name}» удалён`, type: 'success', duration: 3500 })
     setDeleteConfirm(null)
   }
 
@@ -157,23 +158,12 @@ export default function ProjectsPage() {
         </Grid>
       )}
 
-      {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editProject ? 'Редактировать проект' : 'Новый проект'}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField
-              label="Название"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              fullWidth required autoFocus
-            />
-            <TextField
-              label="Описание"
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              fullWidth multiline rows={2}
-            />
+            <TextField label="Название" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} fullWidth required autoFocus />
+            <TextField label="Описание" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} fullWidth multiline rows={2} />
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>Цвет проекта</Typography>
               <Stack direction="row" spacing={1}>
@@ -201,7 +191,6 @@ export default function ProjectsPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Delete Confirmation */}
       <Dialog open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)}>
         <DialogTitle>Удалить проект?</DialogTitle>
         <DialogContent>
