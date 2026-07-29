@@ -1,7 +1,7 @@
 """Migration 0002: tighten label.owner_id NOT NULL + add FK indexes.
 
 Revision ID: 0002_label_owner_id_indexes
-Revises: 0001  (adjust if your first revision id is different)
+Revises: 001_add_start_date_timezone
 Create Date: 2026-07-29
 
 What this migration does
@@ -28,7 +28,7 @@ from sqlalchemy.dialects.postgresql import UUID
 
 # revision identifiers
 revision = "0002_label_owner_id_indexes"
-down_revision = "0001"   # <-- update to your actual previous revision id
+down_revision = "001_add_start_date_timezone"
 branch_labels = None
 depends_on = None
 
