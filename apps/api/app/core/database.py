@@ -24,6 +24,10 @@ class Base(DeclarativeBase):
     pass
 
 
+def enum_values(enum_class):
+    return [member.value for member in enum_class]
+
+
 def _make_async_url(url: str) -> str:
     if url.startswith("postgresql://"):
         return url.replace("postgresql://", "postgresql+asyncpg://", 1)

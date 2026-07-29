@@ -19,7 +19,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from app.core.database import Base
+from app.core.database import Base, enum_values
 
 
 def _utcnow() -> datetime:
@@ -52,7 +52,7 @@ class Project(Base):
     # #6 — README / Wiki
     readme = Column(Text, nullable=True)
     readme_format = Column(
-        Enum(ReadmeFormat),
+        Enum(ReadmeFormat, values_callable=enum_values),
         default=ReadmeFormat.HTML,
         nullable=False,
         server_default="html",
@@ -60,7 +60,7 @@ class Project(Base):
 
     # Lifecycle
     status = Column(
-        Enum(ProjectStatus),
+        Enum(ProjectStatus, values_callable=enum_values),
         default=ProjectStatus.ACTIVE,
         nullable=False,
         server_default="active",

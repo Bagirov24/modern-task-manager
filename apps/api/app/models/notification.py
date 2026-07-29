@@ -15,7 +15,7 @@ from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from app.core.database import Base
+from app.core.database import Base, enum_values
 import enum as python_enum
 
 
@@ -38,7 +38,7 @@ class Notification(Base):
     __tablename__ = "notifications"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    type = Column(Enum(NotificationType), default=NotificationType.SYSTEM, nullable=False)
+    type = Column(Enum(NotificationType, values_callable=enum_values), default=NotificationType.SYSTEM, nullable=False)
     title = Column(String(500), nullable=False)
     message = Column(Text)
     is_read = Column(Boolean, default=False, nullable=False)

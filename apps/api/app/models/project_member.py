@@ -28,7 +28,7 @@ from sqlalchemy import Column, DateTime, Enum, ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from app.core.database import Base
+from app.core.database import Base, enum_values
 
 
 def _utcnow() -> datetime:
@@ -49,7 +49,7 @@ class ProjectMember(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     role = Column(
-        Enum(MemberRole),
+        Enum(MemberRole, values_callable=enum_values),
         default=MemberRole.EDITOR,
         nullable=False,
     )

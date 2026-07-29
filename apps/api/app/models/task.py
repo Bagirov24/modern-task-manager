@@ -24,7 +24,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from app.core.database import Base
+from app.core.database import Base, enum_values
 
 
 def _utcnow() -> datetime:
@@ -63,13 +63,13 @@ class Task(Base):
     title = Column(String(500), nullable=False)
     description = Column(Text)
     description_format = Column(
-        Enum(DescriptionFormat),
+        Enum(DescriptionFormat, values_callable=enum_values),
         default=DescriptionFormat.HTML,
         nullable=False,
         server_default="html",
     )
-    status = Column(Enum(TaskStatus), default=TaskStatus.TODO, nullable=False)
-    priority = Column(Enum(TaskPriority), default=TaskPriority.MEDIUM, nullable=False)
+    status = Column(Enum(TaskStatus, values_callable=enum_values), default=TaskStatus.TODO, nullable=False)
+    priority = Column(Enum(TaskPriority, values_callable=enum_values), default=TaskPriority.MEDIUM, nullable=False)
     due_date = Column(DateTime(timezone=True), nullable=True)
     start_date = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
