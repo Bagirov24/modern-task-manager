@@ -1,23 +1,4 @@
-"""Project ORM models.
-
-ProjectStatus
--------------
-Replaces the binary ``is_archived`` flag with a full lifecycle enum:
-
-  planning   — project created but work hasn’t started
-  active     — work in progress (default)
-  on_hold    — temporarily paused
-  completed  — all done, still visible
-  cancelled  — abandoned
-
-``is_archived`` is kept for backward-compat (maps to status==cancelled
-in the migration default).
-
-Dates
------
-  start_date / due_date — TIMESTAMPTZ, optional.
-  start_date must be < due_date (enforced in Pydantic, not here).
-"""
+"""Project ORM models (updated: members relationship added)."""
 import enum
 import uuid
 from datetime import datetime, timezone
@@ -59,7 +40,7 @@ class Project(Base):
         nullable=False,
         server_default="active",
     )
-    is_archived = Column(Boolean, default=False, nullable=False)  # legacy flag
+    is_archived = Column(Boolean, default=False, nullable=False)
 
     # Dates
     start_date = Column(DateTime(timezone=True), nullable=True)
@@ -78,6 +59,11 @@ class Project(Base):
     )
     sections = relationship(
         "Section", back_populates="project", cascade="all, delete-orphan"
+    )
+    members = relationship(
+        "ProjectMember",
+        back_populates="project",
+        cascade="all, delete-orphan",
     )
 
 
