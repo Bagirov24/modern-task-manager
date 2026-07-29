@@ -4,9 +4,10 @@
  * Хранит незавершённые мутации в localStorage и воспроизводит их
  * при восстановлении соединения.
  *
- * Использование:
- *   offlineQueue.enqueue({ type: 'task.update', payload: { id, ...updates } })
- *   offlineQueue.flush(executor) — вызывается при window:online или reconnect
+ * Security:
+ *  - После JSON.parse выполняется строгая валидация каждой записи.
+ *  - Разрешённые типы жёстко ограничены ALLOWED_TYPES (allowlist).
+ *  - __proto__ / constructor ключи в payload отклоняются (prototype pollution).
  */
 
 export type OfflineMutationType =
@@ -26,9 +27,46 @@ export interface OfflineMutation {
 const STORAGE_KEY = 'offline_mutation_queue'
 const MAX_RETRIES = 3
 
+/** Allowlist допустимых типов мутаций */
+const ALLOWED_TYPES = new Set<string>([
+  'task.create',
+  'task.update',
+  'task.delete',
+  'task.status',
+])
+
+/** Опасные ключи, которые могут вызвать prototype pollution */
+const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
+
+/**
+ * Проверяет, что запись из localStorage соответствует OfflineMutation.
+ * Отклоняет null, массивы, неизвестные типы и опасные ключи в payload.
+ */
+function isValidMutation(m: unknown): m is OfflineMutation {
+  if (m === null || typeof m !== 'object' || Array.isArray(m)) return false
+  const rec = m as Record<string, unknown>
+
+  if (typeof rec.id !== 'string' || !rec.id) return false
+  if (typeof rec.type !== 'string' || !ALLOWED_TYPES.has(rec.type)) return false
+  if (typeof rec.retries !== 'number') return false
+  if (typeof rec.enqueuedAt !== 'string') return false
+
+  const payload = rec.payload
+  if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) return false
+
+  // Отклоняем prototype-pollution ключи
+  for (const key of Object.keys(payload as object)) {
+    if (DANGEROUS_KEYS.has(key)) return false
+  }
+
+  return true
+}
+
 function load(): OfflineMutation[] {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]')
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]')
+    if (!Array.isArray(raw)) return []
+    return raw.filter(isValidMutation)
   } catch {
     return []
   }
@@ -88,7 +126,6 @@ export const offlineQueue = {
         const updated = load().map((m) =>
           m.id === mutation.id ? { ...m, retries: m.retries + 1 } : m
         )
-        // Отбрасываем «мёртвые» мутации
         save(updated.filter((m) => m.retries < MAX_RETRIES))
         onError?.(mutation, err)
       }
