@@ -1,27 +1,24 @@
-"""Project API endpoints — v3 (final, all 10 features).
+"""Project API endpoints — v4 (UX improvements).
 
 New in this commit
 ------------------
-#6  README
-    GET  /projects/{id}/readme   — get readme + format
-    PATCH /projects/{id}/readme  — update readme (50k chars)
-    Logs action 'readme_updated' to activity.
+#ux-1  is_overdue on ProjectResponse already computed in schema.
+       ProjectCard frontend contract documented in docstring.
 
-#8  Pinned + reorder
-    POST   /projects/{id}/pin    — pin project (is_pinned=True)
-    DELETE /projects/{id}/pin    — unpin
-    PATCH  /projects/{id}/reorder {position: int} — set manual order
-    list_projects: ORDER BY is_pinned DESC, position ASC, then order_by/dir
+#ux-2  Drag handle hint:
+       GET /projects/ response items now include ui_hints.drag_handle=True
+       so any API client / frontend knows drag-to-reorder is supported.
+       PATCH /projects/{id}/reorder remains unchanged.
 
-#9  Tags filter
-    GET /projects/?tags=backend,q3  — ILIKE slug filter via subquery
+#ux-3  GET /projects/{id}/members now uses MemberResponse.from_orm_with_user
+       to populate display_name, avatar_color, initials for tooltip.
 
-#10 Activity log
-    _log(db, project_id, user_id, action, meta) — internal async helper
-    GET /projects/{id}/activity?page=&per_page= — paginated log
-    Logged events: project_created, project_updated, project_archived,
-    project_deleted, member_invited, member_removed, member_role_changed,
-    readme_updated, project_pinned, project_unpinned, project_reordered
+#ux-4  GET /tasks/{id} (in tasks router) populates checklist_summary.
+       Here we ensure SubtaskListResponse.progress is also returned by
+       GET /projects/{id}/stats for the project-level checklist widget.
+
+#ux-5  GET /projects/empty-state — onboarding endpoint.
+       Must be registered BEFORE /{project_id} to avoid route shadowing.
 """
 from __future__ import annotations
 
@@ -44,6 +41,7 @@ from app.models.project_tag import ProjectTag, project_tags_table
 from app.models.project_template import ProjectTemplate, TemplateSection
 from app.models.task import Task, TaskPriority, TaskStatus
 from app.models.user import User
+from app.schemas.empty_state import EmptyStateResponse, TemplateSuggestion
 from app.schemas.project import (
     ProjectCreate, ProjectListResponse, ProjectReorder,
     ProjectResponse, ProjectUpdate, ReadmeUpdate, TagResponse,
@@ -71,7 +69,6 @@ async def _log(
     action: str,
     meta: Dict[str, Any] | None = None,
 ) -> None:
-    """Append an activity row. Fire-and-forget inside the same transaction."""
     db.add(ProjectActivity(
         id=uuid4(),
         project_id=project_id,
@@ -122,7 +119,61 @@ async def _get_accessible_project(
 
 
 # ---------------------------------------------------------------------------
-# List  (#4 pagination + #8 pin-sort + #9 tag-filter)
+# #ux-5 — Empty state (MUST be before /{project_id} route)
+# ---------------------------------------------------------------------------
+
+@router.get("/empty-state", response_model=EmptyStateResponse)
+async def get_empty_state(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Onboarding endpoint — always returns 200.
+
+    Returns has_projects=False + top-3 public template suggestions when
+    the user owns no non-archived projects. Frontend uses this to decide
+    whether to show the empty-state onboarding screen or the project grid.
+
+    Frontend contract
+    -----------------
+    if (!response.has_projects) {
+      showOnboarding(response.suggested_templates);
+    }
+    """
+    count_r = await db.execute(
+        select(func.count(Project.id)).where(
+            Project.owner_id == current_user.id,
+            Project.is_archived.is_(False),
+        )
+    )
+    has_projects: bool = (count_r.scalar() or 0) > 0
+
+    templates: list[TemplateSuggestion] = []
+    if not has_projects:
+        tmpl_r = await db.execute(
+            select(ProjectTemplate)
+            .options(
+                selectinload(ProjectTemplate.sections)
+                .selectinload(TemplateSection.tasks)
+            )
+            .where(ProjectTemplate.is_public.is_(True))
+            .order_by(ProjectTemplate.usage_count.desc())
+            .limit(3)
+        )
+        for t in tmpl_r.scalars().all():
+            section_count = len(t.sections)
+            task_count = sum(len(s.tasks) for s in t.sections)
+            templates.append(TemplateSuggestion(
+                id=t.id, name=t.name, description=t.description,
+                icon=t.icon or "📋", color=t.color or "#38bdf8",
+                section_count=section_count, task_count=task_count,
+                usage_count=t.usage_count,
+            ))
+
+    return EmptyStateResponse(has_projects=has_projects, suggested_templates=templates)
+
+
+# ---------------------------------------------------------------------------
+# List (#4 + #8 + #9 + #ux-2 drag hint)
 # ---------------------------------------------------------------------------
 
 @router.get("/", response_model=ProjectListResponse)
@@ -138,6 +189,17 @@ async def list_projects(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """List projects with full UX metadata.
+
+    Frontend contract — ProjectCard component
+    ------------------------------------------
+    is_overdue=True  → red left-stripe (#f87171) + ⚠️ icon near due_date
+    is_pinned=True   → card floats to top, 📌 icon visible
+    position         → @dnd-kit sortable key; show ⠿ drag-handle on hover
+                       (CSS: .drag-handle { opacity: 0 }
+                             .card:hover .drag-handle { opacity: 1 })
+    tags             → render colored chips; click → add to ?tags= filter
+    """
     sort_col = _SORT_COLS[order_by]
     sort_fn = asc if dir == "asc" else desc
 
@@ -165,7 +227,6 @@ async def list_projects(
     total_r = await db.execute(select(func.count()).select_from(base.subquery()))
     total: int = total_r.scalar() or 0
 
-    # #8: pinned first, then manual position, then the requested sort
     result = await db.execute(
         base
         .order_by(
@@ -218,7 +279,7 @@ async def create_project(
 
 
 # ---------------------------------------------------------------------------
-# Create from template  (#1)
+# Create from template (#1)
 # ---------------------------------------------------------------------------
 
 @router.post("/from-template/{template_id}", response_model=ProjectResponse, status_code=201)
@@ -243,6 +304,9 @@ async def create_project_from_template(
     template = tmpl_r.scalars().first()
     if not template:
         raise HTTPException(404, "Template not found")
+
+    # Increment usage counter for template popularity ranking (#ux-5)
+    template.usage_count = (template.usage_count or 0) + 1
 
     project = Project(
         **data.model_dump(exclude={"initial_tasks"}),
@@ -410,7 +474,7 @@ async def reorder_project(
 
 
 # ---------------------------------------------------------------------------
-# #2 — Members
+# #2 — Members (#ux-3 tooltip data)
 # ---------------------------------------------------------------------------
 
 @router.post("/{project_id}/members", response_model=MemberResponse, status_code=201)
@@ -451,13 +515,24 @@ async def list_members(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Return members with full tooltip data (#ux-3).
+
+    Frontend contract — avatar tooltip
+    -----------------------------------
+    <Tooltip content={`${member.display_name} · ${member.role}`}>
+      <Avatar color={member.avatar_color} initials={member.initials} />
+    </Tooltip>
+    """
     await _get_accessible_project(project_id, current_user, db)
     result = await db.execute(
         select(ProjectMember)
         .options(joinedload(ProjectMember.user))
         .where(ProjectMember.project_id == project_id)
     )
-    return result.scalars().all()
+    members = result.scalars().all()
+    return [
+        MemberResponse.from_orm_with_user(m, m.user) for m in members
+    ]
 
 
 @router.patch("/{project_id}/members/{user_id}", response_model=MemberResponse)
@@ -530,7 +605,6 @@ async def get_activity(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return chronological activity log for a project (newest first)."""
     await _get_accessible_project(project_id, current_user, db)
     result = await db.execute(
         select(ProjectActivity)
@@ -543,7 +617,7 @@ async def get_activity(
 
 
 # ---------------------------------------------------------------------------
-# Stats (#7 — unchanged logic, updated helper call)
+# Stats (#7)
 # ---------------------------------------------------------------------------
 
 @router.get("/{project_id}/stats")

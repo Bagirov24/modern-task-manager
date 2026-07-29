@@ -11,10 +11,19 @@ Validation rules
 - start_date must be before due_date when both are supplied.
 - position: non-negative integer.
 - search (Query param): max 200 chars (DoS guard).
+
+UX additions (2026-07-29)
+--------------------------
+#ux-4  checklist_summary: ChecklistSummary — inline subtask progress
+       so frontend can render "☑ 3/6" + mini progress-bar above the
+       checklist section without a separate API call.
+#ux-1  is_overdue: bool — computed field; True when due_date < now and
+       status not in {done, archived}. Frontend renders red left-stripe
+       and ⚠️ icon next to due_date on task cards.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
 
@@ -23,6 +32,37 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from app.models.task import DescriptionFormat, TaskPriority, TaskStatus
 from app.schemas.user import UserPublicResponse
 
+_CLOSED = {TaskStatus.DONE, TaskStatus.ARCHIVED}
+
+
+# ---------------------------------------------------------------------------
+# #ux-4  Checklist summary (subtask progress)
+# ---------------------------------------------------------------------------
+
+class ChecklistSummary(BaseModel):
+    """Inline checklist progress attached to every TaskResponse.
+
+    Populated by the GET /tasks/{id} endpoint via a selectin on subtasks.
+    When there are no subtasks, total=0 and progress=0.0.
+    Frontend usage:
+        if summary.total > 0:
+            show "☑ {completed}/{total}" label + mini progress-bar
+    """
+    total: int = 0
+    completed: int = 0
+    progress: float = Field(0.0, description="0–100 completion %")
+
+    @classmethod
+    def from_subtasks(cls, subtasks: list) -> "ChecklistSummary":
+        total = len(subtasks)
+        completed = sum(1 for s in subtasks if s.status == TaskStatus.DONE)
+        progress = round(completed / total * 100, 1) if total else 0.0
+        return cls(total=total, completed=completed, progress=progress)
+
+
+# ---------------------------------------------------------------------------
+# Create / Update
+# ---------------------------------------------------------------------------
 
 class TaskCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=500)
@@ -80,6 +120,10 @@ class TaskUpdate(BaseModel):
         return self
 
 
+# ---------------------------------------------------------------------------
+# Response
+# ---------------------------------------------------------------------------
+
 class TaskResponse(BaseModel):
     id: UUID
     title: str
@@ -98,7 +142,29 @@ class TaskResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    # #ux-4 — checklist progress (populated by endpoint, default=empty)
+    checklist_summary: ChecklistSummary = Field(
+        default_factory=ChecklistSummary,
+        description="Subtask completion summary; total=0 when no subtasks exist",
+    )
+
+    # #ux-1 — overdue indicator
+    is_overdue: bool = Field(
+        False,
+        description="True when due_date < now AND status not in {done, archived}",
+    )
+
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="after")
+    def compute_is_overdue(self) -> "TaskResponse":
+        if (
+            self.due_date
+            and self.due_date < datetime.now(timezone.utc)
+            and self.status not in _CLOSED
+        ):
+            self.is_overdue = True
+        return self
 
 
 class TaskListResponse(BaseModel):
