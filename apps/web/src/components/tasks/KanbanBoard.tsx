@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -51,11 +51,13 @@ interface KanbanColumn {
   bgColor: string
 }
 
-const columns: KanbanColumn[] = [
+const COLUMNS: KanbanColumn[] = [
   { id: 'todo', title: 'К выполнению', color: '#CAC4D0', bgColor: 'rgba(202,196,208,0.08)' },
   { id: 'in_progress', title: 'В работе', color: '#D0BCFF', bgColor: 'rgba(208,188,255,0.08)' },
   { id: 'done', title: 'Готово', color: '#81C784', bgColor: 'rgba(129,199,132,0.08)' },
 ]
+
+const COLUMN_IDS = COLUMNS.map(c => c.id)
 
 const priorityConfig: Record<string, { color: 'default' | 'info' | 'warning' | 'error'; label: string }> = {
   low: { color: 'default', label: 'Низкий' },
@@ -71,14 +73,9 @@ interface KanbanCardProps {
 }
 
 function KanbanCard({ task, onEdit, onDelete }: KanbanCardProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: task.id })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: task.id,
+  })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -86,7 +83,7 @@ function KanbanCard({ task, onEdit, onDelete }: KanbanCardProps) {
     opacity: isDragging ? 0.4 : 1,
   }
 
-  const priority = priorityConfig[task.priority] || priorityConfig.low
+  const priority = priorityConfig[task.priority] ?? priorityConfig.low
 
   return (
     <Card
@@ -100,10 +97,7 @@ function KanbanCard({ task, onEdit, onDelete }: KanbanCardProps) {
         borderColor: isDragging ? 'primary.main' : 'divider',
         boxShadow: isDragging ? 4 : 1,
         transition: 'box-shadow 0.2s, border-color 0.2s',
-        '&:hover': {
-          boxShadow: 3,
-          borderColor: 'primary.main',
-        },
+        '&:hover': { boxShadow: 3, borderColor: 'primary.main' },
       }}
     >
       <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
@@ -136,14 +130,22 @@ function KanbanCard({ task, onEdit, onDelete }: KanbanCardProps) {
                 label={priority.label}
                 color={priority.color}
                 icon={<FlagIcon />}
-                sx={{ height: 20, '& .MuiChip-label': { px: 0.75, fontSize: '0.65rem' }, '& .MuiChip-icon': { fontSize: '0.75rem' } }}
+                sx={{
+                  height: 20,
+                  '& .MuiChip-label': { px: 0.75, fontSize: '0.65rem' },
+                  '& .MuiChip-icon': { fontSize: '0.75rem' },
+                }}
               />
               {task.due_date && (
                 <Chip
                   size="small"
                   icon={<CalendarIcon />}
                   label={format(new Date(task.due_date), 'd MMM', { locale: ru })}
-                  sx={{ height: 20, '& .MuiChip-label': { px: 0.75, fontSize: '0.65rem' }, '& .MuiChip-icon': { fontSize: '0.75rem' } }}
+                  sx={{
+                    height: 20,
+                    '& .MuiChip-label': { px: 0.75, fontSize: '0.65rem' },
+                    '& .MuiChip-icon': { fontSize: '0.75rem' },
+                  }}
                 />
               )}
             </Stack>
@@ -189,15 +191,7 @@ function KanbanColumnComponent({ column, tasks, onEdit, onDelete }: KanbanColumn
   const { setNodeRef, isOver } = useDroppable({ id: column.id })
 
   return (
-    <Box
-      sx={{
-        flex: 1,
-        minWidth: 260,
-        maxWidth: 360,
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
+    <Box sx={{ flex: 1, minWidth: 260, maxWidth: 360, display: 'flex', flexDirection: 'column' }}>
       <MotionPaper
         ref={setNodeRef}
         elevation={0}
@@ -205,9 +199,7 @@ function KanbanColumnComponent({ column, tasks, onEdit, onDelete }: KanbanColumn
           p: 2,
           height: '100%',
           minHeight: 400,
-          backgroundColor: isOver
-            ? alpha(column.color, 0.15)
-            : column.bgColor,
+          backgroundColor: isOver ? alpha(column.color, 0.15) : column.bgColor,
           border: '1px solid',
           borderColor: isOver ? column.color : 'divider',
           borderRadius: 3,
@@ -221,11 +213,8 @@ function KanbanColumnComponent({ column, tasks, onEdit, onDelete }: KanbanColumn
         <Stack direction="row" alignItems="center" spacing={1} mb={2}>
           <Box
             sx={{
-              width: 10,
-              height: 10,
-              borderRadius: '50%',
-              backgroundColor: column.color,
-              flexShrink: 0,
+              width: 10, height: 10, borderRadius: '50%',
+              backgroundColor: column.color, flexShrink: 0,
             }}
           />
           <Typography variant="subtitle1" fontWeight={600}>
@@ -256,26 +245,18 @@ function KanbanColumnComponent({ column, tasks, onEdit, onDelete }: KanbanColumn
                   exit={{ opacity: 0, scale: 0.9 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <KanbanCard
-                    task={task}
-                    onEdit={onEdit}
-                    onDelete={onDelete}
-                  />
+                  <KanbanCard task={task} onEdit={onEdit} onDelete={onDelete} />
                 </motion.div>
               ))}
             </AnimatePresence>
             {tasks.length === 0 && (
               <Box
                 sx={{
-                  textAlign: 'center',
-                  py: 4,
-                  color: 'text.disabled',
-                  border: '2px dashed',
-                  borderColor: 'divider',
-                  borderRadius: 2,
+                  textAlign: 'center', py: 4, color: 'text.disabled',
+                  border: '2px dashed', borderColor: 'divider', borderRadius: 2,
                 }}
               >
-                <Typography variant="body2">Пусто</Typography>
+                <Typography variant="body2">Перетащите задачу сюда</Typography>
               </Box>
             )}
           </SortableContext>
@@ -297,8 +278,15 @@ export default function KanbanBoard({ tasks, onStatusChange, onEdit, onDelete }:
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor)
+    useSensor(KeyboardSensor),
   )
+
+  // Pre-computed map: taskId → columnId for O(1) lookups during drag
+  const taskColumnMap = useMemo(() => {
+    const map = new Map<string, string>()
+    tasks.forEach(t => map.set(t.id, t.status))
+    return map
+  }, [tasks])
 
   const columnTasks = useMemo(() => {
     const map: Record<string, Task[]> = { todo: [], in_progress: [], done: [] }
@@ -309,45 +297,55 @@ export default function KanbanBoard({ tasks, onStatusChange, onEdit, onDelete }:
     return map
   }, [tasks])
 
-  const handleDragStart = (event: DragStartEvent) => {
-    const task = tasks.find(t => t.id === event.active.id)
-    setActiveTask(task || null)
-  }
+  /** Resolve which column an id belongs to (either a column id itself, or a task's column). */
+  const resolveColumnId = useCallback((id: string): string | null => {
+    if (COLUMN_IDS.includes(id)) return id
+    return taskColumnMap.get(id) ?? null
+  }, [taskColumnMap])
 
-  const handleDragOver = (event: DragOverEvent) => {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const task = tasks.find(t => t.id === event.active.id)
+    setActiveTask(task ?? null)
+  }, [tasks])
+
+  /**
+   * BUG FIX: was an empty stub — now provides real-time visual feedback
+   * by optimistically calling onStatusChange when dragging over a different column.
+   * The parent (TasksPage) uses an optimistic update so the UI responds instantly.
+   */
+  const handleDragOver = useCallback((event: DragOverEvent) => {
     const { active, over } = event
     if (!over) return
-    const overId = String(over.id)
-    const columnIds = columns.map(c => c.id)
-    if (columnIds.includes(overId)) return
-    // dragging over a task: find its column
-  }
 
-  const handleDragEnd = (event: DragEndEvent) => {
+    const activeId = String(active.id)
+    const overId = String(over.id)
+
+    const sourceColId = resolveColumnId(activeId)
+    const targetColId = resolveColumnId(overId)
+
+    if (!sourceColId || !targetColId) return
+    if (sourceColId === targetColId) return
+
+    // Optimistic UI update — parent rolls back on API error
+    onStatusChange(activeId, targetColId)
+  }, [resolveColumnId, onStatusChange])
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event
     setActiveTask(null)
     if (!over) return
 
+    const activeId = String(active.id)
     const overId = String(over.id)
-    const columnIds = columns.map(c => c.id)
+    const targetColId = resolveColumnId(overId)
 
-    let targetStatus: string | null = null
-
-    if (columnIds.includes(overId)) {
-      targetStatus = overId
-    } else {
-      // dropped over another task
-      const overTask = tasks.find(t => t.id === overId)
-      if (overTask) targetStatus = overTask.status
-    }
-
-    if (targetStatus) {
-      const draggedTask = tasks.find(t => t.id === active.id)
-      if (draggedTask && draggedTask.status !== targetStatus) {
-        onStatusChange(String(active.id), targetStatus)
+    if (targetColId) {
+      const draggedTask = tasks.find(t => t.id === activeId)
+      if (draggedTask && draggedTask.status !== targetColId) {
+        onStatusChange(activeId, targetColId)
       }
     }
-  }
+  }, [tasks, resolveColumnId, onStatusChange])
 
   return (
     <DndContext
@@ -357,20 +355,12 @@ export default function KanbanBoard({ tasks, onStatusChange, onEdit, onDelete }:
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <Box
-        sx={{
-          display: 'flex',
-          gap: 2,
-          overflowX: 'auto',
-          pb: 2,
-          alignItems: 'flex-start',
-        }}
-      >
-        {columns.map((column) => (
+      <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2, alignItems: 'flex-start' }}>
+        {COLUMNS.map((column) => (
           <KanbanColumnComponent
             key={column.id}
             column={column}
-            tasks={columnTasks[column.id] || []}
+            tasks={columnTasks[column.id] ?? []}
             onEdit={onEdit}
             onDelete={onDelete}
           />
