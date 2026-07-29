@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from sqlalchemy.orm import sessionmaker, DeclarativeBase, Session
+from sqlalchemy import create_engine
 from app.core.config import settings
 
 
@@ -16,12 +17,21 @@ def _make_async_url(url: str) -> str:
     return url
 
 
+def _make_sync_url(url: str) -> str:
+    """Strip asyncpg driver from URL for sync (Celery) usage."""
+    return (
+        url.replace("postgresql+asyncpg://", "postgresql://", 1)
+        .replace("postgres+asyncpg://", "postgresql://", 1)
+    )
+
+
+# ---------------------------------------------------------------------------
+# Async engine — used by FastAPI request handlers
+# ---------------------------------------------------------------------------
 engine = create_async_engine(
     _make_async_url(settings.DATABASE_URL),
-    # echo=False unconditionally — never log raw SQL (including bound params
-    # like email addresses) to stdout / Sentry, regardless of DEBUG flag.
-    # To enable SQL tracing during local development set the sqlalchemy logger:
-    #   logging.getLogger("sqlalchemy.engine").setLevel(logging.DEBUG)
+    # Never echo SQL — bound parameters may contain PII / secrets.
+    # To trace queries locally set the sqlalchemy.engine logger to DEBUG.
     echo=False,
     pool_size=20,
     max_overflow=10,
@@ -45,3 +55,22 @@ async def get_db():
         except Exception:
             await session.rollback()
             raise
+
+
+# ---------------------------------------------------------------------------
+# Sync engine — used ONLY by Celery workers (no asyncio event loop)
+# ---------------------------------------------------------------------------
+_sync_engine = create_engine(
+    _make_sync_url(settings.DATABASE_URL),
+    pool_pre_ping=True,
+    pool_size=5,
+    max_overflow=2,
+)
+
+SyncSessionLocal: sessionmaker = sessionmaker(
+    _sync_engine,
+    class_=Session,
+    autocommit=False,
+    autoflush=False,
+    expire_on_commit=False,
+)

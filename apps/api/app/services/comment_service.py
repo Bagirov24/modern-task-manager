@@ -1,17 +1,24 @@
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
+from sqlalchemy.orm import joinedload
 from uuid import UUID
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.models.comment import Comment
 from app.schemas.comment import CommentCreate, CommentUpdate
 
 
 class CommentService:
-    def __init__(self, db: Session):
+    """Business-logic layer for Comment operations.
+
+    All methods are async; session is injected via FastAPI Depends(get_db).
+    """
+
+    def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    def create_comment(
+    async def create_comment(
         self, data: CommentCreate, author_id: UUID
     ) -> Comment:
         comment = Comment(
@@ -20,63 +27,76 @@ class CommentService:
             author_id=author_id,
         )
         self.db.add(comment)
-        self.db.commit()
-        self.db.refresh(comment)
+        await self.db.commit()
+        await self.db.refresh(comment)
         return comment
 
-    def get_comment(self, comment_id: UUID) -> Optional[Comment]:
-        return (
-            self.db.query(Comment)
+    async def get_comment(self, comment_id: UUID) -> Optional[Comment]:
+        result = await self.db.execute(
+            select(Comment)
             .options(joinedload(Comment.author))
-            .filter(Comment.id == comment_id)
-            .first()
+            .where(Comment.id == comment_id)
         )
+        return result.scalars().first()
 
-    def get_comments_by_task(
+    async def get_comments_by_task(
         self, task_id: UUID, page: int = 1, per_page: int = 20
     ) -> tuple[List[Comment], int]:
-        query = (
-            self.db.query(Comment)
+        base_query = (
+            select(Comment)
             .options(joinedload(Comment.author))
-            .filter(Comment.task_id == task_id)
-            .order_by(Comment.created_at.desc())
+            .where(Comment.task_id == task_id)
         )
-        total = query.count()
-        comments = query.offset((page - 1) * per_page).limit(per_page).all()
-        return comments, total
+        count_result = await self.db.execute(
+            select(func.count()).select_from(base_query.subquery())
+        )
+        total = count_result.scalar_one()
+        result = await self.db.execute(
+            base_query.order_by(Comment.created_at.desc())
+            .offset((page - 1) * per_page)
+            .limit(per_page)
+        )
+        return result.scalars().all(), total
 
-    def update_comment(
-        self, comment_id: UUID, data: CommentUpdate, author_id: UUID
+    async def update_comment(
+        self,
+        comment_id: UUID,
+        data: CommentUpdate,
+        author_id: UUID,
     ) -> Optional[Comment]:
-        comment = (
-            self.db.query(Comment)
-            .filter(Comment.id == comment_id, Comment.author_id == author_id)
-            .first()
+        result = await self.db.execute(
+            select(Comment).where(
+                Comment.id == comment_id,
+                Comment.author_id == author_id,
+            )
         )
+        comment = result.scalars().first()
         if not comment:
             return None
         if data.content is not None:
             comment.content = data.content
-        comment.updated_at = datetime.utcnow()
-        self.db.commit()
-        self.db.refresh(comment)
+        # updated_at is handled by DB onupdate; explicit set as safety net
+        comment.updated_at = datetime.now(timezone.utc)
+        await self.db.commit()
+        await self.db.refresh(comment)
         return comment
 
-    def delete_comment(self, comment_id: UUID, author_id: UUID) -> bool:
-        comment = (
-            self.db.query(Comment)
-            .filter(Comment.id == comment_id, Comment.author_id == author_id)
-            .first()
+    async def delete_comment(self, comment_id: UUID, author_id: UUID) -> bool:
+        result = await self.db.execute(
+            select(Comment).where(
+                Comment.id == comment_id,
+                Comment.author_id == author_id,
+            )
         )
+        comment = result.scalars().first()
         if not comment:
             return False
-        self.db.delete(comment)
-        self.db.commit()
+        await self.db.delete(comment)
+        await self.db.commit()
         return True
 
-    def get_comments_count(self, task_id: UUID) -> int:
-        return (
-            self.db.query(Comment)
-            .filter(Comment.task_id == task_id)
-            .count()
+    async def get_comments_count(self, task_id: UUID) -> int:
+        result = await self.db.execute(
+            select(func.count()).where(Comment.task_id == task_id)
         )
+        return result.scalar_one()
