@@ -28,7 +28,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "react-swipeable": "^7.0.1",
     "use-long-press": "^3.2.0",
-    "lucide-react": "^0.309.0",
+    "lucide-react": "^1.27.0",
     "clsx": "^2.1.0",
     "tailwind-merge": "^2.2.0",
     "date-fns": "^3.2.0",
