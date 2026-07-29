@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { useAuthStore } from '@/lib/store/authStore'
 import { useRealtimeSync } from '@/lib/hooks/useSocket'
+import { useOfflineQueue } from '@/lib/hooks/useOfflineQueue'
 import Layout from '@/components/layout/Layout'
 import LoginPage from '@/pages/LoginPage'
 import DashboardPage from '@/pages/DashboardPage'
@@ -17,6 +18,7 @@ import { Box, CircularProgress } from '@mui/material'
 /** Монтируется внутри AuthGuard — значит token уже есть */
 function RealtimeSyncProvider() {
   const { connected } = useRealtimeSync()
+  useOfflineQueue()
   return (
     <Box sx={{ position: 'fixed', bottom: 16, right: 16, zIndex: 1300 }}>
       <RealtimeStatusBadge connected={connected} />
