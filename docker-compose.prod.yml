@@ -1,11 +1,24 @@
+# =============================================================================
+# Production Docker Compose
+# =============================================================================
+# IMPORTANT — Prometheus and Grafana are intentionally NOT bound to host ports.
+# They are only reachable within the Docker network (from Nginx or via
+# `docker exec`).  To expose Grafana behind auth, add an Nginx location block
+# with http_auth_basic or oauth2-proxy in front of it.
+# =============================================================================
 version: "3.9"
 
 services:
+
+  # ---------------------------------------------------------------------------
+  # API  (FastAPI + Uvicorn)
+  # ---------------------------------------------------------------------------
   api:
     image: ghcr.io/bagirov24/modern-task-manager-api:latest
     restart: always
-    ports:
-      - "8000:8000"
+    # No direct host-port binding — traffic arrives only through Nginx.
+    expose:
+      - "8000"
     env_file:
       - .env.production
     environment:
@@ -32,13 +45,16 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # ---------------------------------------------------------------------------
+  # Frontend  (Next.js / Vite)
+  # ---------------------------------------------------------------------------
   web:
     image: ghcr.io/bagirov24/modern-task-manager-web:latest
     restart: always
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://api:8000
+      - NEXT_PUBLIC_API_URL=https://${DOMAIN:-localhost}
     depends_on:
       - api
     deploy:
@@ -47,14 +63,17 @@ services:
           memory: 256M
           cpus: "0.25"
 
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 16
+  # ---------------------------------------------------------------------------
   db:
     image: postgres:16-alpine
     restart: always
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB:       ${POSTGRES_DB}
+      POSTGRES_USER:     ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
@@ -66,14 +85,22 @@ services:
         limits:
           memory: 256M
 
+  # ---------------------------------------------------------------------------
+  # Redis 7
+  # ---------------------------------------------------------------------------
   redis:
     image: redis:7-alpine
     restart: always
-    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    command: >-
+      redis-server
+      --appendonly yes
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -82,8 +109,62 @@ services:
         limits:
           memory: 192M
 
+  # ---------------------------------------------------------------------------
+  # Celery worker
+  # ---------------------------------------------------------------------------
+  celery-worker:
+    image: ghcr.io/bagirov24/modern-task-manager-api:latest
+    restart: always
+    command: >
+      celery -A app.workers.celery_app worker
+      --loglevel=info
+      --concurrency=4
+      --max-tasks-per-child=1000
+    env_file:
+      - .env.production
+    environment:
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ---------------------------------------------------------------------------
+  # Celery beat  (periodic task scheduler)
+  # ---------------------------------------------------------------------------
+  celery-beat:
+    image: ghcr.io/bagirov24/modern-task-manager-api:latest
+    restart: always
+    command: celery -A app.workers.celery_app beat --loglevel=info
+    env_file:
+      - .env.production
+    environment:
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - redis
+      - celery-worker
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.1"
+
+  # ---------------------------------------------------------------------------
+  # Nginx  (reverse proxy + TLS termination)
+  # ---------------------------------------------------------------------------
   nginx:
-    image: nginx:alpine
+    image: nginx:1.25-alpine
     restart: always
     ports:
       - "80:80"
@@ -99,28 +180,47 @@ services:
         limits:
           memory: 64M
 
+  # ---------------------------------------------------------------------------
+  # Prometheus  — internal only, NOT bound to host port
+  # ---------------------------------------------------------------------------
   prometheus:
     image: prom/prometheus:latest
     restart: always
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
-    ports:
-      - "9090:9090"
+    # No ports: section — accessible only within Docker network.
+    expose:
+      - "9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
     deploy:
       resources:
         limits:
           memory: 256M
 
+  # ---------------------------------------------------------------------------
+  # Grafana  — internal only, NOT bound to host port
+  # To access: ssh -L 3001:grafana:3000 user@server  OR add Nginx auth proxy.
+  # ---------------------------------------------------------------------------
   grafana:
     image: grafana/grafana:latest
     restart: always
     volumes:
       - grafana_data:/var/lib/grafana
-    ports:
-      - "3001:3000"
+    # No ports: section — not exposed to the internet.
+    expose:
+      - "3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      # Disable anonymous access
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      # Disable user sign-up
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=https://${DOMAIN:-localhost}/grafana/
     depends_on:
       - prometheus
     deploy:
