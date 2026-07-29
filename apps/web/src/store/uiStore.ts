@@ -1,5 +1,12 @@
+/**
+ * ARCH FIX: uiStore is the single theme source of truth.
+ * Replaces the orphan src/lib/store/themeStore.ts (which main.tsx was reading).
+ * main.tsx now imports useUIStore instead of useThemeStore.
+ */
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
+
+export type ThemeMode = 'light' | 'dark'
 
 interface SnackbarItem {
   id: string
@@ -17,7 +24,8 @@ interface ModalState {
 interface UIState {
   sidebarOpen: boolean
   sidebarCollapsed: boolean
-  theme: 'light' | 'dark' | 'system'
+  // Merged from themeStore — single source of truth for theme
+  mode: ThemeMode
   language: 'en' | 'ru'
   snackbars: SnackbarItem[]
   modal: ModalState
@@ -27,7 +35,8 @@ interface UIState {
   toggleSidebar: () => void
   setSidebarOpen: (open: boolean) => void
   setSidebarCollapsed: (collapsed: boolean) => void
-  setTheme: (theme: UIState['theme']) => void
+  toggleTheme: () => void
+  setMode: (mode: ThemeMode) => void
   setLanguage: (language: UIState['language']) => void
   addSnackbar: (snackbar: Omit<SnackbarItem, 'id'>) => void
   removeSnackbar: (id: string) => void
@@ -43,41 +52,50 @@ export const useUIStore = create<UIState>()(
       (set) => ({
         sidebarOpen: true,
         sidebarCollapsed: false,
-        theme: 'system',
+        mode: 'dark',
         language: 'ru',
         snackbars: [],
         modal: { isOpen: false, type: null, data: null },
         searchOpen: false,
         commandPaletteOpen: false,
 
-        toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
+        toggleSidebar: () =>
+          set((state) => ({ sidebarOpen: !state.sidebarOpen })),
         setSidebarOpen: (open) => set({ sidebarOpen: open }),
         setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
-        setTheme: (theme) => set({ theme }),
+        toggleTheme: () =>
+          set((state) => ({ mode: state.mode === 'dark' ? 'light' : 'dark' })),
+        setMode: (mode) => set({ mode }),
         setLanguage: (language) => set({ language }),
-        addSnackbar: (snackbar) => set((state) => ({
-          snackbars: [...state.snackbars, { ...snackbar, id: crypto.randomUUID() }]
-        })),
-        removeSnackbar: (id) => set((state) => ({
-          snackbars: state.snackbars.filter(s => s.id !== id)
-        })),
-        openModal: (type, data) => set({
-          modal: { isOpen: true, type, data: data || null }
-        }),
-        closeModal: () => set({
-          modal: { isOpen: false, type: null, data: null }
-        }),
+
+        addSnackbar: (snackbar) =>
+          set((state) => ({
+            snackbars: [
+              ...state.snackbars,
+              { ...snackbar, id: crypto.randomUUID() },
+            ],
+          })),
+        removeSnackbar: (id) =>
+          set((state) => ({
+            snackbars: state.snackbars.filter((s) => s.id !== id),
+          })),
+
+        openModal: (type, data) =>
+          set({ modal: { isOpen: true, type, data: data ?? null } }),
+        closeModal: () =>
+          set({ modal: { isOpen: false, type: null, data: null } }),
+
         setSearchOpen: (open) => set({ searchOpen: open }),
         setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
       }),
       {
         name: 'ui-store',
         partialize: (state) => ({
-          theme: state.theme,
+          mode: state.mode,
           language: state.language,
           sidebarCollapsed: state.sidebarCollapsed,
         }),
-      }
-    )
-  )
+      },
+    ),
+  ),
 )
