@@ -1,26 +1,8 @@
-import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-
-type ThemeMode = 'light' | 'dark'
-
-interface ThemeState {
-  mode: ThemeMode
-  toggleTheme: () => void
-  setMode: (mode: ThemeMode) => void
-}
-
-export const useThemeStore = create<ThemeState>()(
-  persist(
-    (set) => ({
-      mode: 'dark' as ThemeMode,
-      toggleTheme: () =>
-        set((state) => ({
-          mode: state.mode === 'dark' ? 'light' : 'dark',
-        })),
-      setMode: (mode: ThemeMode) => set({ mode }),
-    }),
-    {
-      name: 'theme-storage',
-    }
-  )
-)
+/**
+ * SHIM: themeStore has been merged into uiStore (src/store/uiStore.ts).
+ * This file re-exports from uiStore so existing imports don't break
+ * while the codebase is being migrated.
+ *
+ * TODO: Remove this file in Phase 3 after all imports are updated.
+ */
+export { useUIStore as useThemeStore } from '../../store/uiStore'
