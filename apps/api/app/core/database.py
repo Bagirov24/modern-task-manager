@@ -18,7 +18,11 @@ def _make_async_url(url: str) -> str:
 
 engine = create_async_engine(
     _make_async_url(settings.DATABASE_URL),
-    echo=settings.DEBUG,
+    # echo=False unconditionally — never log raw SQL (including bound params
+    # like email addresses) to stdout / Sentry, regardless of DEBUG flag.
+    # To enable SQL tracing during local development set the sqlalchemy logger:
+    #   logging.getLogger("sqlalchemy.engine").setLevel(logging.DEBUG)
+    echo=False,
     pool_size=20,
     max_overflow=10,
     pool_pre_ping=True,

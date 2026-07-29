@@ -7,19 +7,17 @@ from app.core.security import (
     create_access_token, create_refresh_token, get_current_user
 )
 from app.models.user import User
-from app.schemas.user import UserCreate, UserLogin, UserResponse, TokenResponse
+from app.schemas.user import UserCreate, UserLogin, UserPrivateResponse, TokenResponse
 
 router = APIRouter()
 
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=UserPrivateResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
-    # Check email uniqueness
     result = await db.execute(select(User).where(User.email == user_data.email))
     if result.scalars().first():
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    # Check username uniqueness
     result = await db.execute(select(User).where(User.username == user_data.username))
     if result.scalars().first():
         raise HTTPException(status_code=400, detail="Username already taken")
@@ -49,6 +47,7 @@ async def login(user_data: UserLogin, db: AsyncSession = Depends(get_db)):
     )
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get("/me", response_model=UserPrivateResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
+    """Returns full profile for the authenticated user only."""
     return current_user

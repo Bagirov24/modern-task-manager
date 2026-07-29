@@ -1,6 +1,6 @@
 from pydantic_settings import BaseSettings
 from pydantic import field_validator
-from typing import List
+from typing import List, Optional
 
 _WEAK_KEYS = {
     "your-secret-key-change-in-production",
@@ -21,11 +21,16 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
 
-    # Auth — no default: app will refuse to start without a real key
+    # Auth — no default: app refuses to start without a real key
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    # Internal health endpoint token.
+    # Set to a random secret in production; leave empty to disable internal
+    # health endpoints (they will return 404).
+    INTERNAL_HEALTH_TOKEN: Optional[str] = None
 
     # Supabase
     SUPABASE_URL: str = ""
@@ -50,7 +55,8 @@ class Settings(BaseSettings):
         if v.lower() in _WEAK_KEYS:
             raise ValueError(
                 "SECRET_KEY is set to a known weak placeholder. "
-                "Generate a strong key: python -c \"import secrets; print(secrets.token_hex(32))\""
+                "Generate a strong key: "
+                "python -c \"import secrets; print(secrets.token_hex(32))\""
             )
         if len(v) < 32:
             raise ValueError("SECRET_KEY must be at least 32 characters long")
