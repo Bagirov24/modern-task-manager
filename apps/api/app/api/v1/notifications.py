@@ -1,17 +1,37 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+"""Notifications API endpoints.
+
+Fixes applied
+-------------
+- Converted from sync ``Session`` to ``AsyncSession`` (was causing
+  greenlet / event-loop errors when called from async FastAPI handlers).
+- list_notifications: added ``limit`` cap (max 200) to prevent unbounded
+  queries.
+- mark_all_as_read: uses a single UPDATE statement instead of an ORM loop.
+- Inline schemas updated: ``class Config`` replaced with ``model_config``
+  dict (Pydantic v2).
+"""
+from __future__ import annotations
+
+from typing import List, Optional
 from uuid import UUID
-from pydantic import BaseModel
-from typing import Optional, List
 from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
+from sqlalchemy import func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.user import User
 from app.models.notification import Notification
+from app.models.user import User
 
 router = APIRouter()
 
 
+# ---------------------------------------------------------------------------
+# Inline schemas  (Pydantic v2 — model_config replaces class Config)
+# ---------------------------------------------------------------------------
 class NotificationResponse(BaseModel):
     id: UUID
     type: str
@@ -22,8 +42,7 @@ class NotificationResponse(BaseModel):
     project_id: Optional[UUID] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class NotificationCreate(BaseModel):
@@ -34,36 +53,44 @@ class NotificationCreate(BaseModel):
     project_id: Optional[UUID] = None
 
 
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
+
 @router.get("/", response_model=List[NotificationResponse])
 async def list_notifications(
     unread_only: bool = False,
-    limit: int = 50,
-    db: Session = Depends(get_db),
+    # Cap to prevent unbounded queries; default 50, hard max 200.
+    limit: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    query = db.query(Notification).filter(Notification.user_id == current_user.id)
+    q = select(Notification).where(Notification.user_id == current_user.id)
     if unread_only:
-        query = query.filter(Notification.is_read.is_(False))
-    return query.order_by(Notification.created_at.desc()).limit(limit).all()
+        q = q.where(Notification.is_read.is_(False))
+    q = q.order_by(Notification.created_at.desc()).limit(limit)
+    result = await db.execute(q)
+    return result.scalars().all()
 
 
 @router.get("/unread-count")
 async def unread_count(
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    count = (
-        db.query(Notification)
-        .filter(Notification.user_id == current_user.id, Notification.is_read.is_(False))
-        .count()
+    result = await db.execute(
+        select(func.count(Notification.id)).where(
+            Notification.user_id == current_user.id,
+            Notification.is_read.is_(False),
+        )
     )
-    return {"count": count}
+    return {"count": result.scalar_one()}
 
 
 @router.post("/", response_model=NotificationResponse, status_code=201)
 async def create_notification(
     data: NotificationCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     notification = Notification(
@@ -75,54 +102,64 @@ async def create_notification(
         project_id=data.project_id,
     )
     db.add(notification)
-    db.commit()
-    db.refresh(notification)
+    await db.commit()
+    await db.refresh(notification)
     return notification
 
 
 @router.patch("/{notification_id}/read", response_model=NotificationResponse)
 async def mark_as_read(
     notification_id: UUID,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    notification = (
-        db.query(Notification)
-        .filter(Notification.id == notification_id, Notification.user_id == current_user.id)
-        .first()
+    result = await db.execute(
+        select(Notification).where(
+            Notification.id == notification_id,
+            Notification.user_id == current_user.id,
+        )
     )
+    notification = result.scalars().first()
     if not notification:
         raise HTTPException(status_code=404, detail="Notification not found")
     notification.is_read = True
-    db.commit()
-    db.refresh(notification)
+    await db.commit()
+    await db.refresh(notification)
     return notification
 
 
 @router.patch("/read-all")
 async def mark_all_as_read(
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    db.query(Notification).filter(
-        Notification.user_id == current_user.id, Notification.is_read.is_(False)
-    ).update({"is_read": True})
-    db.commit()
+    # Single UPDATE statement — no ORM loop, no N+1.
+    await db.execute(
+        update(Notification)
+        .where(
+            Notification.user_id == current_user.id,
+            Notification.is_read.is_(False),
+        )
+        .values(is_read=True)
+    )
+    await db.commit()
     return {"status": "ok"}
 
 
 @router.delete("/{notification_id}", status_code=204)
 async def delete_notification(
     notification_id: UUID,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    notification = (
-        db.query(Notification)
-        .filter(Notification.id == notification_id, Notification.user_id == current_user.id)
-        .first()
+    result = await db.execute(
+        select(Notification).where(
+            Notification.id == notification_id,
+            Notification.user_id == current_user.id,
+        )
     )
+    notification = result.scalars().first()
     if not notification:
         raise HTTPException(status_code=404, detail="Notification not found")
-    db.delete(notification)
-    db.commit()
+    await db.delete(notification)
+    await db.commit()

@@ -1,31 +1,80 @@
+# =============================================================================
+# Prometheus scrape configuration
+# =============================================================================
+# Security hardening applied:
+# - basic_auth added to the api job (credentials via env-substituted secrets).
+# - honor_timestamps: true so alert rules use the metric timestamp, not
+#   Prometheus ingest time.
+# - scrape_timeout set to avoid hanging scrapes blocking the eval loop.
+#
+# For production TLS between Prometheus and exporters, replace the
+# basic_auth blocks with tls_config pointing to mTLS certificates.
+# =============================================================================
+
 global:
-  scrape_interval: 15s
+  scrape_interval:     15s
+  scrape_timeout:      10s
   evaluation_interval: 15s
+  honor_timestamps:    true
+
+  # External labels attached to every time series (useful in Alertmanager).
+  external_labels:
+    cluster: task-manager
+    environment: production
 
 scrape_configs:
+
+  # ---------------------------------------------------------------------------
+  # FastAPI application metrics  (/metrics endpoint via prometheus-fastapi-instrumentator)
+  # ---------------------------------------------------------------------------
   - job_name: "api"
     metrics_path: /metrics
+    honor_timestamps: true
+    # TODO: add TLS config for production
+    # tls_config:
+    #   cert_file: /etc/prometheus/certs/client.crt
+    #   key_file:  /etc/prometheus/certs/client.key
+    #   ca_file:   /etc/prometheus/certs/ca.crt
+    #
+    # Protect /metrics endpoint with HTTP basic auth.
+    # Set PROMETHEUS_METRICS_USER and PROMETHEUS_METRICS_PASS in .env.production
+    # and pass them via docker-compose environment substitution.
+    basic_auth:
+      username: ${PROMETHEUS_METRICS_USER}
+      password: ${PROMETHEUS_METRICS_PASS}
     static_configs:
       - targets: ["api:8000"]
         labels:
           service: "task-manager-api"
 
+  # ---------------------------------------------------------------------------
+  # Prometheus self-scrape
+  # ---------------------------------------------------------------------------
   - job_name: "prometheus"
     static_configs:
       - targets: ["localhost:9090"]
 
+  # ---------------------------------------------------------------------------
+  # Node exporter  (host metrics: CPU / memory / disk)
+  # ---------------------------------------------------------------------------
   - job_name: "node"
     static_configs:
       - targets: ["node-exporter:9100"]
         labels:
           service: "node"
 
+  # ---------------------------------------------------------------------------
+  # PostgreSQL exporter
+  # ---------------------------------------------------------------------------
   - job_name: "postgres"
     static_configs:
       - targets: ["postgres-exporter:9187"]
         labels:
           service: "postgres"
 
+  # ---------------------------------------------------------------------------
+  # Redis exporter
+  # ---------------------------------------------------------------------------
   - job_name: "redis"
     static_configs:
       - targets: ["redis-exporter:9121"]
