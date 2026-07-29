@@ -1,16 +1,19 @@
-import { ReactNode, useState, useEffect } from 'react'
-import { Box, Tooltip, useMediaQuery, useTheme } from '@mui/material'
-import { Circle as CircleIcon } from '@mui/icons-material'
+import { ReactNode } from 'react'
+import { Box, Tooltip, useMediaQuery, useTheme, Fab, Zoom } from '@mui/material'
+import {
+  Circle as CircleIcon,
+  Add as AddIcon,
+  KeyboardCommandKey as CommandIcon,
+} from '@mui/icons-material'
 import Sidebar from './Sidebar'
 import Header from './Header'
 import { useGlobalShortcuts } from '@/lib/hooks/useKeyboardShortcuts'
 import { useRealtimeSync } from '@/lib/hooks/useSocket'
+import { useUIStore } from '@/store/uiStore'
 
-export const DRAWER_WIDTH = 260
-export const COLLAPSED_WIDTH = 72
-export const SIDEBAR_TRANSITION = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-
-const SIDEBAR_STORAGE_KEY = 'tm_sidebar_open'
+export const DRAWER_WIDTH = 280
+export const COLLAPSED_WIDTH = 80
+export const SIDEBAR_TRANSITION = 'all 0.28s cubic-bezier(0.4, 0, 0.2, 1)'
 
 export default function Layout({ children }: { children: ReactNode }) {
   useGlobalShortcuts()
@@ -18,64 +21,114 @@ export default function Layout({ children }: { children: ReactNode }) {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
 
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY)
-      return saved !== null ? JSON.parse(saved) : true
-    } catch {
-      return true
-    }
-  })
-  const [mobileOpen, setMobileOpen] = useState(false)
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(sidebarOpen))
-    } catch {
-      // localStorage may be unavailable (private mode, etc.)
-    }
-  }, [sidebarOpen])
+  const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed)
+  const sidebarOpen = useUIStore((s) => s.sidebarOpen)
+  const setSidebarOpen = useUIStore((s) => s.setSidebarOpen)
+  const setSidebarCollapsed = useUIStore((s) => s.setSidebarCollapsed)
+  const openModal = useUIStore((s) => s.openModal)
+  const commandPaletteOpen = useUIStore((s) => s.commandPaletteOpen)
+  const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen)
 
   const handleToggleSidebar = () => {
     if (isMobile) {
-      setMobileOpen((prev) => !prev)
-    } else {
-      setSidebarOpen((prev) => !prev)
+      setSidebarOpen(!sidebarOpen)
+      return
     }
+    setSidebarCollapsed(!sidebarCollapsed)
   }
 
-  const handleCloseMobile = () => setMobileOpen(false)
-  const handleOpenMobile = () => setMobileOpen(true)
+  const handleCloseMobile = () => setSidebarOpen(false)
+  const handleOpenMobile = () => setSidebarOpen(true)
+  const handleCreateTask = () => openModal('task.create')
 
-  const currentWidth = isMobile ? 0 : sidebarOpen ? DRAWER_WIDTH : COLLAPSED_WIDTH
+  const currentWidth = isMobile ? 0 : sidebarCollapsed ? COLLAPSED_WIDTH : DRAWER_WIDTH
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
+    <Box
+      sx={{
+        display: 'flex',
+        minHeight: '100vh',
+        bgcolor: 'background.default',
+        backgroundImage: (t) =>
+          `radial-gradient(circle at top right, ${t.palette.primary.main}10, transparent 28%), radial-gradient(circle at bottom left, ${t.palette.secondary.main}10, transparent 24%)`,
+      }}
+    >
       <Sidebar
         drawerWidth={DRAWER_WIDTH}
         collapsedWidth={COLLAPSED_WIDTH}
-        open={sidebarOpen}
-        mobileOpen={mobileOpen}
+        open={!sidebarCollapsed}
+        mobileOpen={sidebarOpen}
         isMobile={isMobile}
         onClose={handleCloseMobile}
         onOpen={handleOpenMobile}
       />
-      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', ml: `${currentWidth}px`, transition: SIDEBAR_TRANSITION }}>
+
+      <Box
+        sx={{
+          flexGrow: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          ml: `${currentWidth}px`,
+          transition: SIDEBAR_TRANSITION,
+          minWidth: 0,
+        }}
+      >
         <Header onToggleSidebar={handleToggleSidebar} />
-        <Box component="main" sx={{ flexGrow: 1, p: 3, overflow: 'auto' }}>
+
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            p: { xs: 2, md: 3 },
+            overflow: 'auto',
+          }}
+        >
           {children}
         </Box>
-        <Box sx={{ position: 'fixed', bottom: 16, right: 16, zIndex: 1000 }}>
-          <Tooltip title={connected ? 'Подключено (real-time)' : 'Нет подключения'}>
+
+        <Box sx={{ position: 'fixed', bottom: 20, right: 20, zIndex: 1300 }}>
+          <Tooltip title={connected ? 'Realtime подключён' : 'Realtime отключён'}>
             <CircleIcon
               sx={{
                 fontSize: 12,
                 color: connected ? 'success.main' : 'error.main',
-                filter: connected ? 'drop-shadow(0 0 4px #66bb6a)' : 'none',
+                filter: connected ? 'drop-shadow(0 0 6px rgba(102, 187, 106, 0.9))' : 'none',
               }}
             />
           </Tooltip>
         </Box>
+
+        <Zoom in>
+          <Fab
+            color="primary"
+            aria-label="Создать задачу"
+            onClick={handleCreateTask}
+            sx={{
+              position: 'fixed',
+              right: { xs: 20, md: 28 },
+              bottom: { xs: 64, md: 28 },
+              boxShadow: 6,
+            }}
+          >
+            <AddIcon />
+          </Fab>
+        </Zoom>
+
+        <Tooltip title="Командная палитра">
+          <Fab
+            size="small"
+            color={commandPaletteOpen ? 'secondary' : 'default'}
+            onClick={() => setCommandPaletteOpen(!commandPaletteOpen)}
+            sx={{
+              position: 'fixed',
+              right: { xs: 20, md: 100 },
+              bottom: { xs: 64, md: 28 },
+              opacity: 0.92,
+            }}
+          >
+            <CommandIcon fontSize="small" />
+          </Fab>
+        </Tooltip>
       </Box>
     </Box>
   )

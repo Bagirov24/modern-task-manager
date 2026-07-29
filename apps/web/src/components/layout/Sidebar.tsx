@@ -1,8 +1,21 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
-  Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText,
-  Typography, Box, Divider, Avatar, IconButton, Tooltip, alpha,
+  Drawer,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Typography,
+  Box,
+  Divider,
+  Avatar,
+  IconButton,
+  Tooltip,
+  alpha,
   SwipeableDrawer,
+  Chip,
+  Stack,
 } from '@mui/material'
 import type { Theme } from '@mui/material/styles'
 import {
@@ -18,11 +31,15 @@ import {
   BarChart as AnalyticsFilled,
   SettingsOutlined as SettingsIcon,
   Settings as SettingsFilled,
+  Timeline as TimelineIcon,
   RocketLaunch as RocketIcon,
   Logout as LogoutIcon,
+  ChevronLeft as CollapseIcon,
+  ChevronRight as ExpandIcon,
 } from '@mui/icons-material'
 import { useAuthStore } from '@/lib/store/authStore'
 import { disconnectSocket } from '@/lib/socket/socketClient'
+import { useUIStore } from '@/store/uiStore'
 import { SIDEBAR_TRANSITION } from './Layout'
 
 const navItems = [
@@ -49,6 +66,8 @@ export default function Sidebar({ drawerWidth, collapsedWidth, open, mobileOpen,
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
+  const setSidebarCollapsed = useUIStore((s) => s.setSidebarCollapsed)
+  const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed)
 
   const handleLogout = () => {
     disconnectSocket()
@@ -63,34 +82,62 @@ export default function Sidebar({ drawerWidth, collapsedWidth, open, mobileOpen,
 
   const userInitial = user?.full_name?.charAt(0) || user?.username?.charAt(0) || user?.email?.charAt(0) || '?'
   const currentWidth = open ? drawerWidth : collapsedWidth
-
   const activeBg = (opacity: number) => (t: Theme) => alpha(t.palette.primary.main, opacity)
 
   const drawerContent = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      <Box sx={{ p: open ? 2.5 : 1.5, display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: open ? 'flex-start' : 'center' }}>
-        <Box
-          sx={{
-            width: 40,
-            height: 40,
-            borderRadius: 2,
-            bgcolor: 'primary.main',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <RocketIcon sx={{ color: '#fff', fontSize: 22 }} />
-        </Box>
-        {open && (
-          <Typography variant="h6" fontWeight={700} noWrap>
-            TaskManager
-          </Typography>
+      <Box sx={{ p: open ? 2.5 : 1.5, display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: open ? 'space-between' : 'center' }}>
+        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
+          <Box
+            sx={{
+              width: 42,
+              height: 42,
+              borderRadius: 2.5,
+              background: 'linear-gradient(135deg, #7C4DFF 0%, #5E35B1 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              boxShadow: '0 10px 24px rgba(124,77,255,0.25)',
+            }}
+          >
+            <RocketIcon sx={{ color: '#fff', fontSize: 22 }} />
+          </Box>
+          {open && (
+            <Box minWidth={0}>
+              <Typography variant="h6" fontWeight={800} noWrap>
+                TaskManager
+              </Typography>
+              <Typography variant="caption" color="text.secondary" noWrap>
+                Управление задачами
+              </Typography>
+            </Box>
+          )}
+        </Stack>
+
+        {!isMobile && open && (
+          <Tooltip title="Свернуть меню">
+            <IconButton size="small" onClick={() => setSidebarCollapsed(true)}>
+              <CollapseIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+        {!isMobile && !open && (
+          <Tooltip title="Развернуть меню">
+            <IconButton size="small" onClick={() => setSidebarCollapsed(false)}>
+              <ExpandIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
         )}
       </Box>
 
       <Divider />
+
+      {open && (
+        <Box sx={{ px: 2, pt: 2, pb: 1 }}>
+          <Chip icon={<TimelineIcon fontSize="small" />} label="Timeline ready" color="secondary" variant="outlined" size="small" />
+        </Box>
+      )}
 
       <List sx={{ px: open ? 1.5 : 0.5, py: 1, flex: 1 }}>
         {navItems.map((item) => {
@@ -99,15 +146,15 @@ export default function Sidebar({ drawerWidth, collapsedWidth, open, mobileOpen,
             : location.pathname.startsWith(item.to)
 
           return (
-            <ListItem key={item.to} disablePadding sx={{ mb: 0.5 }}>
+            <ListItem key={item.to} disablePadding sx={{ mb: 0.75 }}>
               <Tooltip title={!open ? item.label : ''} placement="right" arrow>
                 <ListItemButton
                   onClick={() => handleNav(item.to)}
                   sx={{
-                    borderRadius: 28,
-                    py: 1.2,
+                    borderRadius: 3,
+                    py: 1.25,
                     px: open ? 2 : 1.5,
-                    minHeight: 44,
+                    minHeight: 48,
                     justifyContent: open ? 'flex-start' : 'center',
                     bgcolor: isActive ? activeBg(0.12) : 'transparent',
                     color: isActive ? 'primary.main' : 'text.primary',
@@ -117,17 +164,17 @@ export default function Sidebar({ drawerWidth, collapsedWidth, open, mobileOpen,
                     transition: SIDEBAR_TRANSITION,
                   }}
                 >
-                  <ListItemIcon sx={{ minWidth: open ? 40 : 0, color: 'inherit', justifyContent: 'center' }}>
+                  <ListItemIcon sx={{ minWidth: open ? 42 : 0, color: 'inherit', justifyContent: 'center' }}>
                     {isActive ? item.activeIcon : item.icon}
                   </ListItemIcon>
                   {open && (
                     <ListItemText
                       primary={item.label}
-                      primaryTypographyProps={{ fontWeight: isActive ? 600 : 400 }}
+                      primaryTypographyProps={{ fontWeight: isActive ? 700 : 500 }}
                     />
                   )}
                   {open && isActive && (
-                    <Box sx={{ width: 4, height: 20, borderRadius: 2, bgcolor: 'primary.main' }} />
+                    <Box sx={{ width: 6, height: 24, borderRadius: 999, bgcolor: 'primary.main' }} />
                   )}
                 </ListItemButton>
               </Tooltip>
@@ -141,11 +188,11 @@ export default function Sidebar({ drawerWidth, collapsedWidth, open, mobileOpen,
       <Box sx={{ p: open ? 2 : 1, display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: open ? 'flex-start' : 'center' }}>
         <Avatar
           sx={{
-            width: 36,
-            height: 36,
-            bgcolor: 'primary.main',
-            fontSize: '0.9rem',
-            fontWeight: 600,
+            width: 38,
+            height: 38,
+            background: 'linear-gradient(135deg, #7C4DFF 0%, #5E35B1 100%)',
+            fontSize: '0.95rem',
+            fontWeight: 700,
             flexShrink: 0,
           }}
         >
@@ -153,7 +200,7 @@ export default function Sidebar({ drawerWidth, collapsedWidth, open, mobileOpen,
         </Avatar>
         {open && (
           <Box flex={1} minWidth={0}>
-            <Typography variant="body2" fontWeight={600} noWrap>
+            <Typography variant="body2" fontWeight={700} noWrap>
               {user?.full_name || user?.username || 'Пользователь'}
             </Typography>
             <Typography variant="caption" color="text.secondary" noWrap>
@@ -206,6 +253,7 @@ export default function Sidebar({ drawerWidth, collapsedWidth, open, mobileOpen,
           borderRadius: 0,
           transition: SIDEBAR_TRANSITION,
           overflowX: 'hidden',
+          backdropFilter: 'blur(12px)',
         },
       }}
     >
