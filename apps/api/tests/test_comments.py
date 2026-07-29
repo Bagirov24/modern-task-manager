@@ -1,71 +1,122 @@
-import pytest
+"""Tests for comment endpoints."""
+from __future__ import annotations
+
 from uuid import uuid4
 
-from app.models.user import User
-from app.models.task import Task
-from app.models.project import Project
-from app.services.comment_service import CommentService
-from app.schemas.comment import CommentCreate, CommentUpdate
+from httpx import AsyncClient
+
+from tests.conftest import make_task, register_and_login
 
 
-def setup_task_with_user(db):
-    user = User(
-        id=uuid4(),
-        email="commenter@example.com",
-        username="commenter",
-        hashed_password="fakehash",
+async def _make_comment(
+    client: AsyncClient,
+    headers: dict,
+    task_id: str,
+    content: str = "Hello world",
+) -> dict:
+    resp = await client.post(
+        "/api/v1/comments/",
+        json={"task_id": task_id, "content": content},
+        headers=headers,
     )
-    db.add(user)
-    db.commit()
-    project = Project(id=uuid4(), name="P", owner_id=user.id)
-    db.add(project)
-    db.commit()
-    task = Task(id=uuid4(), title="T", project_id=project.id, creator_id=user.id)
-    db.add(task)
-    db.commit()
-    return user, task
+    assert resp.status_code == 201, resp.text
+    return resp.json()
 
 
-class TestCommentService:
-    def test_create_comment(self, db):
-        user, task = setup_task_with_user(db)
-        service = CommentService(db)
-        data = CommentCreate(content="Hello", task_id=task.id)
-        comment = service.create_comment(data, user.id)
-        assert comment.content == "Hello"
-        assert comment.author_id == user.id
+async def test_create_comment(client: AsyncClient):
+    headers = await register_and_login(client)
+    task = await make_task(client, headers)
+    comment = await _make_comment(client, headers, task["id"])
+    assert comment["content"] == "Hello world"
+    assert comment["author_id"] is not None
 
-    def test_get_comments_by_task(self, db):
-        user, task = setup_task_with_user(db)
-        service = CommentService(db)
-        service.create_comment(CommentCreate(content="C1", task_id=task.id), user.id)
-        service.create_comment(CommentCreate(content="C2", task_id=task.id), user.id)
-        comments, total = service.get_comments_by_task(task.id)
-        assert total == 2
 
-    def test_update_comment(self, db):
-        user, task = setup_task_with_user(db)
-        service = CommentService(db)
-        comment = service.create_comment(
-            CommentCreate(content="Old", task_id=task.id), user.id
-        )
-        updated = service.update_comment(
-            comment.id, CommentUpdate(content="New"), user.id
-        )
-        assert updated.content == "New"
+async def test_create_comment_blank_content(client: AsyncClient):
+    headers = await register_and_login(client)
+    task = await make_task(client, headers)
+    resp = await client.post(
+        "/api/v1/comments/",
+        json={"task_id": task["id"], "content": "   "},
+        headers=headers,
+    )
+    assert resp.status_code == 422
 
-    def test_delete_comment(self, db):
-        user, task = setup_task_with_user(db)
-        service = CommentService(db)
-        comment = service.create_comment(
-            CommentCreate(content="Del", task_id=task.id), user.id
-        )
-        assert service.delete_comment(comment.id, user.id) is True
 
-    def test_delete_comment_wrong_author(self, db):
-        user, task = setup_task_with_user(db)
-        service = CommentService(db)
-        comment = service.create_comment(
-            CommentCreate(content="X", task_id=task.id), user.id
-        )
-        assert service.delete_comment(comment.id, uuid4()) is False
+async def test_list_comments(client: AsyncClient):
+    headers = await register_and_login(client)
+    task = await make_task(client, headers)
+    await _make_comment(client, headers, task["id"], "First")
+    await _make_comment(client, headers, task["id"], "Second")
+    resp = await client.get(f"/api/v1/comments/task/{task['id']}", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total"] >= 2
+    assert len(data["comments"]) >= 2
+
+
+async def test_list_comments_pagination(client: AsyncClient):
+    headers = await register_and_login(client)
+    task = await make_task(client, headers)
+    for i in range(5):
+        await _make_comment(client, headers, task["id"], f"Comment {i}")
+    resp = await client.get(
+        f"/api/v1/comments/task/{task['id']}?page=1&per_page=2",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert len(resp.json()["comments"]) == 2
+
+
+async def test_update_comment(client: AsyncClient):
+    headers = await register_and_login(client)
+    task = await make_task(client, headers)
+    comment = await _make_comment(client, headers, task["id"])
+    resp = await client.patch(
+        f"/api/v1/comments/{comment['id']}",
+        json={"content": "Updated content"},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["content"] == "Updated content"
+
+
+async def test_update_comment_not_owned(client: AsyncClient):
+    headers_a = await register_and_login(client)
+    headers_b = await register_and_login(client)
+    task = await make_task(client, headers_a)
+    comment = await _make_comment(client, headers_a, task["id"])
+    resp = await client.patch(
+        f"/api/v1/comments/{comment['id']}",
+        json={"content": "Hijacked"},
+        headers=headers_b,
+    )
+    assert resp.status_code == 404
+
+
+async def test_delete_comment(client: AsyncClient):
+    headers = await register_and_login(client)
+    task = await make_task(client, headers)
+    comment = await _make_comment(client, headers, task["id"])
+    resp = await client.delete(
+        f"/api/v1/comments/{comment['id']}", headers=headers
+    )
+    assert resp.status_code == 204
+
+
+async def test_delete_comment_not_owned(client: AsyncClient):
+    headers_a = await register_and_login(client)
+    headers_b = await register_and_login(client)
+    task = await make_task(client, headers_a)
+    comment = await _make_comment(client, headers_a, task["id"])
+    resp = await client.delete(
+        f"/api/v1/comments/{comment['id']}", headers=headers_b
+    )
+    assert resp.status_code == 404
+
+
+async def test_comments_unauthenticated(client: AsyncClient):
+    resp = await client.post(
+        "/api/v1/comments/",
+        json={"task_id": str(uuid4()), "content": "x"},
+    )
+    assert resp.status_code in (401, 403)

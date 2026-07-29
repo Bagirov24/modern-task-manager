@@ -1,6 +1,23 @@
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase, Session
+"""Database engine + session factory.
+
+Provides:
+- ``engine`` / ``get_db``  — async SQLAlchemy session for FastAPI handlers.
+- ``get_redis``             — aioredis client FastAPI dependency (singleton).
+- ``SyncSessionLocal``      — sync session used only by Celery workers.
+
+Connection pool is tuned for a typical single-node production deployment:
+  pool_size=20 handles ~20 concurrent DB connections without blocking;
+  max_overflow=10 allows brief bursts up to 30 total connections.
+  pool_pre_ping=True drops stale connections after DB restart.
+"""
+from __future__ import annotations
+
+from functools import lru_cache
+
 from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+
 from app.core.config import settings
 
 
@@ -9,7 +26,6 @@ class Base(DeclarativeBase):
 
 
 def _make_async_url(url: str) -> str:
-    """Convert sync postgres:// URL to async postgresql+asyncpg:// URL."""
     if url.startswith("postgresql://"):
         return url.replace("postgresql://", "postgresql+asyncpg://", 1)
     if url.startswith("postgres://"):
@@ -18,20 +34,17 @@ def _make_async_url(url: str) -> str:
 
 
 def _make_sync_url(url: str) -> str:
-    """Strip asyncpg driver from URL for sync (Celery) usage."""
     return (
         url.replace("postgresql+asyncpg://", "postgresql://", 1)
-        .replace("postgres+asyncpg://", "postgresql://", 1)
+           .replace("postgres+asyncpg://", "postgresql://", 1)
     )
 
 
 # ---------------------------------------------------------------------------
-# Async engine — used by FastAPI request handlers
+# Async engine — FastAPI request handlers
 # ---------------------------------------------------------------------------
 engine = create_async_engine(
     _make_async_url(settings.DATABASE_URL),
-    # Never echo SQL — bound parameters may contain PII / secrets.
-    # To trace queries locally set the sqlalchemy.engine logger to DEBUG.
     echo=False,
     pool_size=20,
     max_overflow=10,
@@ -58,7 +71,33 @@ async def get_db():
 
 
 # ---------------------------------------------------------------------------
-# Sync engine — used ONLY by Celery workers (no asyncio event loop)
+# Redis — aioredis singleton
+# ---------------------------------------------------------------------------
+
+_redis_client = None
+
+
+async def _get_redis_client():
+    """Lazy singleton: create aioredis connection pool once."""
+    global _redis_client
+    if _redis_client is None:
+        import redis.asyncio as aioredis
+        _redis_client = aioredis.from_url(
+            settings.REDIS_URL,
+            encoding="utf-8",
+            decode_responses=True,
+        )
+    return _redis_client
+
+
+async def get_redis():
+    """FastAPI dependency: yields an aioredis client."""
+    client = await _get_redis_client()
+    yield client
+
+
+# ---------------------------------------------------------------------------
+# Sync engine — Celery workers only (no asyncio event loop)
 # ---------------------------------------------------------------------------
 _sync_engine = create_engine(
     _make_sync_url(settings.DATABASE_URL),

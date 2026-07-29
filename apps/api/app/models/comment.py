@@ -1,15 +1,14 @@
 """Comment ORM model.
 
-Fixes
------
-- DateTime → DateTime(timezone=True): stores as TIMESTAMPTZ in PostgreSQL,
-  preventing naive/aware comparison errors.
-- datetime.utcnow → _utcnow() helper (timezone-aware, deprecation-free).
+Indexes added
+-------------
+- task_id   — fast lookup of all comments on a task
+- author_id — fast lookup of all comments by a user
 """
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, ForeignKey, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -22,6 +21,10 @@ def _utcnow() -> datetime:
 
 class Comment(Base):
     __tablename__ = "comments"
+    __table_args__ = (
+        Index("ix_comments_task_id", "task_id"),
+        Index("ix_comments_author_id", "author_id"),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     content = Column(Text, nullable=False)
@@ -29,7 +32,6 @@ class Comment(Base):
         UUID(as_uuid=True),
         ForeignKey("tasks.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
     author_id = Column(
         UUID(as_uuid=True),

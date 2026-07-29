@@ -1,85 +1,147 @@
-import pytest
-from fastapi.testclient import TestClient
-from uuid import uuid4
+"""Tests for subtask endpoints."""
+from __future__ import annotations
+
+from httpx import AsyncClient
+
+from tests.conftest import make_task, register_and_login
 
 
-def register_and_login(client: TestClient):
-    email = f"test_{uuid4().hex[:8]}@example.com"
-    client.post("/api/v1/auth/register", json={
-        "email": email,
-        "username": f"user_{uuid4().hex[:8]}",
-        "password": "TestPass123!",
-        "full_name": "Test User",
-    })
-    resp = client.post("/api/v1/auth/login", json={
-        "email": email,
-        "password": "TestPass123!",
-    })
-    token = resp.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
-
-
-def create_task_with_subtasks(client, headers):
-    task_resp = client.post("/api/v1/tasks/", json={
-        "title": "Parent Task",
-        "description": "Task with subtasks",
-        "priority": "high",
-    }, headers=headers)
-    assert task_resp.status_code == 201
-    task_id = task_resp.json()["id"]
-    return task_id
-
-
-def test_create_subtask(client: TestClient):
-    headers = register_and_login(client)
-    task_id = create_task_with_subtasks(client, headers)
-    resp = client.post(
-        f"/api/v1/tasks/{task_id}/subtasks",
-        json={"title": "Subtask 1"},
+async def _make_subtask(
+    client: AsyncClient,
+    headers: dict,
+    parent_id: str,
+    title: str = "Sub Task",
+) -> dict:
+    resp = await client.post(
+        f"/api/v1/tasks/{parent_id}/subtasks",
+        json={"title": title, "priority": "low"},
         headers=headers,
     )
-    assert resp.status_code == 201
-    assert resp.json()["title"] == "Subtask 1"
-    assert resp.json()["is_completed"] is False
+    assert resp.status_code == 201, resp.text
+    return resp.json()
 
 
-def test_list_subtasks(client: TestClient):
-    headers = register_and_login(client)
-    task_id = create_task_with_subtasks(client, headers)
-    client.post(f"/api/v1/tasks/{task_id}/subtasks", json={"title": "Sub A"}, headers=headers)
-    client.post(f"/api/v1/tasks/{task_id}/subtasks", json={"title": "Sub B"}, headers=headers)
-    resp = client.get(f"/api/v1/tasks/{task_id}/subtasks", headers=headers)
+async def test_create_subtask(client: AsyncClient):
+    headers = await register_and_login(client)
+    parent = await make_task(client, headers, title="Parent")
+    sub = await _make_subtask(client, headers, parent["id"])
+    assert sub["title"] == "Sub Task"
+    assert sub["parent_id"] == parent["id"]
+
+
+async def test_list_subtasks(client: AsyncClient):
+    headers = await register_and_login(client)
+    parent = await make_task(client, headers)
+    await _make_subtask(client, headers, parent["id"], title="Sub A")
+    await _make_subtask(client, headers, parent["id"], title="Sub B")
+    resp = await client.get(
+        f"/api/v1/tasks/{parent['id']}/subtasks", headers=headers
+    )
     assert resp.status_code == 200
-    assert len(resp.json()) >= 2
+    titles = [s["title"] for s in resp.json()]
+    assert "Sub A" in titles
+    assert "Sub B" in titles
 
 
-def test_toggle_subtask(client: TestClient):
-    headers = register_and_login(client)
-    task_id = create_task_with_subtasks(client, headers)
-    sub = client.post(f"/api/v1/tasks/{task_id}/subtasks", json={"title": "Toggle Me"}, headers=headers)
-    sub_id = sub.json()["id"]
-    resp = client.patch(f"/api/v1/tasks/{task_id}/subtasks/{sub_id}/toggle", headers=headers)
+async def test_update_subtask(client: AsyncClient):
+    headers = await register_and_login(client)
+    parent = await make_task(client, headers)
+    sub = await _make_subtask(client, headers, parent["id"])
+    resp = await client.patch(
+        f"/api/v1/tasks/{parent['id']}/subtasks/{sub['id']}",
+        json={"title": "Updated Sub", "status": "in_progress"},
+        headers=headers,
+    )
     assert resp.status_code == 200
-    assert resp.json()["is_completed"] is True
+    body = resp.json()
+    assert body["title"] == "Updated Sub"
+    assert body["status"] == "in_progress"
 
 
-def test_delete_subtask(client: TestClient):
-    headers = register_and_login(client)
-    task_id = create_task_with_subtasks(client, headers)
-    sub = client.post(f"/api/v1/tasks/{task_id}/subtasks", json={"title": "Delete Me"}, headers=headers)
-    sub_id = sub.json()["id"]
-    resp = client.delete(f"/api/v1/tasks/{task_id}/subtasks/{sub_id}", headers=headers)
+async def test_complete_subtask_sets_completed_at(client: AsyncClient):
+    """Completing a subtask must set completed_at (timezone-aware)."""
+    headers = await register_and_login(client)
+    parent = await make_task(client, headers)
+    sub = await _make_subtask(client, headers, parent["id"])
+    resp = await client.patch(
+        f"/api/v1/tasks/{parent['id']}/subtasks/{sub['id']}",
+        json={"status": "done"},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["completed_at"] is not None
+
+
+async def test_delete_subtask(client: AsyncClient):
+    headers = await register_and_login(client)
+    parent = await make_task(client, headers)
+    sub = await _make_subtask(client, headers, parent["id"])
+    resp = await client.delete(
+        f"/api/v1/tasks/{parent['id']}/subtasks/{sub['id']}",
+        headers=headers,
+    )
     assert resp.status_code == 204
 
 
-def test_subtask_progress(client: TestClient):
-    headers = register_and_login(client)
-    task_id = create_task_with_subtasks(client, headers)
-    sub1 = client.post(f"/api/v1/tasks/{task_id}/subtasks", json={"title": "S1"}, headers=headers).json()
-    sub2 = client.post(f"/api/v1/tasks/{task_id}/subtasks", json={"title": "S2"}, headers=headers).json()
-    client.patch(f"/api/v1/tasks/{task_id}/subtasks/{sub1['id']}/toggle", headers=headers)
-    resp = client.get(f"/api/v1/tasks/{task_id}/subtasks/progress", headers=headers)
+async def test_subtask_progress(client: AsyncClient):
+    headers = await register_and_login(client)
+    parent = await make_task(client, headers)
+    s1 = await _make_subtask(client, headers, parent["id"], title="S1")
+    s2 = await _make_subtask(client, headers, parent["id"], title="S2")
+    # Complete one subtask
+    await client.patch(
+        f"/api/v1/tasks/{parent['id']}/subtasks/{s1['id']}",
+        json={"status": "done"},
+        headers=headers,
+    )
+    resp = await client.get(
+        f"/api/v1/tasks/{parent['id']}/subtasks/progress", headers=headers
+    )
     assert resp.status_code == 200
-    data = resp.json()
-    assert data["total"] == 2
-    assert data["completed"] == 1
+    body = resp.json()
+    assert body["total"] == 2
+    assert body["done"] == 1
+    assert body["progress"] == 50
+
+
+async def test_subtask_isolation_parent(client: AsyncClient):
+    """Cannot access subtasks of a task belonging to another user."""
+    headers_a = await register_and_login(client)
+    headers_b = await register_and_login(client)
+    parent_a = await make_task(client, headers_a)
+    resp = await client.get(
+        f"/api/v1/tasks/{parent_a['id']}/subtasks", headers=headers_b
+    )
+    assert resp.status_code == 404
+
+
+async def test_create_subtask_not_owned_parent(client: AsyncClient):
+    headers_a = await register_and_login(client)
+    headers_b = await register_and_login(client)
+    parent_a = await make_task(client, headers_a)
+    resp = await client.post(
+        f"/api/v1/tasks/{parent_a['id']}/subtasks",
+        json={"title": "Injected", "priority": "low"},
+        headers=headers_b,
+    )
+    assert resp.status_code == 404
+
+
+async def test_update_subtask_wrong_parent(client: AsyncClient):
+    """Subtask id under wrong parent_id returns 404."""
+    headers = await register_and_login(client)
+    p1 = await make_task(client, headers, title="P1")
+    p2 = await make_task(client, headers, title="P2")
+    sub = await _make_subtask(client, headers, p1["id"])
+    resp = await client.patch(
+        f"/api/v1/tasks/{p2['id']}/subtasks/{sub['id']}",
+        json={"title": "Wrong"},
+        headers=headers,
+    )
+    assert resp.status_code == 404
+
+
+async def test_subtasks_unauthenticated(client: AsyncClient):
+    from uuid import uuid4
+    resp = await client.get(f"/api/v1/tasks/{uuid4()}/subtasks")
+    assert resp.status_code in (401, 403)

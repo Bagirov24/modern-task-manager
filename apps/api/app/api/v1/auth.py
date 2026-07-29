@@ -1,29 +1,29 @@
 """Authentication endpoints.
 
-Fixes / additions
------------------
-- POST /refresh  — validates the refresh token and issues a new access +
-  refresh pair (token rotation).  Old refresh token is invalidated via
-  Redis blacklist (key ``revoked:{jti}``, TTL = remaining token lifetime).
-- POST /logout   — blacklists the current access token in Redis so it
-  cannot be reused until expiry.
-- login: email is lowercased before lookup (case-insensitive auth).
-- Timing-safe: "email not found" and "wrong password" return the same
-  401 to prevent user-enumeration.
-- register: duplicate-check uses a single combined SELECT for atomicity.
+Features
+--------
+- POST /register  — unique email + username, bcrypt hash, rate-limited.
+- POST /login     — timing-safe 401, email lowercase, returns access+refresh.
+- POST /refresh   — validates refresh token, issues new pair, blacklists old
+                    refresh jti in Redis (true token rotation).
+- POST /logout    — blacklists the current access token jti in Redis so it
+                    cannot be reused until natural expiry.
+- GET  /me        — returns authenticated user profile.
 """
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.database import get_db
+from app.core.database import get_db, get_redis
 from app.core.security import (
+    blacklist_token,
     create_access_token,
     create_refresh_token,
     get_current_user,
@@ -37,22 +37,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
 def _credentials_error() -> HTTPException:
-    """Return a consistent 401 to prevent user-enumeration."""
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-
-# ---------------------------------------------------------------------------
-# Endpoints
-# ---------------------------------------------------------------------------
 
 @router.post(
     "/register",
@@ -63,29 +54,17 @@ async def register(
     user_data: UserCreate,
     db: AsyncSession = Depends(get_db),
 ):
-    """Register a new user account.
-
-    Rate-limited by the global RateLimitMiddleware (100 req/60 s per IP).
-    Email and username uniqueness are checked before insert.
-    """
-    # Check email
     result = await db.execute(
         select(User).where(User.email == user_data.email.lower())
     )
     if result.scalars().first():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered",
-        )
-    # Check username
+        raise HTTPException(status_code=400, detail="Email already registered")
+
     result = await db.execute(
         select(User).where(User.username == user_data.username)
     )
     if result.scalars().first():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already taken",
-        )
+        raise HTTPException(status_code=400, detail="Username already taken")
 
     user = User(
         email=user_data.email.lower(),
@@ -105,21 +84,15 @@ async def login(
     user_data: UserLogin,
     db: AsyncSession = Depends(get_db),
 ):
-    """Authenticate user and return access + refresh token pair."""
-    # Normalise email to lowercase (case-insensitive login)
     email = user_data.email.lower()
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalars().first()
 
-    # Timing-safe: same error for "not found" and "wrong password".
     if not user or not verify_password(user_data.password, user.hashed_password):
         raise _credentials_error()
 
     if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is deactivated",
-        )
+        raise HTTPException(status_code=403, detail="Account is deactivated")
 
     return TokenResponse(
         access_token=create_access_token({"sub": str(user.id)}),
@@ -131,14 +104,11 @@ async def login(
 async def refresh_tokens(
     refresh_token: str,
     db: AsyncSession = Depends(get_db),
+    redis=Depends(get_redis),
 ):
-    """Issue a new access + refresh token pair from a valid refresh token.
-
-    The old refresh token is NOT blacklisted here — full rotation with
-    Redis blacklist requires the jti claim (TODO: add jti to token payload
-    in create_refresh_token and check Redis here).
-    """
-    from jose import JWTError, jwt
+    """Issue a new token pair and blacklist the old refresh token (rotation)."""
+    from app.core.security import is_token_blacklisted
+    from datetime import datetime
 
     credentials_exc = _credentials_error()
     try:
@@ -150,15 +120,26 @@ async def refresh_tokens(
         )
         user_id: str | None = payload.get("sub")
         token_type: str | None = payload.get("type")
-        if user_id is None or token_type != "refresh":
+        jti: str | None = payload.get("jti")
+        exp = payload.get("exp")
+
+        if user_id is None or token_type != "refresh" or jti is None:
             raise credentials_exc
     except JWTError:
+        raise credentials_exc
+
+    # Reject already-rotated tokens.
+    if await is_token_blacklisted(jti, redis):
         raise credentials_exc
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalars().first()
     if not user or not user.is_active:
         raise credentials_exc
+
+    # Blacklist old refresh token so it cannot be reused.
+    expire_dt = datetime.fromtimestamp(exp, tz=timezone.utc)
+    await blacklist_token(jti, expire_dt, redis)
 
     return TokenResponse(
         access_token=create_access_token({"sub": str(user.id)}),
@@ -168,21 +149,33 @@ async def refresh_tokens(
 
 @router.post("/logout", status_code=204)
 async def logout(
-    current_user: User = Depends(get_current_user),
+    token: str = Depends(__import__('fastapi').security.OAuth2PasswordBearer(tokenUrl='/api/v1/auth/login')),
+    redis=Depends(get_redis),
 ):
-    """Invalidate the current session.
+    """Blacklist the current access token jti in Redis."""
+    from datetime import datetime
+    from jose import JWTError, jwt
 
-    Full token blacklisting requires storing the token jti in Redis with
-    TTL = remaining token lifetime.  That requires the jti claim to be
-    added to create_access_token() (TODO).  For now this endpoint exists
-    as a no-op placeholder so clients can call it and clear local storage.
-    """
-    logger.info("User %s logged out", current_user.id)
+    try:
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=["HS256"],
+            options={"leeway": 10, "verify_exp": False},
+        )
+        jti = payload.get("jti")
+        exp = payload.get("exp")
+        user_id = payload.get("sub")
+        if jti and exp:
+            expire_dt = datetime.fromtimestamp(exp, tz=timezone.utc)
+            await blacklist_token(jti, expire_dt, redis)
+            logger.info("User %s logged out, token %s blacklisted", user_id, jti)
+    except JWTError:
+        pass  # Even invalid tokens should get a 204 — don't leak info.
 
 
 @router.get("/me", response_model=UserPrivateResponse)
 async def get_me(
     current_user: User = Depends(get_current_user),
 ):
-    """Return full profile for the authenticated user only."""
     return current_user

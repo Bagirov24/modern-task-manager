@@ -1,17 +1,15 @@
 """Label ORM model.
 
-Fixes
------
-- Added owner_id FK so labels are scoped to a user (was global).
-  Requires migration: alembic revision --autogenerate -m 'add label owner_id'
-- DateTime → DateTime(timezone=True): stores as TIMESTAMPTZ.
-- datetime.utcnow → _utcnow() helper.
-- Added cascade on task_labels FK constraints.
+Changes
+-------
+- owner_id: nullable=False (was nullable=True during migration window;
+  migration 0002 backfills existing rows and sets NOT NULL constraint).
+- Explicit indexes on owner_id and task_labels FKs.
 """
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, ForeignKey, String, Table
+from sqlalchemy import Column, DateTime, ForeignKey, Index, String, Table
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -42,17 +40,18 @@ task_labels = Table(
 
 class Label(Base):
     __tablename__ = "labels"
+    __table_args__ = (
+        Index("ix_labels_owner_id", "owner_id"),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(100), nullable=False)
     color = Column(String(7), default="#38bdf8", nullable=False)
-    # owner_id scopes labels to a user — was previously a global table.
-    # NOTE: requires migration to add this column to existing deployments.
     owner_id = Column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=True,   # nullable during migration; tighten to False after backfill
-        index=True,
+        nullable=False,  # tightened — migration 0002 backfills and sets NOT NULL
+        index=False,     # index declared above in __table_args__
     )
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
 
