@@ -1,78 +1,109 @@
+"""Tests for project CRUD endpoints."""
+from __future__ import annotations
+
 import pytest
-from uuid import uuid4
+from httpx import AsyncClient
 
-from app.models.project import Project
-from app.models.user import User
-from app.services.project_service import ProjectService
-from app.schemas.project import ProjectCreate, ProjectUpdate
+from tests.conftest import make_project, register_and_login
 
 
-def create_test_user(db):
-    user = User(
-        id=uuid4(),
-        email="test@example.com",
-        username="testuser",
-        hashed_password="fakehash",
+async def test_create_project(client: AsyncClient):
+    headers = await register_and_login(client)
+    project = await make_project(client, headers)
+    assert project["name"] == "Test Project"
+    assert "id" in project
+
+
+async def test_create_project_invalid_color(client: AsyncClient):
+    headers = await register_and_login(client)
+    resp = await client.post(
+        "/api/v1/projects/",
+        json={"name": "Bad Color", "color": "red"},
+        headers=headers,
     )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return user
+    assert resp.status_code == 422
 
 
-class TestProjectService:
-    def test_create_project(self, db):
-        user = create_test_user(db)
-        service = ProjectService(db)
-        data = ProjectCreate(name="Test Project", description="A test", color="#FF5733")
-        project = service.create_project(data, user.id)
-        assert project.name == "Test Project"
-        assert project.owner_id == user.id
-        assert project.color == "#FF5733"
+async def test_list_projects(client: AsyncClient):
+    headers = await register_and_login(client)
+    await make_project(client, headers, name="Project Alpha")
+    await make_project(client, headers, name="Project Beta")
+    resp = await client.get("/api/v1/projects/", headers=headers)
+    assert resp.status_code == 200
+    names = [p["name"] for p in resp.json()]
+    assert "Project Alpha" in names
+    assert "Project Beta" in names
 
-    def test_get_project(self, db):
-        user = create_test_user(db)
-        service = ProjectService(db)
-        data = ProjectCreate(name="My Project")
-        created = service.create_project(data, user.id)
-        fetched = service.get_project(created.id)
-        assert fetched is not None
-        assert fetched.name == "My Project"
 
-    def test_get_projects_by_owner(self, db):
-        user = create_test_user(db)
-        service = ProjectService(db)
-        service.create_project(ProjectCreate(name="P1"), user.id)
-        service.create_project(ProjectCreate(name="P2"), user.id)
-        projects = service.get_projects_by_owner(user.id)
-        assert len(projects) == 2
+async def test_get_project(client: AsyncClient):
+    headers = await register_and_login(client)
+    project = await make_project(client, headers)
+    resp = await client.get(f"/api/v1/projects/{project['id']}", headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["id"] == project["id"]
 
-    def test_update_project(self, db):
-        user = create_test_user(db)
-        service = ProjectService(db)
-        project = service.create_project(ProjectCreate(name="Old"), user.id)
-        updated = service.update_project(project.id, ProjectUpdate(name="New"))
-        assert updated.name == "New"
 
-    def test_delete_project(self, db):
-        user = create_test_user(db)
-        service = ProjectService(db)
-        project = service.create_project(ProjectCreate(name="Delete Me"), user.id)
-        assert service.delete_project(project.id) is True
-        assert service.get_project(project.id) is None
+async def test_update_project(client: AsyncClient):
+    headers = await register_and_login(client)
+    project = await make_project(client, headers)
+    resp = await client.patch(
+        f"/api/v1/projects/{project['id']}",
+        json={"name": "Renamed Project"},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["name"] == "Renamed Project"
 
-    def test_archive_project(self, db):
-        user = create_test_user(db)
-        service = ProjectService(db)
-        project = service.create_project(ProjectCreate(name="Archive"), user.id)
-        assert project.is_archived is False
-        archived = service.archive_project(project.id)
-        assert archived.is_archived is True
 
-    def test_get_project_stats(self, db):
-        user = create_test_user(db)
-        service = ProjectService(db)
-        project = service.create_project(ProjectCreate(name="Stats"), user.id)
-        stats = service.get_project_stats(project.id)
-        assert stats["total_tasks"] == 0
-        assert stats["progress"] == 0
+async def test_archive_project(client: AsyncClient):
+    headers = await register_and_login(client)
+    project = await make_project(client, headers)
+    resp = await client.post(
+        f"/api/v1/projects/{project['id']}/archive",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["is_archived"] is True
+
+
+async def test_archived_projects_excluded_by_default(client: AsyncClient):
+    headers = await register_and_login(client)
+    project = await make_project(client, headers, name="To Archive")
+    await client.post(f"/api/v1/projects/{project['id']}/archive", headers=headers)
+    resp = await client.get("/api/v1/projects/", headers=headers)
+    ids = [p["id"] for p in resp.json()]
+    assert project["id"] not in ids
+
+
+async def test_delete_project(client: AsyncClient):
+    headers = await register_and_login(client)
+    project = await make_project(client, headers)
+    resp = await client.delete(f"/api/v1/projects/{project['id']}", headers=headers)
+    assert resp.status_code == 204
+    resp2 = await client.get(f"/api/v1/projects/{project['id']}", headers=headers)
+    assert resp2.status_code == 404
+
+
+async def test_project_stats(client: AsyncClient):
+    headers = await register_and_login(client)
+    project = await make_project(client, headers)
+    resp = await client.get(f"/api/v1/projects/{project['id']}/stats", headers=headers)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "total_tasks" in body
+    assert "progress" in body
+
+
+async def test_project_isolation(client: AsyncClient):
+    """User B cannot access User A's project."""
+    headers_a = await register_and_login(client)
+    headers_b = await register_and_login(client)
+    project_a = await make_project(client, headers_a)
+
+    resp = await client.get(f"/api/v1/projects/{project_a['id']}", headers=headers_b)
+    assert resp.status_code == 404
+
+    resp = await client.delete(
+        f"/api/v1/projects/{project_a['id']}", headers=headers_b
+    )
+    assert resp.status_code == 404
