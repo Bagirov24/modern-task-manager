@@ -11,6 +11,7 @@ class TestE2EWorkflow:
         # 1. Register
         resp = await client.post("/api/v1/auth/register", json={
             "email": "e2e@test.com",
+            "username": "e2e_user",
             "password": "TestPass123!",
             "full_name": "E2E User",
         })
@@ -21,6 +22,7 @@ class TestE2EWorkflow:
         # 2. Login
         resp = await client.post("/api/v1/auth/login", json={
             "email": "e2e@test.com",
+            "username": "e2e_user",
             "password": "TestPass123!",
         })
         assert resp.status_code == 200
@@ -95,9 +97,9 @@ class TestHealthEndpoints:
         assert data["status"] == "healthy"
 
     async def test_health_db(self, client: AsyncClient):
-        resp = await client.get("/health/db")
+        resp = await client.get("/health/db", headers={"X-Internal-Token": "ci-internal-health-token"})
         assert resp.status_code == 200
 
     async def test_health_ready(self, client: AsyncClient):
-        resp = await client.get("/health/ready")
+        resp = await client.get("/health/ready", headers={"X-Internal-Token": "ci-internal-health-token"})
         assert resp.status_code == 200

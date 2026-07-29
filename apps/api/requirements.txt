@@ -23,6 +23,7 @@ email-validator==2.2.0
 # --- Auth ---
 PyJWT[crypto]==2.13.0
 passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
 
 # --- Cache / message broker ---
 redis==5.0.1

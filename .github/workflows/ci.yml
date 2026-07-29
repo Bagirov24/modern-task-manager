@@ -107,6 +107,7 @@ jobs:
       # where the secret may not be configured.
       SECRET_KEY: ${{ secrets.CI_SECRET_KEY || 'ci-test-secret-key-not-for-production-use-only' }}
       ENVIRONMENT: test
+      INTERNAL_HEALTH_TOKEN: ci-internal-health-token
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
 
