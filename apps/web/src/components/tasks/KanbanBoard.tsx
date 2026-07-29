@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useMemo, useState } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -28,6 +28,9 @@ import {
   Tooltip,
   alpha,
   Paper,
+  LinearProgress,
+  Avatar,
+  Divider,
 } from '@mui/material'
 import {
   Edit as EditIcon,
@@ -35,6 +38,7 @@ import {
   DragIndicator as DragIcon,
   Flag as FlagIcon,
   CalendarToday as CalendarIcon,
+  AccessTime as TimeIcon,
 } from '@mui/icons-material'
 import { useDroppable } from '@dnd-kit/core'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -51,13 +55,11 @@ interface KanbanColumn {
   bgColor: string
 }
 
-const COLUMNS: KanbanColumn[] = [
-  { id: 'todo', title: 'К выполнению', color: '#CAC4D0', bgColor: 'rgba(202,196,208,0.08)' },
-  { id: 'in_progress', title: 'В работе', color: '#D0BCFF', bgColor: 'rgba(208,188,255,0.08)' },
+const columns: KanbanColumn[] = [
+  { id: 'todo', title: 'К выполнению', color: '#B39DDB', bgColor: 'rgba(179,157,219,0.08)' },
+  { id: 'in_progress', title: 'В работе', color: '#64B5F6', bgColor: 'rgba(100,181,246,0.08)' },
   { id: 'done', title: 'Готово', color: '#81C784', bgColor: 'rgba(129,199,132,0.08)' },
 ]
-
-const COLUMN_IDS = COLUMNS.map(c => c.id)
 
 const priorityConfig: Record<string, { color: 'default' | 'info' | 'warning' | 'error'; label: string }> = {
   low: { color: 'default', label: 'Низкий' },
@@ -72,18 +74,36 @@ interface KanbanCardProps {
   onDelete?: (task: Task) => void
 }
 
+function formatDate(date?: string | null) {
+  if (!date) return null
+  return format(new Date(date), 'd MMM', { locale: ru })
+}
+
+function resolveColumnId(overId: string, tasks: Task[]) {
+  if (columns.some((column) => column.id === overId)) return overId
+  const overTask = tasks.find((task) => task.id === overId)
+  return overTask?.status ?? null
+}
+
 function KanbanCard({ task, onEdit, onDelete }: KanbanCardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: task.id,
-  })
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id })
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.4 : 1,
+    opacity: isDragging ? 0.42 : 1,
   }
 
-  const priority = priorityConfig[task.priority] ?? priorityConfig.low
+  const priority = priorityConfig[task.priority] || priorityConfig.low
+  const labels = task.labels?.slice(0, 2) ?? []
+  const overdue = !!task.due_date && new Date(task.due_date).getTime() < Date.now() && task.status !== 'done'
 
   return (
     <Card
@@ -92,16 +112,23 @@ function KanbanCard({ task, onEdit, onDelete }: KanbanCardProps) {
       sx={{
         mb: 1.5,
         cursor: isDragging ? 'grabbing' : 'grab',
-        borderRadius: 2,
+        borderRadius: 3,
         border: '1px solid',
-        borderColor: isDragging ? 'primary.main' : 'divider',
-        boxShadow: isDragging ? 4 : 1,
-        transition: 'box-shadow 0.2s, border-color 0.2s',
-        '&:hover': { boxShadow: 3, borderColor: 'primary.main' },
+        borderColor: isDragging ? 'primary.main' : overdue ? 'error.light' : 'divider',
+        boxShadow: isDragging ? 5 : 1,
+        transition: 'box-shadow 0.2s, border-color 0.2s, transform 0.2s',
+        backgroundImage: overdue
+          ? 'linear-gradient(180deg, rgba(244,67,54,0.04) 0%, rgba(244,67,54,0) 100%)'
+          : 'none',
+        '&:hover': {
+          boxShadow: 4,
+          borderColor: 'primary.main',
+          transform: 'translateY(-1px)',
+        },
       }}
     >
-      <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-        <Stack direction="row" alignItems="flex-start" spacing={0.5}>
+      <CardContent sx={{ p: 1.6, '&:last-child': { pb: 1.6 } }}>
+        <Stack direction="row" alignItems="flex-start" spacing={0.75}>
           <Box
             {...attributes}
             {...listeners}
@@ -109,12 +136,13 @@ function KanbanCard({ task, onEdit, onDelete }: KanbanCardProps) {
           >
             <DragIcon fontSize="small" />
           </Box>
+
           <Box flex={1} minWidth={0}>
             <Typography
               variant="body2"
-              fontWeight={500}
+              fontWeight={700}
               sx={{
-                mb: 1,
+                mb: 0.75,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 display: '-webkit-box',
@@ -124,56 +152,86 @@ function KanbanCard({ task, onEdit, onDelete }: KanbanCardProps) {
             >
               {task.title}
             </Typography>
-            <Stack direction="row" spacing={0.5} flexWrap="wrap" gap={0.5}>
-              <Chip
-                size="small"
-                label={priority.label}
-                color={priority.color}
-                icon={<FlagIcon />}
+
+            {task.description && (
+              <Typography
+                variant="caption"
+                color="text.secondary"
                 sx={{
-                  height: 20,
-                  '& .MuiChip-label': { px: 0.75, fontSize: '0.65rem' },
-                  '& .MuiChip-icon': { fontSize: '0.75rem' },
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                  mb: 1,
                 }}
-              />
+              >
+                {task.description}
+              </Typography>
+            )}
+
+            <Stack direction="row" spacing={0.5} flexWrap="wrap" gap={0.5} mb={labels.length ? 1 : 0.5}>
+              <Chip size="small" label={priority.label} color={priority.color} icon={<FlagIcon />} sx={{ height: 22 }} />
               {task.due_date && (
                 <Chip
                   size="small"
+                  color={overdue ? 'error' : 'default'}
                   icon={<CalendarIcon />}
-                  label={format(new Date(task.due_date), 'd MMM', { locale: ru })}
-                  sx={{
-                    height: 20,
-                    '& .MuiChip-label': { px: 0.75, fontSize: '0.65rem' },
-                    '& .MuiChip-icon': { fontSize: '0.75rem' },
-                  }}
+                  label={formatDate(task.due_date)}
+                  sx={{ height: 22 }}
                 />
               )}
+              {task.start_date && (
+                <Chip size="small" variant="outlined" icon={<TimeIcon />} label={`Старт ${formatDate(task.start_date)}`} sx={{ height: 22 }} />
+              )}
+            </Stack>
+
+            {labels.length > 0 && (
+              <Stack direction="row" spacing={0.5} flexWrap="wrap" gap={0.5} mb={1}>
+                {labels.map((label: any) => (
+                  <Chip
+                    key={label.id ?? label.name}
+                    size="small"
+                    label={label.name}
+                    sx={{
+                      height: 20,
+                      bgcolor: label.color ? `${label.color}20` : 'action.hover',
+                      color: label.color || 'text.primary',
+                    }}
+                  />
+                ))}
+              </Stack>
+            )}
+
+            <Divider sx={{ my: 1 }} />
+
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Avatar sx={{ width: 24, height: 24, fontSize: 11, bgcolor: 'primary.main' }}>
+                  {(task.assignee?.full_name || task.assignee?.username || 'U').charAt(0).toUpperCase()}
+                </Avatar>
+                <Typography variant="caption" color="text.secondary" noWrap>
+                  {task.assignee?.full_name || task.assignee?.username || 'Без исполнителя'}
+                </Typography>
+              </Stack>
+
+              <Stack direction="row" spacing={0}>
+                {onEdit && (
+                  <Tooltip title="Редактировать">
+                    <IconButton size="small" onClick={(e) => { e.stopPropagation(); onEdit(task) }} sx={{ p: 0.4 }}>
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                {onDelete && (
+                  <Tooltip title="Удалить">
+                    <IconButton size="small" onClick={(e) => { e.stopPropagation(); onDelete(task) }} sx={{ p: 0.4, color: 'error.main' }}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Stack>
             </Stack>
           </Box>
-          <Stack direction="row" spacing={0}>
-            {onEdit && (
-              <Tooltip title="Редактировать">
-                <IconButton
-                  size="small"
-                  onClick={(e) => { e.stopPropagation(); onEdit(task) }}
-                  sx={{ p: 0.25 }}
-                >
-                  <EditIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            )}
-            {onDelete && (
-              <Tooltip title="Удалить">
-                <IconButton
-                  size="small"
-                  onClick={(e) => { e.stopPropagation(); onDelete(task) }}
-                  sx={{ p: 0.25, color: 'error.main' }}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            )}
-          </Stack>
         </Stack>
       </CardContent>
     </Card>
@@ -183,59 +241,56 @@ function KanbanCard({ task, onEdit, onDelete }: KanbanCardProps) {
 interface KanbanColumnProps {
   column: KanbanColumn
   tasks: Task[]
+  isPreviewTarget: boolean
   onEdit?: (task: Task) => void
   onDelete?: (task: Task) => void
 }
 
-function KanbanColumnComponent({ column, tasks, onEdit, onDelete }: KanbanColumnProps) {
+function KanbanColumnComponent({ column, tasks, isPreviewTarget, onEdit, onDelete }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id })
+  const completedRatio = column.id === 'done' && tasks.length > 0 ? 100 : column.id === 'in_progress' ? 60 : 20
 
   return (
-    <Box sx={{ flex: 1, minWidth: 260, maxWidth: 360, display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ flex: 1, minWidth: 290, maxWidth: 390, display: 'flex', flexDirection: 'column' }}>
       <MotionPaper
         ref={setNodeRef}
         elevation={0}
         sx={{
           p: 2,
           height: '100%',
-          minHeight: 400,
-          backgroundColor: isOver ? alpha(column.color, 0.15) : column.bgColor,
+          minHeight: 460,
+          backgroundColor: isOver || isPreviewTarget ? alpha(column.color, 0.16) : column.bgColor,
           border: '1px solid',
-          borderColor: isOver ? column.color : 'divider',
-          borderRadius: 3,
-          transition: 'background-color 0.2s, border-color 0.2s',
+          borderColor: isOver || isPreviewTarget ? column.color : 'divider',
+          borderRadius: 4,
+          transition: 'background-color 0.2s, border-color 0.2s, transform 0.2s',
           display: 'flex',
           flexDirection: 'column',
+          backdropFilter: 'blur(10px)',
         }}
-        animate={{ scale: isOver ? 1.01 : 1 }}
+        animate={{ scale: isOver || isPreviewTarget ? 1.01 : 1 }}
         transition={{ duration: 0.15 }}
       >
-        <Stack direction="row" alignItems="center" spacing={1} mb={2}>
-          <Box
-            sx={{
-              width: 10, height: 10, borderRadius: '50%',
-              backgroundColor: column.color, flexShrink: 0,
-            }}
-          />
-          <Typography variant="subtitle1" fontWeight={600}>
-            {column.title}
-          </Typography>
-          <Chip
-            label={tasks.length}
-            size="small"
-            sx={{
-              ml: 'auto',
-              backgroundColor: alpha(column.color, 0.2),
-              color: column.color,
-              fontWeight: 700,
-              height: 20,
-              '& .MuiChip-label': { px: 0.75, fontSize: '0.7rem' },
-            }}
-          />
+        <Stack direction="row" alignItems="center" spacing={1} mb={1.5}>
+          <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: column.color, flexShrink: 0 }} />
+          <Typography variant="subtitle1" fontWeight={700}>{column.title}</Typography>
+          <Chip label={tasks.length} size="small" sx={{ ml: 'auto', backgroundColor: alpha(column.color, 0.2), color: column.color, fontWeight: 800, height: 22 }} />
         </Stack>
 
+        <LinearProgress
+          variant="determinate"
+          value={completedRatio}
+          sx={{
+            mb: 2,
+            height: 6,
+            borderRadius: 999,
+            bgcolor: alpha(column.color, 0.12),
+            '& .MuiLinearProgress-bar': { bgcolor: column.color },
+          }}
+        />
+
         <Box flex={1} sx={{ overflowY: 'auto', pr: 0.5 }}>
-          <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
             <AnimatePresence>
               {tasks.map((task) => (
                 <motion.div
@@ -252,11 +307,15 @@ function KanbanColumnComponent({ column, tasks, onEdit, onDelete }: KanbanColumn
             {tasks.length === 0 && (
               <Box
                 sx={{
-                  textAlign: 'center', py: 4, color: 'text.disabled',
-                  border: '2px dashed', borderColor: 'divider', borderRadius: 2,
+                  textAlign: 'center',
+                  py: 5,
+                  color: 'text.disabled',
+                  border: '2px dashed',
+                  borderColor: alpha(column.color, 0.25),
+                  borderRadius: 3,
                 }}
               >
-                <Typography variant="body2">Перетащите задачу сюда</Typography>
+                <Typography variant="body2" fontWeight={600}>Перетащите задачу сюда</Typography>
               </Box>
             )}
           </SortableContext>
@@ -275,77 +334,52 @@ interface KanbanBoardProps {
 
 export default function KanbanBoard({ tasks, onStatusChange, onEdit, onDelete }: KanbanBoardProps) {
   const [activeTask, setActiveTask] = useState<Task | null>(null)
+  const [previewColumn, setPreviewColumn] = useState<string | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor),
+    useSensor(KeyboardSensor)
   )
-
-  // Pre-computed map: taskId → columnId for O(1) lookups during drag
-  const taskColumnMap = useMemo(() => {
-    const map = new Map<string, string>()
-    tasks.forEach(t => map.set(t.id, t.status))
-    return map
-  }, [tasks])
 
   const columnTasks = useMemo(() => {
     const map: Record<string, Task[]> = { todo: [], in_progress: [], done: [] }
-    tasks.forEach(t => {
+    tasks.forEach((t) => {
       if (map[t.status]) map[t.status].push(t)
       else map.todo.push(t)
     })
     return map
   }, [tasks])
 
-  /** Resolve which column an id belongs to (either a column id itself, or a task's column). */
-  const resolveColumnId = useCallback((id: string): string | null => {
-    if (COLUMN_IDS.includes(id)) return id
-    return taskColumnMap.get(id) ?? null
-  }, [taskColumnMap])
+  const handleDragStart = (event: DragStartEvent) => {
+    const task = tasks.find((t) => t.id === event.active.id)
+    setActiveTask(task || null)
+    setPreviewColumn(task?.status ?? null)
+  }
 
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    const task = tasks.find(t => t.id === event.active.id)
-    setActiveTask(task ?? null)
-  }, [tasks])
+  const handleDragOver = (event: DragOverEvent) => {
+    const { over } = event
+    if (!over) {
+      setPreviewColumn(null)
+      return
+    }
+    const resolved = resolveColumnId(String(over.id), tasks)
+    setPreviewColumn(resolved)
+  }
 
-  /**
-   * BUG FIX: was an empty stub — now provides real-time visual feedback
-   * by optimistically calling onStatusChange when dragging over a different column.
-   * The parent (TasksPage) uses an optimistic update so the UI responds instantly.
-   */
-  const handleDragOver = useCallback((event: DragOverEvent) => {
-    const { active, over } = event
-    if (!over) return
-
-    const activeId = String(active.id)
-    const overId = String(over.id)
-
-    const sourceColId = resolveColumnId(activeId)
-    const targetColId = resolveColumnId(overId)
-
-    if (!sourceColId || !targetColId) return
-    if (sourceColId === targetColId) return
-
-    // Optimistic UI update — parent rolls back on API error
-    onStatusChange(activeId, targetColId)
-  }, [resolveColumnId, onStatusChange])
-
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
     setActiveTask(null)
+    setPreviewColumn(null)
     if (!over) return
 
-    const activeId = String(active.id)
-    const overId = String(over.id)
-    const targetColId = resolveColumnId(overId)
+    const targetStatus = resolveColumnId(String(over.id), tasks)
+    if (!targetStatus) return
 
-    if (targetColId) {
-      const draggedTask = tasks.find(t => t.id === activeId)
-      if (draggedTask && draggedTask.status !== targetColId) {
-        onStatusChange(activeId, targetColId)
-      }
+    const draggedTask = tasks.find((t) => t.id === active.id)
+    if (draggedTask && draggedTask.status !== targetStatus) {
+      onStatusChange(String(active.id), targetStatus)
     }
-  }, [tasks, resolveColumnId, onStatusChange])
+  }
 
   return (
     <DndContext
@@ -356,11 +390,12 @@ export default function KanbanBoard({ tasks, onStatusChange, onEdit, onDelete }:
       onDragEnd={handleDragEnd}
     >
       <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2, alignItems: 'flex-start' }}>
-        {COLUMNS.map((column) => (
+        {columns.map((column) => (
           <KanbanColumnComponent
             key={column.id}
             column={column}
-            tasks={columnTasks[column.id] ?? []}
+            tasks={columnTasks[column.id] || []}
+            isPreviewTarget={previewColumn === column.id}
             onEdit={onEdit}
             onDelete={onDelete}
           />
@@ -369,20 +404,14 @@ export default function KanbanBoard({ tasks, onStatusChange, onEdit, onDelete }:
 
       <DragOverlay>
         {activeTask ? (
-          <Card
-            sx={{
-              opacity: 0.95,
-              boxShadow: 8,
-              borderRadius: 2,
-              border: '2px solid',
-              borderColor: 'primary.main',
-              minWidth: 240,
-            }}
-          >
-            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-              <Typography variant="body2" fontWeight={500}>
-                {activeTask.title}
-              </Typography>
+          <Card sx={{ opacity: 0.96, boxShadow: 10, borderRadius: 3, border: '2px solid', borderColor: 'primary.main', minWidth: 260 }}>
+            <CardContent sx={{ p: 1.6, '&:last-child': { pb: 1.6 } }}>
+              <Typography variant="body2" fontWeight={700}>{activeTask.title}</Typography>
+              {activeTask.description && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  {activeTask.description}
+                </Typography>
+              )}
             </CardContent>
           </Card>
         ) : null}

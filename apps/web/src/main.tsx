@@ -1,45 +1,52 @@
-import React, { useMemo } from 'react'
+import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
-import { ThemeProvider } from '@mui/material/styles'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import CssBaseline from '@mui/material/CssBaseline'
-import { SnackbarProvider } from 'notistack'
-import { createAppTheme } from '@/lib/theme'
-import { useThemeStore } from '@/lib/store/themeStore'
 import App from './App'
+import ThemeWrapper from './lib/theme'
+import GlobalErrorBoundary from './components/common/GlobalErrorBoundary'
+import SnackbarProvider from './components/common/SnackbarProvider'
+import CommandPalette from './components/common/CommandPalette'
 import './index.css'
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { staleTime: 1000 * 60, retry: 1 },
+    queries: {
+      staleTime: 1000 * 60 * 2,
+      gcTime: 1000 * 60 * 10,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+    mutations: {
+      onError: (err) => console.error('[mutation error]', err),
+    },
   },
 })
 
-function Root() {
-  const mode = useThemeStore((s) => s.mode)
-  const theme = useMemo(() => createAppTheme(mode), [mode])
-
-  return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <SnackbarProvider
-        maxSnack={3}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        autoHideDuration={3000}
-      >
-        <QueryClientProvider client={queryClient}>
-          <BrowserRouter>
-            <App />
-          </BrowserRouter>
-        </QueryClientProvider>
-      </SnackbarProvider>
-    </ThemeProvider>
-  )
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((error) => {
+      console.error('[sw] registration failed', error)
+    })
+  })
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <Root />
-  </React.StrictMode>,
+    <GlobalErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <ThemeWrapper>
+            <CssBaseline />
+            <App />
+            <SnackbarProvider />
+            <CommandPalette />
+          </ThemeWrapper>
+        </BrowserRouter>
+        {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
+      </QueryClientProvider>
+    </GlobalErrorBoundary>
+  </React.StrictMode>
 )

@@ -2,12 +2,22 @@ import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { getSocket, disconnectSocket } from '@/lib/socket/socketClient'
 import { useAuthStore } from '@/lib/store/authStore'
-import { useSnackbar } from 'notistack'
+import { useUIStore } from '@/store/uiStore'
+import { useTaskStore } from '@/store/taskStore'
+import type { Task } from '@/lib/types'
 
+/**
+ * useRealtimeSync — подключает WebSocket и реагирует на серверные события.
+ * - task_created / task_updated / task_deleted  →  invalidates ['tasks'] + обновляет Zustand store
+ * - project_* events                            →  invalidates ['projects']
+ * - notification                                →  показывает snackbar + invalidates ['notifications']
+ * - connect / disconnect                        →  отображает статус в UI
+ */
 export function useRealtimeSync() {
   const queryClient = useQueryClient()
-  const { enqueueSnackbar } = useSnackbar()
   const token = useAuthStore((s) => s.token)
+  const addSnackbar = useUIStore((s) => s.addSnackbar)
+  const { addTask, updateTask: updateTaskInStore, removeTask } = useTaskStore()
   const [connected, setConnected] = useState(false)
   const mountedRef = useRef(true)
 
@@ -17,69 +27,48 @@ export function useRealtimeSync() {
 
     const socket = getSocket()
 
+    const set = (val: boolean) => { if (mountedRef.current) setConnected(val) }
+
     socket.on('connect', () => {
-      if (mountedRef.current) setConnected(true)
+      set(true)
+      addSnackbar({ message: 'Соединение установлено', type: 'success', duration: 2500 })
     })
 
     socket.on('disconnect', () => {
-      if (mountedRef.current) setConnected(false)
+      set(false)
+      addSnackbar({ message: 'Соединение потеряно — данные могут быть устаревшими', type: 'warning', duration: 4000 })
     })
 
-    // Task events
-    socket.on('task_created', (data: any) => {
+    // ─── Task events ────────────────────────────────────────────────
+    socket.on('task_created', (data: Task) => {
+      addTask(data)
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      queryClient.invalidateQueries({ queryKey: ['unreadCount'] })
-      enqueueSnackbar(`Задача создана: ${data.title || 'Новая задача'}`, { variant: 'info', autoHideDuration: 3000 })
+      addSnackbar({ message: `Новая задача: «${data.title}»`, type: 'info', duration: 3000 })
     })
 
-    socket.on('task_updated', (data: any) => {
+    socket.on('task_updated', (data: Task) => {
+      updateTaskInStore(data)
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      queryClient.invalidateQueries({ queryKey: ['unreadCount'] })
-      if (data.id) {
-        queryClient.invalidateQueries({ queryKey: ['task', data.id] })
-      }
+      if (data.id) queryClient.invalidateQueries({ queryKey: ['task', data.id] })
     })
 
-    socket.on('task_deleted', (data: any) => {
+    socket.on('task_deleted', (data: { id: string; title?: string }) => {
+      removeTask(data.id)
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      queryClient.invalidateQueries({ queryKey: ['unreadCount'] })
-      enqueueSnackbar('Задача удалена', { variant: 'warning', autoHideDuration: 2000 })
+      if (data.title) addSnackbar({ message: `Задача «${data.title}» удалена`, type: 'warning', duration: 3000 })
     })
 
-    // Project events
-    socket.on('project_created', () => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] })
+    // ─── Project events ─────────────────────────────────────────────
+    socket.on('project_created', () => queryClient.invalidateQueries({ queryKey: ['projects'] }))
+    socket.on('project_updated', () => queryClient.invalidateQueries({ queryKey: ['projects'] }))
+    socket.on('project_deleted', () => queryClient.invalidateQueries({ queryKey: ['projects'] }))
+
+    // ─── Notification event ─────────────────────────────────────────
+    socket.on('notification', (data: { title?: string; message?: string; type?: 'info' | 'success' | 'warning' | 'error' }) => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] })
       queryClient.invalidateQueries({ queryKey: ['unreadCount'] })
-    })
-
-    socket.on('project_updated', () => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] })
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      queryClient.invalidateQueries({ queryKey: ['unreadCount'] })
-    })
-
-    socket.on('project_deleted', () => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] })
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      queryClient.invalidateQueries({ queryKey: ['unreadCount'] })
-    })
-
-    // Notification events
-    socket.on('notification', (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      queryClient.invalidateQueries({ queryKey: ['unreadCount'] })
-      if (data.title) {
-        enqueueSnackbar(data.title, { variant: 'info', autoHideDuration: 4000 })
-      }
-    })
-
-    // Online users
-    socket.on('user_online', (data: any) => {
-      enqueueSnackbar('Пользователь онлайн', { variant: 'default', autoHideDuration: 2000 })
+      const text = data.title || data.message
+      if (text) addSnackbar({ message: text, type: data.type ?? 'info', duration: 4500 })
     })
 
     return () => {
@@ -93,24 +82,19 @@ export function useRealtimeSync() {
       socket.off('project_updated')
       socket.off('project_deleted')
       socket.off('notification')
-      socket.off('user_online')
       disconnectSocket()
     }
-  }, [token, queryClient, enqueueSnackbar])
+  }, [token, queryClient, addSnackbar, addTask, updateTaskInStore, removeTask])
 
   return { connected }
 }
 
 export function useSocketEmit() {
   const token = useAuthStore((s) => s.token)
-
-  const emit = (event: string, data: any) => {
+  const emit = (event: string, data: unknown) => {
     if (!token) return
     const socket = getSocket()
-    if (socket.connected) {
-      socket.emit(event, data)
-    }
+    if (socket.connected) socket.emit(event, data)
   }
-
   return { emit }
 }

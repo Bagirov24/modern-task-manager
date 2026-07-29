@@ -5,6 +5,16 @@ let socket: Socket | null = null
 let reconnectAttempts = 0
 const MAX_RECONNECT_ATTEMPTS = 5
 
+/**
+ * Sanitize a string before logging to prevent log injection.
+ * Strips CR, LF, TAB and truncates to 200 chars.
+ */
+function sanitizeLog(value: unknown, maxLen = 200): string {
+  return String(value)
+    .replace(/[\r\n\t]/g, ' ')
+    .slice(0, maxLen)
+}
+
 export function getSocket(): Socket {
   if (!socket) {
     const user = useAuthStore.getState().user
@@ -24,12 +34,12 @@ export function getSocket(): Socket {
     })
 
     socket.on('disconnect', (reason) => {
-      console.log('[WS] Disconnected:', reason)
+      console.log('[WS] Disconnected:', sanitizeLog(reason))
     })
 
     socket.on('connect_error', (error) => {
       reconnectAttempts++
-      console.warn(`[WS] Connection error (attempt ${reconnectAttempts}):`, error.message)
+      console.warn(`[WS] Connection error (attempt ${reconnectAttempts}): ${sanitizeLog(error.message)}`)
     })
   }
   return socket

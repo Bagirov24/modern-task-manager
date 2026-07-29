@@ -22,17 +22,34 @@ class UserUpdate(BaseModel):
     avatar_url: Optional[str] = None
 
 
-class UserResponse(BaseModel):
+class UserPublicResponse(BaseModel):
+    """
+    Safe for multi-user contexts (project members lists, assignee info, etc.).
+    Does NOT include email or account metadata.
+    """
     id: UUID
-    email: str
     username: str
-    full_name: Optional[str]
-    avatar_url: Optional[str]
-    is_active: bool
-    created_at: datetime
+    full_name: Optional[str] = None
+    avatar_url: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+
+class UserPrivateResponse(UserPublicResponse):
+    """
+    Full profile — returned only on GET /me.
+    Extends UserPublicResponse with fields the owner is allowed to see.
+    """
+    email: str
+    is_active: bool
+    created_at: datetime
+
+
+# Backwards-compat alias so existing imports keep working during migration.
+# TODO: replace all usages of UserResponse with the appropriate schema and
+#       remove this alias.
+UserResponse = UserPrivateResponse
 
 
 class TokenResponse(BaseModel):
