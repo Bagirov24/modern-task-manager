@@ -1,20 +1,28 @@
 """Task ORM model.
 
-Indexes added
--------------
-- project_id  — fast lookup of all tasks in a project
-- assignee_id — fast lookup of all tasks for a user
-- parent_id   — fast lookup of all subtasks of a task
-All were FK columns without explicit indexes; PostgreSQL does not
-auto-create indexes on FK columns (only on PK/UNIQUE).
+Indexes
+-------
+- project_id, assignee_id, parent_id — FK columns PostgreSQL does NOT
+  auto-index; added explicitly to avoid seq-scans on common queries.
+
+description_format
+------------------
+  Stores the format of the description field so the frontend knows how
+  to render it:
+    'plain'    — plain text (legacy / API clients)
+    'markdown' — GitHub-flavoured Markdown
+    'html'     — sanitised Tiptap HTML (default, Jira-like rich text)
 """
+import enum
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, Enum, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import (
+    Column, DateTime, Enum, ForeignKey, Index, Integer,
+    String, Text,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-import enum
 
 from app.core.database import Base
 
@@ -37,10 +45,15 @@ class TaskStatus(str, enum.Enum):
     ARCHIVED = "archived"
 
 
+class DescriptionFormat(str, enum.Enum):
+    PLAIN = "plain"
+    MARKDOWN = "markdown"
+    HTML = "html"  # Tiptap sanitised HTML — default
+
+
 class Task(Base):
     __tablename__ = "tasks"
     __table_args__ = (
-        # Explicit indexes on FK columns — PostgreSQL does NOT auto-index FKs.
         Index("ix_tasks_project_id", "project_id"),
         Index("ix_tasks_assignee_id", "assignee_id"),
         Index("ix_tasks_parent_id", "parent_id"),
@@ -49,6 +62,12 @@ class Task(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     title = Column(String(500), nullable=False)
     description = Column(Text)
+    description_format = Column(
+        Enum(DescriptionFormat),
+        default=DescriptionFormat.HTML,
+        nullable=False,
+        server_default="html",
+    )
     status = Column(Enum(TaskStatus), default=TaskStatus.TODO, nullable=False)
     priority = Column(Enum(TaskPriority), default=TaskPriority.MEDIUM, nullable=False)
     due_date = Column(DateTime(timezone=True), nullable=True)

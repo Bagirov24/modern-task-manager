@@ -2,11 +2,15 @@
 
 Validation rules
 ----------------
-- title: 1–500 chars, whitespace-stripped, must not be blank after stripping.
-- description: up to 10 000 chars.
+- title: 1–500 chars, whitespace-stripped, must not be blank after strip.
+- description: up to 10 000 chars (plain text or Tiptap HTML).
+- description_format: 'plain' | 'markdown' | 'html' (default 'html').
+  When format='html' the backend trusts the frontend has sanitised the
+  content with DOMPurify before submission. A second server-side
+  sanitisation pass should be added with bleach/nh3 for defence in depth.
 - start_date must be before due_date when both are supplied.
 - position: non-negative integer.
-- search (used as a Query param in the router): max 200 chars.
+- search (Query param): max 200 chars (DoS guard).
 """
 from __future__ import annotations
 
@@ -16,13 +20,14 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.models.task import TaskPriority, TaskStatus
+from app.models.task import DescriptionFormat, TaskPriority, TaskStatus
 from app.schemas.user import UserPublicResponse
 
 
 class TaskCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=500)
     description: Optional[str] = Field(None, max_length=10_000)
+    description_format: DescriptionFormat = DescriptionFormat.HTML
     priority: TaskPriority = TaskPriority.MEDIUM
     status: TaskStatus = TaskStatus.TODO
     due_date: Optional[datetime] = None
@@ -49,6 +54,7 @@ class TaskCreate(BaseModel):
 class TaskUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=500)
     description: Optional[str] = Field(None, max_length=10_000)
+    description_format: Optional[DescriptionFormat] = None
     status: Optional[TaskStatus] = None
     priority: Optional[TaskPriority] = None
     due_date: Optional[datetime] = None
@@ -78,6 +84,7 @@ class TaskResponse(BaseModel):
     id: UUID
     title: str
     description: Optional[str] = None
+    description_format: DescriptionFormat = DescriptionFormat.HTML
     status: TaskStatus
     priority: TaskPriority
     due_date: Optional[datetime] = None
@@ -85,7 +92,6 @@ class TaskResponse(BaseModel):
     completed_at: Optional[datetime] = None
     project_id: Optional[UUID] = None
     assignee_id: Optional[UUID] = None
-    # Safe public profile — never leaks email / hashed_password.
     assignee: Optional[UserPublicResponse] = None
     parent_id: Optional[UUID] = None
     position: int = 0
