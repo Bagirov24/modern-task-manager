@@ -80,7 +80,8 @@ app.add_middleware(
 )
 
 # 3. Rate limiting  (Redis-backed — see middleware/rate_limit.py)
-app.add_middleware(RateLimitMiddleware, max_requests=100, window_seconds=60)
+if settings.ENVIRONMENT != "test":
+    app.add_middleware(RateLimitMiddleware, max_requests=100, window_seconds=60)
 
 
 # ---------------------------------------------------------------------------

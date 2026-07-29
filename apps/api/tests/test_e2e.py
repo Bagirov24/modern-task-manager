@@ -22,7 +22,6 @@ class TestE2EWorkflow:
         # 2. Login
         resp = await client.post("/api/v1/auth/login", json={
             "email": "e2e@test.com",
-            "username": "e2e_user",
             "password": "TestPass123!",
         })
         assert resp.status_code == 200
@@ -30,7 +29,7 @@ class TestE2EWorkflow:
         headers = {"Authorization": f"Bearer {token}"}
 
         # 3. Create project
-        resp = await client.post("/api/v1/projects", json={
+        resp = await client.post("/api/v1/projects/", json={
             "name": "E2E Project",
             "description": "Created by E2E test",
         }, headers=headers)
@@ -39,7 +38,7 @@ class TestE2EWorkflow:
         project_id = project["id"]
 
         # 4. Create task in project
-        resp = await client.post("/api/v1/tasks", json={
+        resp = await client.post("/api/v1/tasks/", json={
             "title": "E2E Task",
             "description": "Test task",
             "priority": "high",
@@ -50,20 +49,21 @@ class TestE2EWorkflow:
         task_id = task["id"]
 
         # 5. Add comment to task
-        resp = await client.post(f"/api/v1/tasks/{task_id}/comments", json={
+        resp = await client.post("/api/v1/comments/", json={
+            "task_id": task_id,
             "content": "E2E comment",
         }, headers=headers)
         assert resp.status_code in (200, 201)
 
         # 6. Add label
-        resp = await client.post("/api/v1/labels", json={
+        resp = await client.post("/api/v1/labels/", json={
             "name": "e2e-label",
             "color": "#ff0000",
         }, headers=headers)
         assert resp.status_code in (200, 201)
 
         # 7. Update task status to done
-        resp = await client.put(f"/api/v1/tasks/{task_id}", json={
+        resp = await client.patch(f"/api/v1/tasks/{task_id}", json={
             "status": "done",
         }, headers=headers)
         assert resp.status_code == 200
@@ -74,7 +74,7 @@ class TestE2EWorkflow:
         assert resp.json()["status"] == "done"
 
         # 9. List notifications
-        resp = await client.get("/api/v1/notifications", headers=headers)
+        resp = await client.get("/api/v1/notifications/", headers=headers)
         assert resp.status_code == 200
 
         # 10. Delete task

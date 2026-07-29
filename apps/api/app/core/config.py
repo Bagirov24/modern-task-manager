@@ -14,6 +14,7 @@ _WEAK_KEYS = {
 class Settings(BaseSettings):
     APP_NAME: str = "Modern Task Manager"
     DEBUG: bool = False
+    ENVIRONMENT: str = "development"
 
     # Database
     DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/taskmanager"
