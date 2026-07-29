@@ -1,9 +1,27 @@
+"""Project API endpoints.
+
+N+1 prevention
+--------------
+list_projects uses joinedload(Project.owner) so that the owner's
+username is fetched in the same SQL query rather than issuing one
+query per row.
+
+get_project_stats issues a single aggregated SQL query (func.count with
+CASE-filter) — no per-task iteration.
+
+Ownership
+---------
+_get_owned_project() enforces Project.owner_id == current_user.id on
+every mutating and read endpoint.  Returns 404 (not 403) to avoid
+leaking existence of projects owned by other users.
+"""
+from uuid import UUID
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import joinedload
-from uuid import UUID
-from typing import List
 
 from app.core.database import get_db
 from app.core.security import get_current_user
@@ -15,10 +33,18 @@ from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse
 router = APIRouter()
 
 
-async def _get_owned_project(project_id: UUID, user_id, db: AsyncSession) -> Project:
-    """Fetch project and verify ownership; raises 404 if missing or not owned."""
+async def _get_owned_project(
+    project_id: UUID, user_id, db: AsyncSession
+) -> Project:
+    """Fetch project with owner eagerly loaded; verify ownership.
+
+    Returns 404 for both missing and not-owned projects to avoid
+    leaking the existence of other users' projects.
+    """
     result = await db.execute(
-        select(Project).where(
+        select(Project)
+        .options(joinedload(Project.owner))
+        .where(
             Project.id == project_id,
             Project.owner_id == user_id,
         )
@@ -35,7 +61,12 @@ async def list_projects(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(Project).where(Project.owner_id == current_user.id)
+    # joinedload(owner) prevents N+1: one JOIN instead of one query per project.
+    query = (
+        select(Project)
+        .options(joinedload(Project.owner))
+        .where(Project.owner_id == current_user.id)
+    )
     if not include_archived:
         query = query.where(Project.is_archived == False)  # noqa: E712
     result = await db.execute(query)
@@ -109,8 +140,10 @@ async def get_project_stats(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # Ownership check first (raises 404 if not owned)
     await _get_owned_project(project_id, current_user.id, db)
 
+    # Single aggregated query — no per-task N+1.
     result = await db.execute(
         select(
             func.count(Task.id).label("total"),
