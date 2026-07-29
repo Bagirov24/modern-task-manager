@@ -1,15 +1,30 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
+from sqlalchemy.orm import joinedload
 from typing import Optional
 from uuid import UUID
+from datetime import datetime, timezone
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.user import User
 from app.models.task import Task, TaskStatus, TaskPriority
 from app.schemas.task import TaskCreate, TaskUpdate, TaskResponse, TaskListResponse
-from datetime import datetime
 
 router = APIRouter()
+
+
+def _base_query(user_id):
+    """Base select with eager-loaded relations to prevent N+1 queries."""
+    return (
+        select(Task)
+        .options(
+            joinedload(Task.assignee),
+            joinedload(Task.project),
+            joinedload(Task.labels),
+        )
+        .where(Task.assignee_id == user_id)
+    )
 
 
 @router.get("/", response_model=TaskListResponse)
@@ -20,22 +35,29 @@ async def list_tasks(
     search: Optional[str] = None,
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    query = db.query(Task).filter(Task.assignee_id == current_user.id)
+    query = _base_query(current_user.id)
 
     if status:
-        query = query.filter(Task.status == status)
+        query = query.where(Task.status == status)
     if priority:
-        query = query.filter(Task.priority == priority)
+        query = query.where(Task.priority == priority)
     if project_id:
-        query = query.filter(Task.project_id == project_id)
+        query = query.where(Task.project_id == project_id)
     if search:
-        query = query.filter(Task.title.ilike(f"%{search}%"))
+        query = query.where(Task.title.ilike(f"%{search}%"))
 
-    total = query.count()
-    tasks = query.offset((page - 1) * per_page).limit(per_page).all()
+    # Count total (without pagination)
+    count_result = await db.execute(
+        select(func.count()).select_from(query.subquery())
+    )
+    total = count_result.scalar_one()
+
+    # Paginate
+    result = await db.execute(query.offset((page - 1) * per_page).limit(per_page))
+    tasks = result.scalars().unique().all()
 
     return TaskListResponse(tasks=tasks, total=total, page=page, per_page=per_page)
 
@@ -43,7 +65,7 @@ async def list_tasks(
 @router.post("/", response_model=TaskResponse, status_code=201)
 async def create_task(
     task_data: TaskCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     task = Task(
@@ -51,18 +73,21 @@ async def create_task(
         assignee_id=current_user.id,
     )
     db.add(task)
-    db.commit()
-    db.refresh(task)
+    await db.commit()
+    await db.refresh(task)
     return task
 
 
 @router.get("/{task_id}", response_model=TaskResponse)
 async def get_task(
     task_id: UUID,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    task = db.query(Task).filter(Task.id == task_id).first()
+    result = await db.execute(
+        _base_query(current_user.id).where(Task.id == task_id)
+    )
+    task = result.scalars().unique().first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     return task
@@ -72,33 +97,47 @@ async def get_task(
 async def update_task(
     task_id: UUID,
     task_data: TaskUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    task = db.query(Task).filter(Task.id == task_id).first()
+    # BUG FIX: verify ownership — previously any auth'd user could update any task
+    result = await db.execute(
+        select(Task).where(
+            Task.id == task_id,
+            Task.assignee_id == current_user.id,
+        )
+    )
+    task = result.scalars().first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
     update_data = task_data.model_dump(exclude_unset=True)
     if "status" in update_data and update_data["status"] == TaskStatus.DONE:
-        update_data["completed_at"] = datetime.utcnow()
+        update_data["completed_at"] = datetime.now(timezone.utc)
 
     for field, value in update_data.items():
         setattr(task, field, value)
 
-    db.commit()
-    db.refresh(task)
+    await db.commit()
+    await db.refresh(task)
     return task
 
 
 @router.delete("/{task_id}", status_code=204)
 async def delete_task(
     task_id: UUID,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    task = db.query(Task).filter(Task.id == task_id).first()
+    # BUG FIX: verify ownership — previously any auth'd user could delete any task
+    result = await db.execute(
+        select(Task).where(
+            Task.id == task_id,
+            Task.assignee_id == current_user.id,
+        )
+    )
+    task = result.scalars().first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    db.delete(task)
-    db.commit()
+    await db.delete(task)
+    await db.commit()

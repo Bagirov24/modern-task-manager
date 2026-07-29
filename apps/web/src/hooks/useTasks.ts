@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { taskApi } from '../lib/api/taskApi'
 import { useTaskStore } from '../store/taskStore'
-import type { Task } from '../lib/types'
+import type { Task, TaskCreate, TaskUpdate } from '../lib/types'
 
-export type TaskCreate = Record<string, any>
-export type TaskUpdate = Record<string, any>
+export type { TaskCreate, TaskUpdate }
 
 export function useTasks(projectId?: string) {
   const { tasks, setTasks, addTask, updateTask: updateTaskInStore, removeTask } = useTaskStore()
@@ -15,17 +14,9 @@ export function useTasks(projectId?: string) {
     setLoading(true)
     setError(null)
     try {
-      const data: any = await taskApi.list(projectId ? { project_id: projectId } : undefined)
-      const raw = data?.data ?? data
-      let items: any[] = []
-      if (Array.isArray(raw)) {
-        items = raw
-      } else if (raw?.tasks && Array.isArray(raw.tasks)) {
-        items = raw.tasks
-      } else if (raw?.data && Array.isArray(raw.data)) {
-        items = raw.data
-      }
-      setTasks(items as Task[])
+      const response = await taskApi.list(projectId ? { project_id: projectId } : undefined)
+      // BUG FIX: API now always returns { tasks, total, page, per_page } — no triple-format guessing
+      setTasks(response.data.tasks)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch tasks')
     } finally {
@@ -37,43 +28,53 @@ export function useTasks(projectId?: string) {
     fetchTasks()
   }, [fetchTasks])
 
-  const createTask = useCallback(async (task: TaskCreate) => {
+  const createTask = useCallback(async (task: TaskCreate): Promise<Task | undefined> => {
     setError(null)
     try {
-      const newTask: any = await taskApi.create(task)
-      const item = newTask?.data ?? newTask
-      addTask(item as Task)
-      return item
+      const response = await taskApi.create(task)
+      addTask(response.data)
+      return response.data
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create task')
     }
   }, [addTask])
 
-  const updateTask = useCallback(async (id: string, task: TaskUpdate) => {
+  const updateTask = useCallback(async (id: string, updates: TaskUpdate): Promise<Task | undefined> => {
     setError(null)
+
+    // Optimistic update: apply changes immediately, roll back on error
+    const previousTask = tasks.find(t => t.id === id)
+    if (previousTask) {
+      updateTaskInStore({ ...previousTask, ...updates } as Task)
+    }
+
     try {
-      const updated: any = await taskApi.update(id, task)
-      const item = updated?.data ?? updated
-      updateTaskInStore(item as Task)
-      return item
+      const response = await taskApi.update(id, updates)
+      updateTaskInStore(response.data)  // sync with server response
+      return response.data
     } catch (err) {
+      // Roll back to previous state
+      if (previousTask) updateTaskInStore(previousTask)
       setError(err instanceof Error ? err.message : 'Failed to update task')
     }
-  }, [updateTaskInStore])
+  }, [tasks, updateTaskInStore])
 
-  const deleteTask = useCallback(async (id: string) => {
+  const deleteTask = useCallback(async (id: string): Promise<void> => {
     setError(null)
+    // Optimistic remove
+    removeTask(id)
     try {
       await taskApi.delete(id)
-      removeTask(id)
     } catch (err) {
+      // Restore task on failure by re-fetching
+      await fetchTasks()
       setError(err instanceof Error ? err.message : 'Failed to delete task')
     }
-  }, [removeTask])
+  }, [removeTask, fetchTasks])
 
-  const reorderTask = useCallback(async (id: string, position: number) => {
+  const reorderTask = useCallback(async (id: string, position: number): Promise<void> => {
     try {
-      await taskApi.update(id, { order: position })
+      await taskApi.update(id, { position })
     } catch (err) {
       console.error('Failed to reorder task:', err)
     }
