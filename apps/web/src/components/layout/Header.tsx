@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import {
   AppBar,
   Toolbar,
@@ -41,6 +41,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/lib/store/authStore'
 import { useThemeStore } from '@/lib/store/themeStore'
 import { useNotifications } from '@/lib/hooks/useNotifications'
+import { useUIStore } from '@/store/uiStore'
 import type { AppNotification } from '@/lib/types'
 
 const notifIcon: Record<string, JSX.Element> = {
@@ -64,6 +65,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
   const [notifAnchor, setNotifAnchor] = useState<null | HTMLElement>(null)
   const [search, setSearch] = useState('')
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
+  const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen)
 
   const todayLabel = useMemo(() => {
     return new Intl.DateTimeFormat('ru-RU', {
@@ -81,6 +83,11 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
     const hrs = Math.floor(mins / 60)
     if (hrs < 24) return `${hrs} ч назад`
     return `${Math.floor(hrs / 24)} д назад`
+  }
+
+  const openSearch = () => {
+    if (search.trim()) navigate(`/tasks?search=${encodeURIComponent(search.trim())}`)
+    else setCommandPaletteOpen(true)
   }
 
   return (
@@ -114,6 +121,14 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           placeholder="Поиск задач, проектов, комментариев..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') openSearch()
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+              e.preventDefault()
+              setCommandPaletteOpen(true)
+            }
+          }}
+          onClick={() => { if (!search) setCommandPaletteOpen(true) }}
           sx={{
             flex: 1,
             maxWidth: 480,
@@ -128,80 +143,45 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
                 <SearchIcon fontSize="small" />
               </InputAdornment>
             ),
+            endAdornment: (
+              <InputAdornment position="end">
+                <Chip label="⌘K" size="small" variant="outlined" onClick={() => setCommandPaletteOpen(true)} />
+              </InputAdornment>
+            ),
           }}
         />
 
         <Box sx={{ flex: 1 }} />
 
         <Stack direction="row" spacing={1} alignItems="center">
-          <Chip
-            icon={<TimelineIcon />}
-            label="Timeline"
-            variant="outlined"
-            onClick={() => navigate('/tasks')}
-            sx={{ display: { xs: 'none', lg: 'inline-flex' } }}
-          />
-
+          <Chip icon={<TimelineIcon />} label="Timeline" variant="outlined" onClick={() => navigate('/tasks')} sx={{ display: { xs: 'none', lg: 'inline-flex' } }} />
           <Tooltip title={mode === 'dark' ? 'Светлая тема' : 'Тёмная тема'}>
             <IconButton onClick={toggleTheme} sx={{ color: 'text.secondary' }}>
               {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
             </IconButton>
           </Tooltip>
-
-          <IconButton
-            onClick={(e) => setNotifAnchor(e.currentTarget)}
-            sx={{
-              color: 'text.secondary',
-              bgcolor: 'action.hover',
-              '&:hover': { bgcolor: 'action.selected' },
-            }}
-          >
+          <IconButton onClick={(e) => setNotifAnchor(e.currentTarget)} sx={{ color: 'text.secondary', bgcolor: 'action.hover', '&:hover': { bgcolor: 'action.selected' } }}>
             <Badge badgeContent={unreadCount} color="error" variant={unreadCount > 0 ? 'standard' : 'dot'}>
               <BellIcon />
             </Badge>
           </IconButton>
         </Stack>
 
-        <Popover
-          open={Boolean(notifAnchor)}
-          anchorEl={notifAnchor}
-          onClose={() => setNotifAnchor(null)}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-          PaperProps={{ sx: { width: 380, maxHeight: 480, borderRadius: 3, mt: 1 } }}
-        >
+        <Popover open={Boolean(notifAnchor)} anchorEl={notifAnchor} onClose={() => setNotifAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }} PaperProps={{ sx: { width: 380, maxHeight: 480, borderRadius: 3, mt: 1 } }}>
           <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="subtitle1" fontWeight={700}>Уведомления</Typography>
-            {unreadCount > 0 && (
-              <Button size="small" startIcon={<DoneAll />} onClick={() => markAllAsRead()}>
-                Прочитать все
-              </Button>
-            )}
+            {unreadCount > 0 && <Button size="small" startIcon={<DoneAll />} onClick={() => markAllAsRead()}>Прочитать все</Button>}
           </Box>
           <Divider />
           {notifications.length === 0 ? (
-            <Typography sx={{ p: 3, textAlign: 'center' }} color="text.secondary">
-              Нет уведомлений
-            </Typography>
+            <Typography sx={{ p: 3, textAlign: 'center' }} color="text.secondary">Нет уведомлений</Typography>
           ) : (
             <List disablePadding>
               {notifications.slice(0, 10).map((n: AppNotification) => (
-                <ListItem
-                  key={n.id}
-                  onClick={() => !n.is_read && markAsRead(n.id)}
-                  sx={{
-                    cursor: 'pointer',
-                    bgcolor: n.is_read ? 'transparent' : 'action.hover',
-                    '&:hover': { bgcolor: 'action.selected' },
-                    px: 2,
-                    py: 1.5,
-                  }}
-                >
+                <ListItem key={n.id} onClick={() => !n.is_read && markAsRead(n.id)} sx={{ cursor: 'pointer', bgcolor: n.is_read ? 'transparent' : 'action.hover', '&:hover': { bgcolor: 'action.selected' }, px: 2, py: 1.5 }}>
                   <ListItemAvatar>{notifIcon[n.type] || <BellIcon />}</ListItemAvatar>
                   <ListItemText primary={n.message} secondary={timeAgo(n.created_at)} />
-                  {!n.is_read && (
-                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'primary.main', ml: 1 }} />
-                  )}
+                  {!n.is_read && <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'primary.main', ml: 1 }} />}
                 </ListItem>
               ))}
             </List>
@@ -214,28 +194,15 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           </Avatar>
         </IconButton>
 
-        <Menu
-          anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
-          onClose={() => setAnchorEl(null)}
-          PaperProps={{ sx: { mt: 1, minWidth: 180, borderRadius: 3 } }}
-        >
+        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)} PaperProps={{ sx: { mt: 1, minWidth: 180, borderRadius: 3 } }}>
           <Box sx={{ px: 2, py: 1 }}>
-            <Typography variant="body2" fontWeight={700}>
-              {user?.full_name || user?.username || 'Пользователь'}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {user?.email || ''}
-            </Typography>
+            <Typography variant="body2" fontWeight={700}>{user?.full_name || user?.username || 'Пользователь'}</Typography>
+            <Typography variant="caption" color="text.secondary">{user?.email || ''}</Typography>
           </Box>
           <Divider />
           <MenuItem onClick={() => navigate('/settings')}>Настройки</MenuItem>
-          <MenuItem
-            onClick={() => { logout(); setAnchorEl(null) }}
-            sx={{ gap: 1.5, color: 'error.main' }}
-          >
-            <LogoutIcon fontSize="small" />
-            Выйти
+          <MenuItem onClick={() => { logout(); setAnchorEl(null) }} sx={{ gap: 1.5, color: 'error.main' }}>
+            <LogoutIcon fontSize="small" />Выйти
           </MenuItem>
         </Menu>
       </Toolbar>

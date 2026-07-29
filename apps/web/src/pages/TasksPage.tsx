@@ -15,17 +15,10 @@ import {
   ViewList as ListIcon, ViewKanban as KanbanIcon,
   Timeline as TimelineIcon,
 } from '@mui/icons-material'
-import { useTasks } from '../hooks/useTasks'
+import { useTasksQuery } from '@/lib/hooks/useTasksQuery'
 import { useUIStore } from '@/store/uiStore'
 
 export default function TasksPage() {
-  const { tasks: rawTasks, loading, error, fetchTasks, deleteTask, updateTask } = useTasks()
-  const tasks: any[] = Array.isArray(rawTasks) ? rawTasks : []
-
-  const addSnackbar = useUIStore((s) => s.addSnackbar)
-  const modalState = useUIStore((s) => s.modal)
-  const closeModal = useUIStore((s) => s.closeModal)
-
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [search, setSearch] = useState('')
   const [viewMode, setViewMode] = useState<'list' | 'kanban' | 'timeline'>('kanban')
@@ -34,7 +27,13 @@ export default function TasksPage() {
   const [dialogMode, setDialogMode] = useState<'view' | 'edit' | 'create'>('view')
   const [deleteConfirm, setDeleteConfirm] = useState<any>(null)
 
-  // handle openModal('task.create') from Layout FAB / CommandPalette
+  const { tasks: rawTasks, loading, error, fetchTasks, deleteTask, updateTask } = useTasksQuery(undefined, search)
+  const tasks: any[] = Array.isArray(rawTasks) ? rawTasks : []
+
+  const addSnackbar = useUIStore((s) => s.addSnackbar)
+  const modalState = useUIStore((s) => s.modal)
+  const closeModal = useUIStore((s) => s.closeModal)
+
   useEffect(() => {
     if (modalState.isOpen && modalState.type === 'task.create') {
       setDialogTask(null)
@@ -46,9 +45,8 @@ export default function TasksPage() {
 
   const filteredTasks = useMemo(() => tasks.filter((t: any) => {
     if (statusFilter !== 'all' && t.status !== statusFilter) return false
-    if (search && !t.title?.toLowerCase().includes(search.toLowerCase())) return false
     return true
-  }), [tasks, statusFilter, search])
+  }), [tasks, statusFilter])
 
   const stats = useMemo(() => ({
     total: tasks.length,
@@ -69,7 +67,7 @@ export default function TasksPage() {
   }
 
   const handleStatusChange = async (taskId: string, newStatus: string) => {
-    await updateTask(taskId, { status: newStatus })
+    await updateTask(taskId, { status: newStatus as any })
     addSnackbar({ message: 'Статус задачи обновлён', type: 'success', duration: 2500 })
   }
 
@@ -102,7 +100,7 @@ export default function TasksPage() {
             <Card key={label} sx={{ borderRadius: 4, flex: 1 }}>
               <CardContent>
                 <Typography color="text.secondary" variant="body2">{label}</Typography>
-                <Typography variant="h5" fontWeight={800}>{value}</Typography>
+                {loading ? <Skeleton width={48} height={42} /> : <Typography variant="h5" fontWeight={800}>{value}</Typography>}
               </CardContent>
             </Card>
           ))}
