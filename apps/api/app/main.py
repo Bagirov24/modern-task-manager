@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.api.v1 import auth, tasks, projects, comments, labels, notifications, subtasks
 from app.api import health
@@ -87,6 +87,10 @@ if settings.ENVIRONMENT != "test":
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+@app.get("/", include_in_schema=False)
+async def api_root() -> RedirectResponse:
+    return RedirectResponse(url="/docs")
+
 app.include_router(auth.router,          prefix="/api/v1/auth",          tags=["Auth"])
 app.include_router(tasks.router,         prefix="/api/v1/tasks",         tags=["Tasks"])
 app.include_router(subtasks.router,      prefix="/api/v1/tasks",         tags=["Subtasks"])
