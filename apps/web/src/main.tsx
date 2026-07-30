@@ -26,12 +26,21 @@ const queryClient = new QueryClient({
   },
 })
 
-if ('serviceWorker' in navigator) {
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch((error) => {
       console.error('[sw] registration failed', error)
     })
   })
+} else if ('serviceWorker' in navigator) {
+  void navigator.serviceWorker.getRegistrations().then((registrations) =>
+    Promise.all(registrations.map((registration) => registration.unregister())),
+  )
+  if ('caches' in window) {
+    void caches.keys().then((keys) =>
+      Promise.all(keys.map((key) => caches.delete(key))),
+    )
+  }
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

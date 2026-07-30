@@ -14,8 +14,12 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    watch: {
+      usePolling: true,
+      interval: 500,
+    },
     proxy: {
-            '/api': 'http://api:8000',
+      '/api': 'http://api:8000',
       '/ws': { target: 'http://api:8000', ws: true },
     },
   },
