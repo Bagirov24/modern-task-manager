@@ -130,6 +130,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           }}
           onClick={() => { if (!search) setCommandPaletteOpen(true) }}
           sx={{
+            display: { xs: 'none', sm: 'block' },
             flex: 1,
             maxWidth: 480,
             '& .MuiOutlinedInput-root': {
@@ -154,7 +155,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
         <Box sx={{ flex: 1 }} />
 
         <Stack direction="row" spacing={1} alignItems="center">
-          <Chip icon={<TimelineIcon />} label="Timeline" variant="outlined" onClick={() => navigate('/tasks')} sx={{ display: { xs: 'none', lg: 'inline-flex' } }} />
+          <Chip icon={<TimelineIcon />} label="Timeline" variant="outlined" onClick={() => navigate('/tasks?view=timeline')} sx={{ display: { xs: 'none', lg: 'inline-flex' } }} />
           <Tooltip title={mode === 'dark' ? 'Светлая тема' : 'Тёмная тема'}>
             <IconButton onClick={toggleTheme} sx={{ color: 'text.secondary' }}>
               {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}

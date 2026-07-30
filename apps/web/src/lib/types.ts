@@ -69,6 +69,11 @@ export interface Project {
   icon?: string
   is_favorite?: boolean
   is_archived?: boolean
+  is_pinned?: boolean
+  status?: 'active' | 'on_hold' | 'completed' | 'cancelled'
+  start_date?: string
+  due_date?: string
+  is_overdue?: boolean
   owner_id?: string
   task_count?: number
   completed_count?: number

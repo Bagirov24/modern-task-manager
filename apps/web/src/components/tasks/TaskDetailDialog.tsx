@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react'
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button,
   TextField, FormControl, InputLabel, Select, MenuItem, Stack,
-  IconButton, Typography, Box, CircularProgress, Divider,
+  IconButton, Typography, Box, CircularProgress, Divider, Alert,
 } from '@mui/material'
 import { Close as CloseIcon } from '@mui/icons-material'
 import { useTasks } from '../../hooks/useTasks'
+import { useProjects } from '../../hooks/useProjects'
 import type { Task, TaskCreate, TaskPriority, TaskStatus } from '../../lib/types'
 
 interface Props {
@@ -13,6 +14,7 @@ interface Props {
   onClose: () => void
   task: Task | null
   mode: 'view' | 'edit' | 'create'
+  initialValues?: Partial<TaskCreate>
 }
 
 const priorities = [
@@ -28,8 +30,10 @@ const statuses = [
   { value: 'done', label: 'Готово' },
 ]
 
-export default function TaskDetailDialog({ open, onClose, task, mode }: Props) {
+export default function TaskDetailDialog({ open, onClose, task, mode, initialValues }: Props) {
   const { createTask, updateTask, deleteTask } = useTasks()
+  const { projects } = useProjects()
+  const projectOptions = Array.isArray(projects) ? projects : []
   const [form, setForm] = useState<TaskCreate>({
     title: '',
     description: '',
@@ -39,6 +43,7 @@ export default function TaskDetailDialog({ open, onClose, task, mode }: Props) {
   })
   const [isEditing, setIsEditing] = useState(mode === 'edit' || mode === 'create')
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   useEffect(() => {
     if (task && mode !== 'create') {
@@ -47,25 +52,36 @@ export default function TaskDetailDialog({ open, onClose, task, mode }: Props) {
         description: task.description || '',
         priority: task.priority,
         status: task.status,
-        due_date: task.due_date || '',
+        due_date: task.due_date?.slice(0, 10) || '',
+        start_date: task.start_date?.slice(0, 10) || '',
+        project_id: task.project_id || '',
       })
       setIsEditing(mode === 'edit')
     } else {
-      setForm({ title: '', description: '', priority: 'medium', status: 'todo', due_date: '' })
+      setForm({ title: '', description: '', priority: 'medium', status: 'todo', due_date: '', ...initialValues })
       setIsEditing(true)
     }
-  }, [task, mode, open])
+  }, [task, mode, open, initialValues])
 
   const handleSave = async () => {
     if (!form.title.trim()) return
+    setSaveError('')
+    const payload: TaskCreate = {
+      ...form,
+      start_date: form.start_date ? new Date(`${form.start_date}T00:00:00`).toISOString() : undefined,
+      due_date: form.due_date ? new Date(`${form.due_date}T23:59:00`).toISOString() : undefined,
+      project_id: form.project_id || undefined,
+    }
     setSaving(true)
     try {
       if (mode === 'create') {
-        await createTask(form)
+        await createTask(payload)
       } else if (task) {
-        await updateTask(task.id, form)
+        await updateTask(task.id, payload)
       }
       onClose()
+    } catch (error: any) {
+      setSaveError(error.response?.data?.detail || 'Не удалось сохранить задачу.')
     } finally {
       setSaving(false)
     }
@@ -88,6 +104,7 @@ export default function TaskDetailDialog({ open, onClose, task, mode }: Props) {
       </DialogTitle>
 
       <DialogContent>
+        {saveError && <Alert severity="error" sx={{ mt: 1 }}>{saveError}</Alert>}
         <Stack spacing={2} sx={{ mt: 1 }}>
           {isEditing ? (
             <>
@@ -129,7 +146,26 @@ export default function TaskDetailDialog({ open, onClose, task, mode }: Props) {
                   </Select>
                 </FormControl>
               </Stack>
-              <TextField
+              <FormControl fullWidth>
+                <InputLabel>Проект</InputLabel>
+                <Select
+                  value={form.project_id || ''}
+                  label="Проект"
+                  onChange={(e) => setForm({ ...form, project_id: e.target.value || undefined })}
+                >
+                  <MenuItem value="">Без проекта</MenuItem>
+                  {projectOptions.map((project) => (
+                    <MenuItem key={project.id} value={project.id}>{project.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>              <TextField
+                label="Дата начала"
+                type="date"
+                value={form.start_date || ''}
+                onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+              />              <TextField
                 label="Срок"
                 type="date"
                 value={form.due_date}

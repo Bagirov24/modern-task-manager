@@ -4,7 +4,7 @@ import {
   Chip, Tooltip, alpha, useTheme, Dialog, DialogTitle,
   DialogContent, DialogActions, Button, List, ListItem,
   ListItemButton, ListItemText, ListItemIcon, ToggleButtonGroup,
-  ToggleButton, Divider, TextField,
+  ToggleButton, Divider, TextField, Alert, LinearProgress,
 } from '@mui/material'
 import {
   ChevronLeft, ChevronRight,
@@ -652,8 +652,8 @@ export default function CalendarPage() {
   // Day panel dialog (month view click on occupied date)
   const [dayPanelDate, setDayPanelDate] = useState<Date | null>(null)
 
-  const { tasks: rawTasks } = useTasks()
-  const { projects: rawProjects } = useProjects()
+  const { tasks: rawTasks, loading: tasksLoading, error: tasksError } = useTasks()
+  const { projects: rawProjects, loading: projectsLoading, error: projectsError } = useProjects()
 
   const allTasks: Task[] = useMemo(() => Array.isArray(rawTasks) ? rawTasks : [], [rawTasks])
   const projects: Project[] = useMemo(
@@ -732,9 +732,15 @@ export default function CalendarPage() {
   }
 
   const handleConfirmCreate = () => {
+    if (!createDialogDate) return
+    const selectedDate = format(createDialogDate, 'yyyy-MM-dd')
+    openModal('task.create', {
+      due_date: createMode === 'range' ? format(addDays(createDialogDate, 1), 'yyyy-MM-dd') : selectedDate,
+      start_date: createMode === 'range' ? selectedDate : undefined,
+      project_id: projectFilter === 'all' ? undefined : projectFilter,
+    })
     setCreateDialogDate(null)
     navigate('/tasks')
-    openModal('task.create')
   }
 
   return (
@@ -762,6 +768,8 @@ export default function CalendarPage() {
         </ToggleButtonGroup>
       </Stack>
 
+      {(tasksError || projectsError) && <Alert severity="error" sx={{ mb: 2 }}>Не удалось загрузить календарь.</Alert>}
+      {(tasksLoading || projectsLoading) && <LinearProgress sx={{ mb: 2 }} />}
       {/* Project filter */}
       <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
         <Chip

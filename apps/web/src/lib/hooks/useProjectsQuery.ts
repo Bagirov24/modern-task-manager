@@ -12,7 +12,7 @@ export function useProjectsQuery() {
     queryKey: ['projects'],
     queryFn: async () => {
       const response = await projectApi.list()
-      return response.data
+      return response.data.projects
     },
   })
 
@@ -46,6 +46,7 @@ export function useProjectsQuery() {
       await projectApi.delete(id)
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['projects'] }),
+    onError: () => queryClient.invalidateQueries({ queryKey: ['projects'] }),
   })
 
   useEffect(() => {

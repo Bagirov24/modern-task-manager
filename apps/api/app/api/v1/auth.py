@@ -32,7 +32,14 @@ from app.core.security import (
     verify_password,
 )
 from app.models.user import User
-from app.schemas.user import TokenResponse, UserCreate, UserLogin, UserPrivateResponse
+from app.schemas.user import (
+    PasswordChange,
+    TokenResponse,
+    UserCreate,
+    UserLogin,
+    UserPrivateResponse,
+    UserUpdate,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -180,3 +187,38 @@ async def get_me(
     current_user: User = Depends(get_current_user),
 ):
     return current_user
+
+@router.patch("/profile", response_model=UserPrivateResponse)
+async def update_profile(
+    data: UserUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    updates = data.model_dump(exclude_unset=True)
+    username = updates.get("username")
+    if username and username != current_user.username:
+        result = await db.execute(select(User).where(User.username == username))
+        if result.scalars().first():
+            raise HTTPException(status_code=400, detail="Username already taken")
+
+    for field, value in updates.items():
+        setattr(current_user, field, str(value) if field == "avatar_url" and value else value)
+
+    await db.commit()
+    await db.refresh(current_user)
+    return current_user
+
+
+@router.post("/change-password", status_code=204)
+async def change_password(
+    data: PasswordChange,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if not verify_password(data.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    if data.current_password == data.new_password:
+        raise HTTPException(status_code=400, detail="New password must be different")
+
+    current_user.hashed_password = get_password_hash(data.new_password)
+    await db.commit()
