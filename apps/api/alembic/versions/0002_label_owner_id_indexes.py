@@ -35,7 +35,24 @@ depends_on = None
 
 def upgrade() -> None:
     conn = op.get_bind()
+    inspector = sa.inspect(conn)
 
+    label_columns = {
+        column["name"] for column in inspector.get_columns("labels")
+    }
+    if "owner_id" not in label_columns:
+        op.add_column(
+            "labels",
+            sa.Column("owner_id", UUID(as_uuid=True), nullable=True),
+        )
+        op.create_foreign_key(
+            "fk_labels_owner_id_users",
+            "labels",
+            "users",
+            ["owner_id"],
+            ["id"],
+            ondelete="CASCADE",
+        )
     # ------------------------------------------------------------------
     # 1. Backfill labels.owner_id NULLs
     #    Assign orphan labels to the first superuser / oldest user.
