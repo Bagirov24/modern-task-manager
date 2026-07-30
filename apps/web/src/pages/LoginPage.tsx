@@ -62,11 +62,7 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      const { data } = await api.post('/auth/login', { email, password })
-      const { data: user } = await api.get('/auth/me', {
-        headers: { Authorization: `Bearer ${data.access_token}` },
-      })
-      login(data.access_token, user)
+      await login(email.trim(), password)
       navigate('/tasks')
     } catch (err) {
       setError(getApiErrorMessage(err, 'Неверный email или пароль'))
@@ -93,11 +89,7 @@ export default function LoginPage() {
         password,
         full_name: name.trim() || null,
       })
-      const { data } = await api.post('/auth/login', { email, password })
-      const { data: user } = await api.get('/auth/me', {
-        headers: { Authorization: `Bearer ${data.access_token}` },
-      })
-      login(data.access_token, user)
+      await login(email.trim(), password)
       navigate('/tasks')
     } catch (err) {
       setError(getApiErrorMessage(err, 'Ошибка регистрации'))
