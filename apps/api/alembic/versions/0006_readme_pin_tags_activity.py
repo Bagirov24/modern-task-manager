@@ -103,7 +103,7 @@ def upgrade() -> None:
             sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
             sa.Column("action", sa.String(60), nullable=False),
             sa.Column("meta", postgresql.JSONB, nullable=False,
-                      server_default="'{}'"),
+                      server_default=sa.text("'{}'::jsonb")),
             sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
             sa.Column("project_id", postgresql.UUID(as_uuid=True),
                       sa.ForeignKey("projects.id", ondelete="CASCADE"),

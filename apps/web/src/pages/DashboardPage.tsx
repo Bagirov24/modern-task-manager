@@ -10,7 +10,7 @@ import { pageTransition, staggerChildren, listItem } from '@/lib/animations/vari
 import {
   Container, Typography, Box, Card, CardContent, Grid,
   Skeleton, Button, Chip, Stack, alpha, useTheme,
-  IconButton, Tooltip,
+  IconButton, Tooltip, Alert,
 } from '@mui/material'
 import {
   FolderOutlined as ProjectIcon,
@@ -194,8 +194,8 @@ export default function DashboardPage() {
   const user = useAuthStore((s) => s.user)
   const openModal = useUIStore((s) => s.openModal)
 
-  const { tasks: rawTasks, loading: tasksLoading } = useTasks()
-  const { projects: rawProjects, loading: projectsLoading } = useProjects()
+  const { tasks: rawTasks, loading: tasksLoading, error: tasksError } = useTasks()
+  const { projects: rawProjects, loading: projectsLoading, error: projectsError } = useProjects()
 
   const tasks = useMemo(() => (Array.isArray(rawTasks) ? rawTasks : []), [rawTasks])
   const projects = useMemo(
@@ -273,8 +273,13 @@ export default function DashboardPage() {
   )
 
   const handleCreateTask = () => {
-    navigate('/tasks')
     openModal('task.create')
+    navigate('/tasks')
+  }
+
+  const handleOpenTask = (taskId: string) => {
+    openModal('task.detail', { taskId })
+    navigate('/tasks')
   }
 
   const greeting = useMemo(() => {
@@ -311,6 +316,11 @@ export default function DashboardPage() {
           </Button>
         </Box>
 
+        {(tasksError || projectsError) && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            Не удалось загрузить рабочие данные. Проверьте соединение и повторите попытку.
+          </Alert>
+        )}
         <MotionBox variants={staggerChildren} initial="initial" animate="animate">
           <Grid container spacing={2.5}>
             {/* LEFT COLUMN — main work queue */}
@@ -345,7 +355,7 @@ export default function DashboardPage() {
                           key={task.id}
                           task={task}
                           showProject
-                          onClick={() => navigate('/tasks')}
+                          onClick={() => handleOpenTask(task.id)}
                         />
                       ))}
                       {overdueTasks.length > 4 && (
@@ -441,7 +451,7 @@ export default function DashboardPage() {
                           key={task.id}
                           task={task}
                           showProject
-                          onClick={() => navigate('/tasks')}
+                          onClick={() => handleOpenTask(task.id)}
                         />
                       ))}
                     </Stack>

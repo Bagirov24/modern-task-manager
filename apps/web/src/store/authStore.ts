@@ -54,9 +54,10 @@ export const useAuthStore = create<AuthState>()(
           set({ isLoading: true, error: null })
           try {
             const resp = await apiClient.post('/auth/login', { email, password })
-            const { access_token, user } = resp.data
-            set({ token: access_token, user, isAuthenticated: true, isLoading: false })
+            const { access_token } = resp.data
             apiClient.defaults.headers.common['Authorization'] = `Bearer ${access_token}`
+            const profile = await apiClient.get('/auth/me')
+            set({ token: access_token, user: profile.data, isAuthenticated: true, isLoading: false })
           } catch (err: any) {
             set({
               error: err.response?.data?.detail || 'Login failed',

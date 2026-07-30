@@ -13,7 +13,6 @@ Idempotency guidelines
 """
 from __future__ import annotations
 
-import logging
 from datetime import datetime, timezone
 
 from celery.utils.log import get_task_logger

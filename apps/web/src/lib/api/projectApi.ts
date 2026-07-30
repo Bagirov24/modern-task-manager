@@ -1,6 +1,13 @@
 import api from './client'
 import type { Project } from '@/lib/types'
 
+export interface ProjectListResponse {
+  projects: Project[]
+  total: number
+  page: number
+  per_page: number
+}
+
 export interface ProjectCreate {
   name: string
   description?: string
@@ -10,7 +17,7 @@ export interface ProjectCreate {
 
 export const projectApi = {
   list: (params?: { include_archived?: boolean }) =>
-    api.get<Project[]>('/projects/', { params }),
+    api.get<ProjectListResponse>('/projects/', { params }),
   get: (id: string) => api.get<Project>(`/projects/${id}`),
   create: (data: ProjectCreate) => api.post<Project>('/projects/', data),
   update: (id: string, data: Partial<Project>) =>

@@ -47,7 +47,12 @@ export const useProjectStore = create<ProjectState>()(
           return Math.round((project.completed_count / project.task_count) * 100)
         },
       }),
-      { name: 'project-store' }
+      {
+        name: 'project-store',
+        version: 2,
+        partialize: () => ({}),
+        migrate: () => ({}),
+      }
     )
   )
 )

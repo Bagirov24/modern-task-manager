@@ -25,6 +25,7 @@ import { InboxOutlined as EmptyIcon, DragIndicator as DragIcon } from '@mui/icon
 import type { Task } from '@/lib/types'
 
 interface Props {
+  tasks?: Task[]
   onEdit?: (task: Task) => void
   onDelete?: (task: Task) => void
 }
@@ -62,8 +63,9 @@ function SortableTaskItem({ task, onEdit, onDelete }: { task: Task; onEdit?: (t:
   )
 }
 
-export default function TaskList({ onEdit, onDelete }: Props) {
-  const tasks = useTaskStore((s) => s.tasks)
+export default function TaskList({ tasks: providedTasks, onEdit, onDelete }: Props) {
+  const storedTasks = useTaskStore((s) => s.tasks)
+  const tasks = providedTasks ?? storedTasks
   const filter = useTaskStore((s) => s.filter)
   const setTasks = useTaskStore((s) => s.setTasks)
 

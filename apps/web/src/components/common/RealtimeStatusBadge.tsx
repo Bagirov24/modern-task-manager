@@ -1,4 +1,4 @@
-import { Box, Chip, Tooltip } from '@mui/material'
+import { Chip, Tooltip } from '@mui/material'
 import { WifiOff as WifiOffIcon, Wifi as WifiIcon } from '@mui/icons-material'
 
 interface Props {

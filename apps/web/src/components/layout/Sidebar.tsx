@@ -14,7 +14,6 @@ import {
   Tooltip,
   alpha,
   SwipeableDrawer,
-  Chip,
   Stack,
 } from '@mui/material'
 import type { Theme } from '@mui/material/styles'
@@ -31,11 +30,9 @@ import {
   BarChart as AnalyticsFilled,
   SettingsOutlined as SettingsIcon,
   Settings as SettingsFilled,
-  Timeline as TimelineIcon,
   RocketLaunch as RocketIcon,
   Logout as LogoutIcon,
   ChevronLeft as CollapseIcon,
-  ChevronRight as ExpandIcon,
 } from '@mui/icons-material'
 import { useAuthStore } from '@/lib/store/authStore'
 import { disconnectSocket } from '@/lib/socket/socketClient'
@@ -67,7 +64,6 @@ export default function Sidebar({ drawerWidth, collapsedWidth, open, mobileOpen,
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const setSidebarCollapsed = useUIStore((s) => s.setSidebarCollapsed)
-  const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed)
 
   const handleLogout = () => {
     disconnectSocket()
@@ -89,6 +85,7 @@ export default function Sidebar({ drawerWidth, collapsedWidth, open, mobileOpen,
       <Box sx={{ p: open ? 2.5 : 1.5, display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: open ? 'space-between' : 'center' }}>
         <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
           <Box
+            onClick={!isMobile && !open ? () => setSidebarCollapsed(false) : undefined}
             sx={{
               width: 42,
               height: 42,
@@ -98,6 +95,7 @@ export default function Sidebar({ drawerWidth, collapsedWidth, open, mobileOpen,
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
+              cursor: !isMobile && !open ? 'pointer' : 'default',
               boxShadow: '0 10px 24px rgba(124,77,255,0.25)',
             }}
           >
@@ -122,22 +120,10 @@ export default function Sidebar({ drawerWidth, collapsedWidth, open, mobileOpen,
             </IconButton>
           </Tooltip>
         )}
-        {!isMobile && !open && (
-          <Tooltip title="Развернуть меню">
-            <IconButton size="small" onClick={() => setSidebarCollapsed(false)}>
-              <ExpandIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        )}
       </Box>
 
       <Divider />
 
-      {open && (
-        <Box sx={{ px: 2, pt: 2, pb: 1 }}>
-          <Chip icon={<TimelineIcon fontSize="small" />} label="Timeline ready" color="secondary" variant="outlined" size="small" />
-        </Box>
-      )}
 
       <List sx={{ px: open ? 1.5 : 0.5, py: 1, flex: 1 }}>
         {navItems.map((item) => {

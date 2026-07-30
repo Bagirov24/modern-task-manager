@@ -1,7 +1,6 @@
 """Tests for project CRUD endpoints."""
 from __future__ import annotations
 
-import pytest
 from httpx import AsyncClient
 
 from tests.conftest import make_project, register_and_login
@@ -30,7 +29,7 @@ async def test_list_projects(client: AsyncClient):
     await make_project(client, headers, name="Project Beta")
     resp = await client.get("/api/v1/projects/", headers=headers)
     assert resp.status_code == 200
-    names = [p["name"] for p in resp.json()]
+    names = [p["name"] for p in resp.json()["projects"]]
     assert "Project Alpha" in names
     assert "Project Beta" in names
 
@@ -71,7 +70,7 @@ async def test_archived_projects_excluded_by_default(client: AsyncClient):
     project = await make_project(client, headers, name="To Archive")
     await client.post(f"/api/v1/projects/{project['id']}/archive", headers=headers)
     resp = await client.get("/api/v1/projects/", headers=headers)
-    ids = [p["id"] for p in resp.json()]
+    ids = [p["id"] for p in resp.json()["projects"]]
     assert project["id"] not in ids
 
 

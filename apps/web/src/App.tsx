@@ -8,22 +8,18 @@ import LoginPage from '@/pages/LoginPage'
 import DashboardPage from '@/pages/DashboardPage'
 import TasksPage from '@/pages/TasksPage'
 import ProjectsPage from '@/pages/ProjectsPage'
+import ProjectDetailPage from '@/pages/ProjectDetailPage'
 import CalendarPage from '@/pages/CalendarPage'
 import AnalyticsPage from '@/pages/AnalyticsPage'
 import SettingsPage from '@/pages/SettingsPage'
 import NotFoundPage from '@/pages/NotFoundPage'
-import RealtimeStatusBadge from '@/components/common/RealtimeStatusBadge'
 import { Box, CircularProgress } from '@mui/material'
 
 /** Монтируется внутри AuthGuard — значит token уже есть */
 function RealtimeSyncProvider() {
-  const { connected } = useRealtimeSync()
+  useRealtimeSync()
   useOfflineQueue()
-  return (
-    <Box sx={{ position: 'fixed', bottom: 16, right: 16, zIndex: 1300 }}>
-      <RealtimeStatusBadge connected={connected} />
-    </Box>
-  )
+  return null
 }
 
 function AuthGuard() {
@@ -79,6 +75,7 @@ export default function App() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/projects" element={<ProjectsPage />} />
+        <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/settings" element={<SettingsPage />} />

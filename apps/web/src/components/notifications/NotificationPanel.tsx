@@ -23,7 +23,7 @@ import {
   NotificationsNone,
 } from '@mui/icons-material'
 import { useNotifications } from '../../hooks/useNotifications'
-import type { Notification } from '../../lib/types'
+import type { AppNotification } from '../../lib/types'
 import { formatDistanceToNow } from 'date-fns'
 import { ru } from 'date-fns/locale'
 
@@ -32,11 +32,11 @@ interface NotificationPanelProps {
   onClose: () => void
 }
 
-const getIcon = (type: Notification['type']) => {
+const getIcon = (type: AppNotification['type']) => {
   switch (type) {
-    case 'success': return <CheckCircle color="success" />
-    case 'warning': return <Warning color="warning" />
-    case 'error': return <ErrorIcon color="error" />
+    case 'task_completed': return <CheckCircle color="success" />
+    case 'deadline': return <Warning color="warning" />
+    case 'system': return <ErrorIcon color="error" />
     default: return <Info color="info" />
   }
 }

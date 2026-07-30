@@ -12,7 +12,6 @@ Connection pool is tuned for a typical single-node production deployment:
 """
 from __future__ import annotations
 
-from functools import lru_cache
 
 from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -23,6 +22,10 @@ from app.core.config import settings
 
 class Base(DeclarativeBase):
     pass
+
+
+def enum_values(enum_class):
+    return [member.value for member in enum_class]
 
 
 def _make_async_url(url: str) -> str:

@@ -34,10 +34,12 @@ from app.main import app
 # ---------------------------------------------------------------------------
 # Database URL for tests
 # ---------------------------------------------------------------------------
-_RAW_URL = os.environ.get(
+_RAW_URL = os.environ.get("TEST_DATABASE_URL") or os.environ.get(
     "DATABASE_URL",
     "postgresql://test:test@localhost:5432/test_db",
 )
+if os.environ.get("ENVIRONMENT") != "test" and not os.environ.get("TEST_DATABASE_URL"):
+    raise RuntimeError("Refusing to run tests without an isolated TEST_DATABASE_URL")
 # Ensure asyncpg driver is used.
 if _RAW_URL.startswith("postgresql://"):
     TEST_DB_URL = _RAW_URL.replace("postgresql://", "postgresql+asyncpg://", 1)

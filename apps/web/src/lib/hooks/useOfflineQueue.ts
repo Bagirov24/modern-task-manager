@@ -27,7 +27,10 @@ export function useOfflineQueue() {
       case 'task.create': {
         // Убираем служебные поля, оставляем только поля TaskCreate
         const { id: _id, type: _type, enqueuedAt: _eq, retries: _r, ...rest } = p as Record<string, unknown>
-        await taskApi.create(rest as TaskCreate)
+        if (typeof rest.title !== 'string' || !rest.title.trim()) {
+          throw new Error('[offline queue] task.create: missing or invalid title')
+        }
+        await taskApi.create(rest as unknown as TaskCreate)
         break
       }
       case 'task.update':

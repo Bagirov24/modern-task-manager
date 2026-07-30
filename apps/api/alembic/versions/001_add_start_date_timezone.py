@@ -16,6 +16,16 @@ depends_on = None
 
 
 def upgrade() -> None:
+    conn = op.get_bind()
+    if not sa.inspect(conn).has_table('tasks'):
+        # The repository predates Alembic's baseline migration. Bootstrap the
+        # original core schema so a fresh database can run the full chain.
+        from app.core.database import Base
+        import app.models  # noqa: F401
+
+        Base.metadata.create_all(bind=conn)
+        return
+
     # Add start_date column to tasks
     op.add_column(
         'tasks',

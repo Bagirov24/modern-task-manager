@@ -148,3 +148,62 @@ async def test_logout(client: AsyncClient):
     headers = await register_and_login(client)
     resp = await client.post("/api/v1/auth/logout", headers=headers)
     assert resp.status_code == 204
+
+async def test_update_profile(client: AsyncClient):
+    headers = await register_and_login(client)
+    username = f"updated_{uuid4().hex[:8]}"
+    resp = await client.patch(
+        "/api/v1/auth/profile",
+        json={"username": username, "full_name": "Updated User"},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["username"] == username
+    assert resp.json()["full_name"] == "Updated User"
+
+
+async def test_update_profile_duplicate_username(client: AsyncClient):
+    duplicate = f"duplicate_{uuid4().hex[:8]}"
+    await _register(client, username=duplicate)
+    headers = await register_and_login(client)
+    resp = await client.patch(
+        "/api/v1/auth/profile",
+        json={"username": duplicate},
+        headers=headers,
+    )
+    assert resp.status_code == 400
+
+
+async def test_change_password_rejects_wrong_current(client: AsyncClient):
+    headers = await register_and_login(client)
+    resp = await client.post(
+        "/api/v1/auth/change-password",
+        json={"current_password": "WrongPass1!", "new_password": "NewStrongPass1!"},
+        headers=headers,
+    )
+    assert resp.status_code == 400
+
+
+async def test_change_password(client: AsyncClient):
+    uid = uuid4().hex[:8]
+    email = f"password_{uid}@example.com"
+    password = "StrongPass1!"
+    await _register(client, email=email, username=f"pwd_{uid}", password=password)
+    login_resp = await client.post(
+        "/api/v1/auth/login",
+        json={"email": email, "password": password},
+    )
+    headers = {"Authorization": f"Bearer {login_resp.json()['access_token']}"}
+
+    resp = await client.post(
+        "/api/v1/auth/change-password",
+        json={"current_password": password, "new_password": "NewStrongPass1!"},
+        headers=headers,
+    )
+    assert resp.status_code == 204
+
+    new_login = await client.post(
+        "/api/v1/auth/login",
+        json={"email": email, "password": "NewStrongPass1!"},
+    )
+    assert new_login.status_code == 200

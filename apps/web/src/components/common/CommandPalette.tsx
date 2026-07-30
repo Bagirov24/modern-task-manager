@@ -103,13 +103,13 @@ export default function CommandPalette() {
     action: () => { navigate('/tasks'); openModal('task.detail', { taskId: task.id }) },
   })), [tasks, navigate, openModal])
 
-  const projectCommands: Command[] = useMemo(() => (projects as any[]).slice(0, 30).map((p: any) => ({
+  const projectCommands: Command[] = useMemo(() => (Array.isArray(projects) ? projects : []).slice(0, 30).map((p: any) => ({
     id: `project-${p.id}`,
     label: p.name,
     description: p.description || '',
     group: 'projects',
     icon: <ProjectIcon fontSize="small" />,
-    action: () => navigate(`/projects`),
+    action: () => navigate(`/projects/${p.id}`),
   })), [projects, navigate])
 
   const allCommands = useMemo(() => [...staticCommands, ...taskCommands, ...projectCommands], [staticCommands, taskCommands, projectCommands])

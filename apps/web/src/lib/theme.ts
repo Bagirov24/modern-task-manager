@@ -4,15 +4,15 @@ const getDesignTokens = (mode: PaletteMode) => ({
   palette: {
     mode,
     primary: {
-      main: '#6750A4',
-      light: '#D0BCFF',
-      dark: '#381E72',
+      main: '#4C8DFF',
+      light: '#9CC2FF',
+      dark: '#2457B8',
       contrastText: '#FFFFFF',
     },
     secondary: {
-      main: '#625B71',
-      light: '#CCC2DC',
-      dark: '#332D41',
+      main: '#14B8A6',
+      light: '#5EEAD4',
+      dark: '#0F766E',
       contrastText: '#FFFFFF',
     },
     tertiary: {
@@ -63,20 +63,20 @@ const getDesignTokens = (mode: PaletteMode) => ({
   },
   typography: {
     fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-    h1: { fontSize: '2.5rem', fontWeight: 400, letterSpacing: '-0.02em' },
-    h2: { fontSize: '2rem', fontWeight: 400, letterSpacing: '-0.01em' },
+    h1: { fontSize: '2.5rem', fontWeight: 400, letterSpacing: 0 },
+    h2: { fontSize: '2rem', fontWeight: 400, letterSpacing: 0 },
     h3: { fontSize: '1.75rem', fontWeight: 400 },
     h4: { fontSize: '1.5rem', fontWeight: 500 },
     h5: { fontSize: '1.25rem', fontWeight: 500 },
     h6: { fontSize: '1rem', fontWeight: 500 },
-    subtitle1: { fontSize: '1rem', fontWeight: 500, letterSpacing: '0.01em' },
-    subtitle2: { fontSize: '0.875rem', fontWeight: 500, letterSpacing: '0.005em' },
-    body1: { fontSize: '1rem', fontWeight: 400, letterSpacing: '0.03em' },
-    body2: { fontSize: '0.875rem', fontWeight: 400, letterSpacing: '0.02em' },
-    button: { fontWeight: 500, letterSpacing: '0.02em' },
+    subtitle1: { fontSize: '1rem', fontWeight: 500, letterSpacing: 0 },
+    subtitle2: { fontSize: '0.875rem', fontWeight: 500, letterSpacing: 0 },
+    body1: { fontSize: '1rem', fontWeight: 400, letterSpacing: 0 },
+    body2: { fontSize: '0.875rem', fontWeight: 400, letterSpacing: 0 },
+    button: { fontWeight: 500, letterSpacing: 0 },
   },
   shape: {
-    borderRadius: 16,
+    borderRadius: 8,
   },
   shadows: [
     'none',
@@ -93,8 +93,8 @@ const getDesignTokens = (mode: PaletteMode) => ({
         root: {
           textTransform: 'none' as const,
           fontWeight: 500,
-          borderRadius: 20,
-          padding: '10px 24px',
+          borderRadius: 6,
+          padding: '9px 18px',
           fontSize: '0.875rem',
         },
         contained: {
@@ -112,14 +112,13 @@ const getDesignTokens = (mode: PaletteMode) => ({
     MuiCard: {
       styleOverrides: {
         root: {
-          borderRadius: 12,
+          borderRadius: 8,
           border: '1px solid',
           borderColor: 'rgba(0,0,0,0.08)',
           boxShadow: '0px 1px 3px 1px rgba(0,0,0,0.08)',
           transition: 'box-shadow 0.2s ease, transform 0.2s ease',
           '&:hover': {
             boxShadow: '0px 2px 6px 2px rgba(0,0,0,0.12)',
-            transform: 'translateY(-2px)',
           },
         },
       },
@@ -130,7 +129,7 @@ const getDesignTokens = (mode: PaletteMode) => ({
           backgroundImage: 'none',
         },
         rounded: {
-          borderRadius: 12,
+          borderRadius: 8,
         },
       },
     },
@@ -146,7 +145,7 @@ const getDesignTokens = (mode: PaletteMode) => ({
     MuiFab: {
       styleOverrides: {
         root: {
-          borderRadius: 16,
+          borderRadius: 8,
           textTransform: 'none' as const,
         },
       },
@@ -155,7 +154,7 @@ const getDesignTokens = (mode: PaletteMode) => ({
       styleOverrides: {
         root: {
           '& .MuiOutlinedInput-root': {
-            borderRadius: 12,
+            borderRadius: 8,
           },
         },
       },
@@ -163,21 +162,21 @@ const getDesignTokens = (mode: PaletteMode) => ({
     MuiDialog: {
       styleOverrides: {
         paper: {
-          borderRadius: 28,
+          borderRadius: 12,
         },
       },
     },
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          borderRadius: '0 16px 16px 0',
+          borderRadius: 0,
         },
       },
     },
     MuiListItemButton: {
       styleOverrides: {
         root: {
-          borderRadius: 28,
+          borderRadius: 12,
           margin: '2px 12px',
           padding: '8px 16px',
           '&.Mui-selected': {

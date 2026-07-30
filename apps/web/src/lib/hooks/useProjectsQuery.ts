@@ -1,5 +1,6 @@
+import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectApi } from '@/lib/api/projectApi'
+import { projectApi, type ProjectCreate } from '@/lib/api/projectApi'
 import { useProjectStore } from '@/store/projectStore'
 import type { Project } from '@/lib/types'
 
@@ -11,14 +12,14 @@ export function useProjectsQuery() {
     queryKey: ['projects'],
     queryFn: async () => {
       const response = await projectApi.list()
-      return response.data
+      return response.data.projects
     },
   })
 
   const resolvedProjects = query.data ?? projects
 
   const createMutation = useMutation({
-    mutationFn: async (data: Partial<Project>) => {
+    mutationFn: async (data: ProjectCreate) => {
       const response = await projectApi.create(data)
       return response.data
     },
@@ -45,9 +46,12 @@ export function useProjectsQuery() {
       await projectApi.delete(id)
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['projects'] }),
+    onError: () => queryClient.invalidateQueries({ queryKey: ['projects'] }),
   })
 
-  if (query.data) setProjects(query.data)
+  useEffect(() => {
+    if (query.data) setProjects(query.data)
+  }, [query.data, setProjects])
 
   return {
     projects: resolvedProjects,
