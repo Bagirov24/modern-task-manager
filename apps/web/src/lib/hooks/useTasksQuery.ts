@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { taskApi } from '@/lib/api/taskApi'
 import { useTaskStore } from '@/store/taskStore'
@@ -73,7 +74,9 @@ export function useTasksQuery(projectId?: string, search?: string) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks'] }),
   })
 
-  if (query.data) setTasks(query.data)
+  useEffect(() => {
+    if (query.data) setTasks(query.data)
+  }, [query.data, setTasks])
 
   return {
     tasks: resolvedTasks,

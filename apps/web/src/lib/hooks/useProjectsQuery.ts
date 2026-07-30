@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectApi, type ProjectCreate } from '@/lib/api/projectApi'
 import { useProjectStore } from '@/store/projectStore'
@@ -47,7 +48,9 @@ export function useProjectsQuery() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['projects'] }),
   })
 
-  if (query.data) setProjects(query.data)
+  useEffect(() => {
+    if (query.data) setProjects(query.data)
+  }, [query.data, setProjects])
 
   return {
     projects: resolvedProjects,
