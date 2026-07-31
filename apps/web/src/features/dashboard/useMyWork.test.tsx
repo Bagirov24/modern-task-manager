@@ -133,31 +133,44 @@ describe('useMyWork query composition', () => {
     expect(result.current.projects[0].healthLabel).toBe('On track')
   })
 
-  it('retains successful project aggregates when another stats request fails', async () => {
-    mocks.projects.mockReturnValue(projectQuery({ projects: [
-      { id: 'healthy', name: 'Healthy project', task_count: 150, is_overdue: false, status: 'active' },
-      { id: 'failed', name: 'Failed stats project', task_count: 20, is_overdue: false, status: 'active' },
-    ] }))
-    mocks.projectStats.mockImplementation((projectId: string) => projectId === 'healthy'
-      ? Promise.resolve({ data: {
-        total_tasks: 150, completed_tasks: 120, overdue_count: 0, blocked_count: 0,
-        missing_next_action_count: 0, progress: 80, by_status: {}, by_priority: {},
+  it('retains five successful aggregates when one of six capped project stats requests fails', async () => {
+    const projects = Array.from({ length: 6 }, (_, index) => {
+      const projectNumber = index + 1
+      return {
+        id: 'project-' + projectNumber,
+        name: 'Project ' + projectNumber,
+        task_count: 100,
+        is_overdue: false,
+        status: 'active',
+      }
+    })
+    mocks.projects.mockReturnValue(projectQuery({ projects }))
+    mocks.projectStats.mockImplementation((projectId: string) => {
+      const projectNumber = Number(projectId.replace('project-', ''))
+      if (projectNumber === 4) return Promise.reject(new Error('Stats unavailable'))
+
+      return Promise.resolve({ data: {
+        total_tasks: 100, completed_tasks: projectNumber * 10, overdue_count: 0, blocked_count: 0,
+        missing_next_action_count: 0, progress: projectNumber * 10, by_status: {}, by_priority: {},
       } })
-      : Promise.reject(new Error('Stats unavailable')))
+    })
 
     const { result } = renderHook(() => useMyWork(), { wrapper: wrapper() })
     await waitFor(() => expect(result.current.states.projects.loading).toBe(false))
 
-    expect(result.current.projects.find((project) => project.projectId === 'healthy')).toMatchObject({
-      progress: 80,
-      healthLabel: 'On track',
-    })
-    expect(result.current.projects.find((project) => project.projectId === 'failed')).toMatchObject({
+    expect(mocks.projectStats).toHaveBeenCalledTimes(6)
+    for (const projectNumber of [1, 2, 3, 5, 6]) {
+      expect(result.current.projects.find((project) => project.projectId === 'project-' + projectNumber)).toMatchObject({
+        progress: projectNumber * 10,
+        healthLabel: 'On track',
+      })
+    }
+    expect(result.current.projects.find((project) => project.projectId === 'project-4')).toMatchObject({
       progress: null,
       healthLabel: 'Needs attention',
       reason: 'Не удалось загрузить полную сводку проекта',
     })
-    expect(result.current.states.projects.warning).toContain('Failed stats project')
+    expect(result.current.states.projects.warning).toContain('Project 4')
   })
 })
 

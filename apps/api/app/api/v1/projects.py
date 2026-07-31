@@ -662,9 +662,9 @@ async def get_project_stats(
                 (Task.is_blocked.is_(True)) | (Task.workflow_status == "blocked")
             ).label("blocked_count"),
             func.count(Task.id).filter(
-                Task.next_action.is_(None),
-                Task.next_action_description.is_(None),
-                Task.follow_up_action_description.is_(None),
+                Task.next_action.is_(None) | (func.btrim(Task.next_action) == ""),
+                Task.next_action_description.is_(None) | (func.btrim(Task.next_action_description) == ""),
+                Task.follow_up_action_description.is_(None) | (func.btrim(Task.follow_up_action_description) == ""),
             ).label("missing_next_action_count"),
         ).where(
             Task.project_id == project_id,
