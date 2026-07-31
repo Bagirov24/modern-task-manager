@@ -1,47 +1,50 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import type { Task, TaskCreate } from '@/lib/types'
 import TaskList from '@/components/tasks/TaskList'
 import KanbanBoard from '@/components/tasks/KanbanBoard'
 import TaskDetailDialog from '@/components/tasks/TaskDetailDialog'
 import TimelineView from '@/components/tasks/TimelineView'
+import PageHeader from '@/components/common/PageHeader'
+import ViewSwitcher from '@/components/common/ViewSwitcher'
+import FilterBar, { type ActiveFilter } from '@/components/common/FilterBar'
 import {
-  Container, Typography, Box, Chip, Stack,
-  TextField, InputAdornment, ToggleButtonGroup, ToggleButton,
+  Container, Typography, Chip, Stack,
+  TextField, InputAdornment,
   IconButton, Tooltip, Dialog, DialogTitle, DialogContent,
   DialogActions, Button, Skeleton, Alert, Card, CardContent,
   Divider,
 } from '@mui/material'
 import {
   Search as SearchIcon, Add as AddIcon, Refresh as RefreshIcon,
-  ViewList as ListIcon, ViewKanban as KanbanIcon,
-  Timeline as TimelineIcon,
-  CalendarMonth as CalendarIcon,
 } from '@mui/icons-material'
 import { useTasksQuery } from '@/lib/hooks/useTasksQuery'
-import { useUIStore } from '@/store/uiStore'
+import { useUIStore, type TaskView } from '@/store/uiStore'
 import { useTaskStore } from '@/store/taskStore'
 import { useAuthStore } from '@/lib/store/authStore'
+import { useProjectStore } from '@/store/projectStore'
 
 export default function TasksPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedView = searchParams.get('view')
-  const storedView = useTaskStore((state) => state.viewMode)
-  const rememberView = useTaskStore((state) => state.setViewMode)
-  const initialView = requestedView === 'list' || requestedView === 'timeline' || requestedView === 'kanban'
+  const lastTaskView = useUIStore((state) => state.lastTaskView)
+  const setLastTaskView = useUIStore((state) => state.setLastTaskView)
+  const rememberLegacyView = useTaskStore((state) => state.setViewMode)
+  const initialView: TaskView = isTaskView(requestedView)
     ? requestedView
-    : storedView === 'calendar' ? 'list' : storedView
+    : lastTaskView
   const requestedStatus = searchParams.get('status')
   const initialStatus = requestedStatus === 'todo' || requestedStatus === 'in_progress' || requestedStatus === 'done' ? requestedStatus : 'all'
   const [statusFilter, setStatusFilter] = useState<string>(initialStatus)
   const [searchInput, setSearchInput] = useState(searchParams.get('search') || '')
   const [search, setSearch] = useState(searchParams.get('search') || '')
-  const [viewMode, setViewMode] = useState<'list' | 'kanban' | 'timeline'>(initialView)
+  const [viewMode, setViewMode] = useState<TaskView>(initialView)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogTask, setDialogTask] = useState<any>(null)
   const [dialogMode, setDialogMode] = useState<'view' | 'edit' | 'create'>('view')
   const [deleteConfirm, setDeleteConfirm] = useState<any>(null)
   const [dialogInitialValues, setDialogInitialValues] = useState<Partial<TaskCreate>>({})
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   const { tasks: rawTasks, loading, error, fetchTasks, deleteTask, updateTask } = useTasksQuery(undefined, search)
   const tasks: any[] = useMemo(() => Array.isArray(rawTasks) ? rawTasks : [], [rawTasks])
@@ -50,6 +53,7 @@ export default function TasksPage() {
   const currentUserId = useAuthStore((state) => state.user?.id ?? '')
   const modalState = useUIStore((s) => s.modal)
   const closeModal = useUIStore((s) => s.closeModal)
+  const projects = useProjectStore((state) => state.projects)
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSearch(searchInput.trim()), 300)
@@ -62,8 +66,31 @@ export default function TasksPage() {
     const nextStatus = searchParams.get('status')
     setStatusFilter(nextStatus === 'todo' || nextStatus === 'in_progress' || nextStatus === 'done' ? nextStatus : 'all')
     const nextView = searchParams.get('view')
-    if (nextView === 'list' || nextView === 'kanban' || nextView === 'timeline') { setViewMode(nextView); rememberView(nextView) }
-  }, [searchParams, rememberView])
+    if (isTaskView(nextView)) {
+      setViewMode(nextView)
+      setLastTaskView(nextView)
+      rememberLegacyView(nextView)
+    } else {
+      setViewMode(lastTaskView)
+    }
+  }, [searchParams, lastTaskView, setLastTaskView, rememberLegacyView])
+
+  useEffect(() => {
+    const focusSearch = (event: KeyboardEvent) => {
+      if (event.key !== '/' || event.metaKey || event.ctrlKey || event.altKey) return
+      const active = document.activeElement
+      if (
+        active instanceof HTMLInputElement ||
+        active instanceof HTMLTextAreaElement ||
+        active instanceof HTMLSelectElement ||
+        active?.getAttribute('contenteditable') === 'true'
+      ) return
+      event.preventDefault()
+      searchInputRef.current?.focus()
+    }
+    document.addEventListener('keydown', focusSearch)
+    return () => document.removeEventListener('keydown', focusSearch)
+  }, [])
 
   useEffect(() => {
     if (!modalState.isOpen) return
@@ -151,33 +178,52 @@ export default function TasksPage() {
     }
   }
 
+  const activeFilters = useMemo<ActiveFilter[]>(() => {
+    const filters: ActiveFilter[] = []
+    const activePreset = searchParams.get('preset')
+    if (activePreset && presetLabels[activePreset]) {
+      filters.push({ key: 'preset', label: presetLabels[activePreset] })
+    }
+    const projectId = searchParams.get('project_id')
+    if (projectId) {
+      filters.push({
+        key: 'project_id',
+        label: projects.find((project) => project.id === projectId)?.name ?? projectId,
+      })
+    }
+    return filters
+  }, [searchParams, projects])
+
+  const removeFilter = (key: string) => {
+    const next = new URLSearchParams(searchParams)
+    next.delete(key)
+    setSearchParams(next, { replace: true })
+  }
+
+  const selectView = (view: TaskView) => {
+    setLastTaskView(view)
+    rememberLegacyView(view)
+    if (view === 'calendar') {
+      window.location.assign('/calendar')
+      return
+    }
+    setViewMode(view)
+    const next = new URLSearchParams(searchParams)
+    next.set('view', view)
+    setSearchParams(next, { replace: true })
+  }
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
       <Stack spacing={3}>
-        <Box sx={{ display: 'flex', alignItems: { xs: 'flex-start', md: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
-          <Box>
-            <Typography variant="h4" fontWeight={800}>Задачи</Typography>
-            <Typography variant="body2" color="text.secondary">Канбан, список и timeline в одном рабочем пространстве</Typography>
-          </Box>
-          <Stack direction="row" spacing={1}>
+        <PageHeader
+          title="Задачи"
+          description="Канбан, список и timeline в одном рабочем пространстве"
+          actions={<>
             <Tooltip title="Обновить"><IconButton onClick={() => fetchTasks()}><RefreshIcon /></IconButton></Tooltip>
-            <ToggleButtonGroup value={viewMode} exclusive onChange={(_, v) => {
-              if (!v) return
-              if (v === 'calendar') { rememberView('calendar'); window.location.assign('/calendar'); return }
-              setViewMode(v)
-              rememberView(v)
-              const next = new URLSearchParams(searchParams)
-              next.set('view', v)
-              setSearchParams(next, { replace: true })
-            }} size="small">
-              <ToggleButton value="list"><Tooltip title="Список"><ListIcon /></Tooltip></ToggleButton>
-              <ToggleButton value="kanban"><Tooltip title="Канбан"><KanbanIcon /></Tooltip></ToggleButton>
-              <ToggleButton value="timeline"><Tooltip title="Timeline"><TimelineIcon /></Tooltip></ToggleButton>
-              <ToggleButton value="calendar"><Tooltip title="Календарь"><CalendarIcon /></Tooltip></ToggleButton>
-            </ToggleButtonGroup>
+            <ViewSwitcher value={viewMode} onChange={selectView} />
             <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate}>Задача</Button>
-          </Stack>
-        </Box>
+          </>}
+        />
 
         <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2}>
           {[
@@ -218,6 +264,8 @@ export default function TasksPage() {
           ))}
         </Stack>
 
+        <FilterBar filters={activeFilters} onRemove={removeFilter} />
+
         {error && <Alert severity="error">{error}</Alert>}
 
         <Card sx={{ borderRadius: 4 }}>
@@ -225,6 +273,8 @@ export default function TasksPage() {
             <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2} alignItems={{ xs: 'stretch', lg: 'center' }}>
               <TextField
                 size="small" placeholder="Поиск задач..."
+                inputRef={searchInputRef}
+                inputProps={{ 'aria-label': 'Поиск задач' }}
                 value={searchInput} onChange={(e) => setSearchInput(e.target.value)}
                 InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }}
                 sx={{ minWidth: { lg: 280 } }}
@@ -265,6 +315,20 @@ export default function TasksPage() {
       </Dialog>
     </Container>
   )
+}
+
+function isTaskView(value: string | null): value is TaskView {
+  return value === 'list' || value === 'kanban' || value === 'calendar' || value === 'timeline'
+}
+
+const presetLabels: Record<string, string> = {
+  overdue: 'Просрочено',
+  blocked: 'Заблокировано',
+  unassigned: 'Без исполнителя',
+  'needs-planning': 'Требует планирования',
+  'missing-documentation': 'Без документации',
+  'due-this-week': 'На этой неделе',
+  'recently-completed': 'Недавно завершено',
 }
 
 const waitingTaskStatuses = new Set(['waiting_for_internal', 'waiting_for_client'])

@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 
 export type ThemeMode = 'light' | 'dark'
+export type TaskView = 'list' | 'kanban' | 'calendar' | 'timeline'
 
 interface SnackbarItem {
   id: string
@@ -26,6 +27,7 @@ interface UIState {
   searchOpen: boolean
   commandPaletteOpen: boolean
   pinnedFocusEntityKey: string | null
+  lastTaskView: TaskView
 
   toggleSidebar: () => void
   setSidebarOpen: (open: boolean) => void
@@ -40,6 +42,7 @@ interface UIState {
   setSearchOpen: (open: boolean) => void
   setCommandPaletteOpen: (open: boolean) => void
   setPinnedFocusEntityKey: (entityKey: string | null) => void
+  setLastTaskView: (view: TaskView) => void
 }
 
 export function partializeUIState(state: UIState) {
@@ -48,6 +51,7 @@ export function partializeUIState(state: UIState) {
     language: state.language,
     sidebarCollapsed: state.sidebarCollapsed,
     pinnedFocusEntityKey: state.pinnedFocusEntityKey,
+    lastTaskView: state.lastTaskView,
   }
 }
 
@@ -64,6 +68,7 @@ export const useUIStore = create<UIState>()(
         searchOpen: false,
         commandPaletteOpen: false,
         pinnedFocusEntityKey: null,
+        lastTaskView: 'list',
 
         toggleSidebar: () =>
           set((state) => ({ sidebarOpen: !state.sidebarOpen })),
@@ -94,6 +99,7 @@ export const useUIStore = create<UIState>()(
         setSearchOpen: (open) => set({ searchOpen: open }),
         setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
         setPinnedFocusEntityKey: (entityKey) => set({ pinnedFocusEntityKey: entityKey }),
+        setLastTaskView: (lastTaskView) => set({ lastTaskView }),
       }),
       {
         name: 'ui-store',
