@@ -81,4 +81,12 @@ describe('app shell', () => {
 
     expect(screen.getByRole('navigation', { name: 'Основная навигация' }).querySelectorAll('a')).toHaveLength(5)
   })
+
+  it('marks only the active mobile destination as the current page', () => {
+    renderShell('/tasks', 390)
+
+    expect(screen.getByRole('link', { name: 'Задачи' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Обзор' })).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('link', { name: 'Календарь' })).not.toHaveAttribute('aria-current')
+  })
 })
