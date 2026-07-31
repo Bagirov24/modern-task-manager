@@ -10,7 +10,7 @@ export interface CommunicationListResponse {
 }
 
 export const communicationApi = {
-  list: (params?: { action_status?: string; project_id?: string; search?: string; active_only?: boolean; per_page?: number }) => api.get<CommunicationListResponse>('/communication-items/', { params }),
+  list: (params?: { action_status?: string; project_id?: string; task_id?: string; search?: string; active_only?: boolean; per_page?: number }) => api.get<CommunicationListResponse>('/communication-items/', { params }),
   get: (id: string) => api.get<CommunicationItem>(`/communication-items/${id}`),
   create: (data: CommunicationItemInput) => api.post<CommunicationItem>('/communication-items/', data),
   update: (id: string, data: Partial<CommunicationItemInput>) => api.patch<CommunicationItem>(`/communication-items/${id}`, data),

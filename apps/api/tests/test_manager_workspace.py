@@ -57,6 +57,27 @@ async def test_action_inbox_lifecycle_and_task_creation(client):
 
 
 @pytest.mark.asyncio
+async def test_action_inbox_can_filter_existing_items_by_task(client):
+    headers = await register_and_login(client)
+    project = await make_project(client, headers, name="Communication filter")
+    first_task = await make_task(client, headers, title="First task", project_id=project["id"])
+    second_task = await make_task(client, headers, title="Second task", project_id=project["id"])
+
+    for task_item, subject in ((first_task, "First thread"), (second_task, "Second thread")):
+        response = await client.post("/api/v1/communication-items/", headers=headers, json={
+            "source_type": "manual", "sender_name": "Client", "subject": subject,
+            "body_preview": subject, "project_id": project["id"], "task_id": task_item["id"],
+        })
+        assert response.status_code == 201, response.text
+
+    listed = await client.get(
+        f"/api/v1/communication-items/?task_id={first_task['id']}&active_only=false",
+        headers=headers,
+    )
+    assert listed.status_code == 200, listed.text
+    assert [item["subject"] for item in listed.json()["items"]] == ["First thread"]
+
+@pytest.mark.asyncio
 async def test_action_inbox_rejects_secret_without_echo(client):
     headers = await register_and_login(client)
     secret = "4111111111111111"

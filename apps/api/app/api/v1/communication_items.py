@@ -32,7 +32,7 @@ async def _visible(db: AsyncSession, item_id: UUID, user: User, *, write: bool =
 
 @router.get("/", response_model=CommunicationListResponse)
 async def list_items(
-    action_status: str | None = None, project_id: UUID | None = None,
+    action_status: str | None = None, project_id: UUID | None = None, task_id: UUID | None = None,
     search: str | None = Query(None, max_length=200), active_only: bool = True,
     page: int = Query(1, ge=1), per_page: int = Query(50, ge=1, le=100),
     db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user),
@@ -46,6 +46,8 @@ async def list_items(
         query = query.where(CommunicationItem.action_status == action_status)
     if project_id:
         query = query.where(CommunicationItem.project_id == project_id)
+    if task_id:
+        query = query.where(CommunicationItem.task_id == task_id)
     if search:
         term = f"%{search}%"
         query = query.where(or_(CommunicationItem.sender_name.ilike(term), CommunicationItem.subject.ilike(term), CommunicationItem.body_preview.ilike(term), CommunicationItem.next_action.ilike(term)))

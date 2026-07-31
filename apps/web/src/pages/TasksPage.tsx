@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import type { TaskCreate } from '@/lib/types'
+import type { Task, TaskCreate } from '@/lib/types'
+import { taskApi } from '@/lib/api/taskApi'
 import TaskList from '@/components/tasks/TaskList'
 import KanbanBoard from '@/components/tasks/KanbanBoard'
 import TaskDetailDialog from '@/components/tasks/TaskDetailDialog'
@@ -31,6 +32,7 @@ export default function TasksPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const requestedView = searchParams.get('view')
+  const selectedTaskId = searchParams.get('task')
   const lastTaskView = useUIStore((state) => state.lastTaskView)
   const setLastTaskView = useUIStore((state) => state.setLastTaskView)
   const rememberLegacyView = useTaskStore((state) => state.setViewMode)
@@ -49,6 +51,7 @@ export default function TasksPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<any>(null)
   const [dialogInitialValues, setDialogInitialValues] = useState<Partial<TaskCreate>>({})
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const taskOriginRef = useRef<HTMLElement | null>(null)
 
   const projectId = searchParams.get('project_id') ?? undefined
   const { tasks: rawTasks, loading, error, fetchTasks, deleteTask, updateTask } = useTasksQuery(projectId, search)
@@ -116,31 +119,53 @@ export default function TasksPage() {
       const taskId = modalState.data?.taskId
       const task = tasks.find((item) => item.id === taskId)
       if (task) {
-        setDialogInitialValues({})
-        setDialogTask(task)
-        setDialogMode('view')
-        setDialogOpen(true)
+        const next = new URLSearchParams(searchParams)
+        next.set('task', task.id)
+        setSearchParams(next, { replace: true })
         closeModal()
       }
     }
   }, [modalState, closeModal, tasks])
 
   useEffect(() => {
-    const taskId = searchParams.get('task')
-    if (!taskId) return
-    const task = tasks.find((item) => item.id === taskId)
-    if (task) {
-      setDialogTask(task)
+    const taskId = selectedTaskId
+    if (!taskId) {
+      if (dialogMode === 'view') {
+        setDialogOpen(false)
+        setDialogTask(null)
+        const origin = taskOriginRef.current
+        window.setTimeout(() => { if (origin?.isConnected) origin.focus() }, 0)
+      }
+      return
+    }
+    let cancelled = false
+    const listedTask = tasks.find((item) => item.id === taskId)
+    const openTask = (selected: Task) => {
+      if (cancelled) return
+      setDialogTask(selected)
       setDialogMode('view')
       setDialogOpen(true)
     }
-  }, [searchParams, tasks])
+    if (listedTask) openTask(listedTask)
+    else void taskApi.get(taskId).then((response) => openTask(response.data)).catch(() => {
+      if (cancelled) return
+      addSnackbar({ message: 'Не удалось загрузить задачу', type: 'error', duration: 4000 })
+      setSearchParams((current) => {
+        const next = new URLSearchParams(current)
+        next.delete('task')
+        return next
+      }, { replace: true })
+    })
+    return () => { cancelled = true }
+  }, [selectedTaskId, tasks, dialogMode, addSnackbar, setSearchParams])
 
   const closeTaskPanel = () => {
     setDialogOpen(false)
     const next = new URLSearchParams(searchParams)
     next.delete('task')
     setSearchParams(next, { replace: true })
+    const origin = taskOriginRef.current
+    window.setTimeout(() => { if (origin?.isConnected) origin.focus() }, 0)
   }
   const selectStatus = (status: string) => {
     setStatusFilter(status)
@@ -161,9 +186,20 @@ export default function TasksPage() {
     done: tasks.filter((t: any) => t.status === 'done').length,
   }), [tasks])
 
+  const handleOpen = (task: Task) => {
+    taskOriginRef.current = document.activeElement as HTMLElement | null
+    const next = new URLSearchParams(searchParams)
+    next.set('task', task.id)
+    setSearchParams(next, { replace: true })
+  }
   const handleEdit = (task: any) => { setDialogTask(task); setDialogMode('edit'); setDialogOpen(true) }
   const handleDelete = (task: any) => setDeleteConfirm(task)
-  const handleCreate = () => { setDialogInitialValues({}); setDialogTask(null); setDialogMode('create'); setDialogOpen(true) }
+  const handleCreate = () => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('task')
+    setSearchParams(next, { replace: true })
+    setDialogInitialValues({}); setDialogTask(null); setDialogMode('create'); setDialogOpen(true)
+  }
 
   const confirmDelete = async () => {
     if (!deleteConfirm) return
@@ -302,15 +338,15 @@ export default function TasksPage() {
         {loading ? (
           <Stack spacing={2}>{[1, 2, 3].map((i) => <Skeleton key={i} variant="rectangular" height={72} sx={{ borderRadius: 3 }} />)}</Stack>
         ) : viewMode === 'kanban' ? (
-          <KanbanBoard tasks={filteredTasks as any} onStatusChange={handleStatusChange} onEdit={handleEdit} onDelete={handleDelete} />
+          <KanbanBoard tasks={filteredTasks as any} onStatusChange={handleStatusChange} onOpen={handleOpen} onEdit={handleEdit} onDelete={handleDelete} />
         ) : viewMode === 'timeline' ? (
           <TimelineView tasks={filteredTasks as any} />
         ) : (
-          <TaskList tasks={filteredTasks as any} onEdit={handleEdit} onDelete={handleDelete} />
+          <TaskList tasks={filteredTasks as any} onOpen={handleOpen} onEdit={handleEdit} onDelete={handleDelete} />
         )}
       </Stack>
 
-      <TaskDetailDialog open={dialogOpen} onClose={closeTaskPanel} task={dialogTask} mode={dialogMode} initialValues={dialogInitialValues} />
+      {dialogOpen && (dialogMode !== 'view' || Boolean(selectedTaskId)) && <TaskDetailDialog open onClose={closeTaskPanel} task={dialogTask} mode={dialogMode} initialValues={dialogInitialValues} />}
 
       <Dialog open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)}>
         <DialogTitle>Удалить задачу?</DialogTitle>

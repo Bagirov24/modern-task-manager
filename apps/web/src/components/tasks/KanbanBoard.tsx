@@ -39,6 +39,7 @@ import {
   Flag as FlagIcon,
   CalendarToday as CalendarIcon,
   AccessTime as TimeIcon,
+  OpenInNew as OpenIcon,
 } from '@mui/icons-material'
 import { useDroppable } from '@dnd-kit/core'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -70,6 +71,7 @@ const priorityConfig: Record<string, { color: 'default' | 'info' | 'warning' | '
 
 interface KanbanCardProps {
   task: Task
+  onOpen?: (task: Task) => void
   onEdit?: (task: Task) => void
   onDelete?: (task: Task) => void
 }
@@ -85,7 +87,7 @@ function resolveColumnId(overId: string, tasks: Task[]) {
   return overTask?.status ?? null
 }
 
-function KanbanCard({ task, onEdit, onDelete }: KanbanCardProps) {
+function KanbanCard({ task, onOpen, onEdit, onDelete }: KanbanCardProps) {
   const {
     attributes,
     listeners,
@@ -215,6 +217,7 @@ function KanbanCard({ task, onEdit, onDelete }: KanbanCardProps) {
               </Stack>
 
               <Stack direction="row" spacing={0}>
+                {onOpen && <Tooltip title="Открыть"><IconButton size="small" aria-label={`Открыть задачу ${task.title}`} onClick={(e) => { e.stopPropagation(); onOpen(task) }} sx={{ p: 0.4 }}><OpenIcon fontSize="small" /></IconButton></Tooltip>}
                 {onEdit && (
                   <Tooltip title="Редактировать">
                     <IconButton size="small" onClick={(e) => { e.stopPropagation(); onEdit(task) }} sx={{ p: 0.4 }}>
@@ -242,11 +245,12 @@ interface KanbanColumnProps {
   column: KanbanColumn
   tasks: Task[]
   isPreviewTarget: boolean
+  onOpen?: (task: Task) => void
   onEdit?: (task: Task) => void
   onDelete?: (task: Task) => void
 }
 
-function KanbanColumnComponent({ column, tasks, isPreviewTarget, onEdit, onDelete }: KanbanColumnProps) {
+function KanbanColumnComponent({ column, tasks, isPreviewTarget, onOpen, onEdit, onDelete }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id })
   const completedRatio = column.id === 'done' && tasks.length > 0 ? 100 : column.id === 'in_progress' ? 60 : 20
 
@@ -300,7 +304,7 @@ function KanbanColumnComponent({ column, tasks, isPreviewTarget, onEdit, onDelet
                   exit={{ opacity: 0, scale: 0.9 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <KanbanCard task={task} onEdit={onEdit} onDelete={onDelete} />
+                  <KanbanCard task={task} onOpen={onOpen} onEdit={onEdit} onDelete={onDelete} />
                 </motion.div>
               ))}
             </AnimatePresence>
@@ -328,11 +332,12 @@ function KanbanColumnComponent({ column, tasks, isPreviewTarget, onEdit, onDelet
 interface KanbanBoardProps {
   tasks: Task[]
   onStatusChange: (taskId: string, newStatus: string) => void
+  onOpen?: (task: Task) => void
   onEdit?: (task: Task) => void
   onDelete?: (task: Task) => void
 }
 
-export default function KanbanBoard({ tasks, onStatusChange, onEdit, onDelete }: KanbanBoardProps) {
+export default function KanbanBoard({ tasks, onStatusChange, onOpen, onEdit, onDelete }: KanbanBoardProps) {
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [previewColumn, setPreviewColumn] = useState<string | null>(null)
 
@@ -396,6 +401,7 @@ export default function KanbanBoard({ tasks, onStatusChange, onEdit, onDelete }:
             column={column}
             tasks={columnTasks[column.id] || []}
             isPreviewTarget={previewColumn === column.id}
+            onOpen={onOpen}
             onEdit={onEdit}
             onDelete={onDelete}
           />

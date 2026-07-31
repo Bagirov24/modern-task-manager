@@ -18,6 +18,10 @@ import { commentApi } from '@/lib/api/commentApi'
 import { workspaceLinkApi } from '@/lib/api/workspaceLinkApi'
 import { managerStatusApi } from '@/lib/api/managerStatusApi'
 import type { Task, TaskCreate, TaskPriority, TaskStatus, WorkflowStatus } from '../../lib/types'
+import TaskDrawerHeader from './drawer/TaskDrawerHeader'
+import TaskOverviewTab from './drawer/TaskOverviewTab'
+import TaskCommunicationsTab from './drawer/TaskCommunicationsTab'
+import TaskDrawerFooter from './drawer/TaskDrawerFooter'
 
 interface Props {
   open: boolean
@@ -60,6 +64,7 @@ export default function TaskDetailDialog({ open, onClose, task, mode, initialVal
   const [comment, setComment] = useState('')
   const [statusSummary, setStatusSummary] = useState('')
   const [statusLoading, setStatusLoading] = useState(false)
+  const [communicationCount, setCommunicationCount] = useState(0)
 
   useEffect(() => {
     if (task && mode !== 'create') {
@@ -86,6 +91,7 @@ export default function TaskDetailDialog({ open, onClose, task, mode, initialVal
     }
     setTab(0)
     setSaveError('')
+    setCommunicationCount(0)
   }, [task, mode, open, initialValues])
 
   const documents = useQuery({
@@ -96,13 +102,14 @@ export default function TaskDetailDialog({ open, onClose, task, mode, initialVal
   const testData = useQuery({
     queryKey: ['test-data', 'project', task?.project_id],
     queryFn: async () => (await testDataApi.list(task?.project_id ? { project_id: task.project_id } : undefined)).data.data_sets,
-    enabled: open && Boolean(task) && tab === 2,
+    enabled: open && Boolean(task) && tab === 3,
   })
   const comments = useQuery({
     queryKey: ['comments', task?.id],
     queryFn: () => commentApi.getByTask(task!.id),
-    enabled: open && Boolean(task) && tab === 3,
+    enabled: open && Boolean(task) && tab === 4,
   })
+  const documentCount = documents.data?.length ?? task?.documentation_count ?? 0
 
   const handleSave = async () => {
     if (!form.title.trim()) return
@@ -156,46 +163,48 @@ export default function TaskDetailDialog({ open, onClose, task, mode, initialVal
     anchor="right"
     open={open}
     onClose={onClose}
+    transitionDuration={180}
     ModalProps={{ keepMounted: false }}
-    PaperProps={{ sx: { width: mobile ? '100%' : 720, maxWidth: '100vw', borderRadius: 0 } }}
+    PaperProps={{ 'data-testid': 'task-drawer-paper', sx: { width: mobile ? '100%' : 720, maxWidth: '100vw', borderRadius: 0 } }}
   >
     <Stack sx={{ height: '100%' }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 2, py: 1.25, minHeight: 64, borderBottom: '1px solid', borderColor: 'divider' }}>
-        <Box sx={{ minWidth: 0 }}><Typography variant="caption" color="text.secondary">{mode === 'create' ? 'Новая задача' : task?.project_id ? projectOptions.find((project: any) => project.id === task.project_id)?.name || 'Проект' : 'Личная задача'}</Typography><Typography fontWeight={750} noWrap>{mode === 'create' ? 'Создание задачи' : task?.title}</Typography></Box>
-        <Stack direction="row" spacing={0.5}>
-          {task && !editing && <Button size="small" startIcon={statusLoading ? <CircularProgress size={16} /> : <Summarize />} onClick={() => void generateStatus()}>Статус</Button>}
-          {task && !editing && <IconButton aria-label="Редактировать" onClick={() => setEditing(true)}><EditOutlined /></IconButton>}
-          <IconButton aria-label="Закрыть" onClick={onClose}><Close /></IconButton>
-        </Stack>
-      </Stack>
-
+      <TaskDrawerHeader
+        title={mode === 'create' ? 'Создание задачи' : task?.title || 'Задача'}
+        contextLabel={mode === 'create' ? 'Новая задача' : task?.project_id ? projectOptions.find((project: any) => project.id === task.project_id)?.name || 'Проект' : 'Личная задача'}
+        canEdit={Boolean(task) && !editing}
+        statusLoading={statusLoading}
+        onStatus={() => void generateStatus()}
+        onEdit={() => setEditing(true)}
+        onClose={onClose}
+      />
       {task && <Tabs value={tab} onChange={(_, value) => setTab(value)} variant="scrollable" sx={{ px: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
-        <Tab label="Обзор" /><Tab label="Документы" /><Tab label="Тестирование" /><Tab label="Активность" />
+        <Tab label="Обзор" /><Tab label={`Документы ${documentCount}`} /><Tab label={`Коммуникации ${communicationCount}`} /><Tab label="Тестирование" /><Tab label={`Активность ${task.comment_count ?? 0}`} />
       </Tabs>}
 
       <Box sx={{ flex: 1, overflowY: 'auto', p: { xs: 2, sm: 2.5 } }}>
         {saveError && <Alert severity="error" sx={{ mb: 2 }}>{saveError}</Alert>}
-        {tab === 0 && <Stack spacing={3}><Overview form={form} setForm={setForm} editing={editing} projects={projectOptions} task={task} />{task && <RelatedPrograms task={task} />}</Stack>}
+        {tab === 0 && <Stack spacing={3}>{editing || !task ? <TaskOverviewForm form={form} setForm={setForm} projects={projectOptions} /> : <TaskOverviewTab task={task} />}{task && <RelatedPrograms task={task} />}</Stack>}
         {tab === 1 && <Stack spacing={2}>
           <Stack direction="row" justifyContent="space-between" alignItems="center"><Typography variant="h6" fontWeight={750}>Документация задачи</Typography><Button startIcon={<Add />} onClick={() => navigate('/documents?task_id=' + task?.id)}>Документ</Button></Stack>
           {documents.isLoading ? <CircularProgress size={24} /> : !documents.data?.length ? <Alert severity="info">Brief, acceptance criteria и test plan ещё не привязаны.</Alert> : <List disablePadding>{documents.data.map((document) => <ListItem key={document.id} divider secondaryAction={<IconButton onClick={() => navigate('/documents?document=' + document.id)}><OpenInNew /></IconButton>}><ArticleOutlined sx={{ mr: 1.5 }} /><ListItemText primary={document.title} secondary={document.document_type + ' · v' + document.version} /></ListItem>)}</List>}
         </Stack>}
-        {tab === 2 && <Stack spacing={2}>
+        {tab === 2 && task && <TaskCommunicationsTab task={task} onCountChange={setCommunicationCount} />}
+        {tab === 3 && <Stack spacing={2}>
           <Stack direction="row" justifyContent="space-between" alignItems="center"><Typography variant="h6" fontWeight={750}>Тестирование</Typography><Button startIcon={<ScienceOutlined />} onClick={() => navigate('/test-data')}>Test Data Vault</Button></Stack>
           <Alert severity="info">Секреты и платёжные реквизиты здесь не показываются. Используйте только сценарии и vault references.</Alert>
           {!testData.data?.length ? <Typography color="text.secondary">Для проекта нет безопасных тестовых наборов.</Typography> : testData.data.map((dataSet) => <Paper key={dataSet.id} variant="outlined" sx={{ p: 1.5 }}><Stack direction="row" justifyContent="space-between"><Box><Typography fontWeight={700}>{dataSet.name}</Typography><Typography variant="caption" color="text.secondary">{dataSet.environment} · {dataSet.category}</Typography></Box><Chip size="small" label={dataSet.sensitivity} /></Stack></Paper>)}
         </Stack>}
-        {tab === 3 && <Stack spacing={2}>
+        {tab === 4 && <Stack spacing={2}>
           <Typography variant="h6" fontWeight={750}>Комментарии и изменения</Typography>
           <Stack direction="row" spacing={1}><TextField fullWidth multiline maxRows={4} placeholder="Добавить комментарий" value={comment} onChange={(event) => setComment(event.target.value)} /><IconButton color="primary" aria-label="Отправить комментарий" onClick={() => void addComment()}><Send /></IconButton></Stack>
           {comments.isLoading ? <CircularProgress size={24} /> : !(comments.data as any)?.comments?.length ? <Typography color="text.secondary">Активности пока нет.</Typography> : (comments.data as any).comments.map((item: any) => <Paper key={item.id} variant="outlined" sx={{ p: 1.5 }}><Typography variant="body2">{item.content}</Typography><Typography variant="caption" color="text.secondary">{new Date(item.created_at).toLocaleString('ru-RU')}</Typography></Paper>)}
         </Stack>}
       </Box>
 
-      {(editing || mode === 'create') && <Stack direction="row" justifyContent="space-between" sx={{ px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider' }}>
-        {task ? <Button color="error" startIcon={<DeleteOutline />} onClick={() => void handleDelete()}>Удалить</Button> : <Box />}
-        <Stack direction="row" spacing={1}><Button onClick={mode === 'create' ? onClose : () => setEditing(false)}>Отмена</Button><Button variant="contained" startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Save />} disabled={!form.title.trim() || saving} onClick={() => void handleSave()}>Сохранить</Button></Stack>
-      </Stack>}
+      {(editing || mode === 'create') && <TaskDrawerFooter
+        hasTask={Boolean(task)} saving={saving} saveDisabled={!form.title.trim()}
+        onDelete={() => void handleDelete()} onCancel={mode === 'create' ? onClose : () => setEditing(false)} onSave={() => void handleSave()}
+      />}
       <Dialog open={Boolean(statusSummary)} onClose={() => setStatusSummary('')} fullWidth maxWidth="sm">
         <DialogTitle>Краткий статус задачи</DialogTitle>
         <DialogContent dividers><Typography component="pre" sx={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', m: 0 }}>{statusSummary}</Typography></DialogContent>
@@ -205,31 +214,7 @@ export default function TaskDetailDialog({ open, onClose, task, mode, initialVal
   </Drawer>
 }
 
-function Overview({ form, setForm, editing, projects, task }: { form: TaskCreate; setForm: (value: TaskCreate) => void; editing: boolean; projects: any[]; task: Task | null }) {
-  if (!editing) return <Stack spacing={2}>
-    {!task?.is_planning_complete && <Alert severity="warning">Неполная постановка: заполните контекст, ожидаемый результат, acceptance criteria, проект и ответственного до Ready.</Alert>}
-    <Typography variant="h5" fontWeight={750}>{task?.title}</Typography>
-    <Stack direction="row" gap={1} flexWrap="wrap"><Chip label={workflows.find((item) => item.value === task?.workflow_status)?.label || task?.status} /><Chip variant="outlined" label={priorities.find((item) => item.value === task?.priority)?.label} />{task?.is_blocked && <Chip color="warning" icon={<Block />} label="Заблокирована" />}</Stack>
-    <Field title="Следующее действие" value={task?.next_action_description || task?.next_action} />
-    {task?.follow_up_action_description && <Field title="После получения ответа" value={task.follow_up_action_description} />}
-    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3}>
-      <Field title="Финальный срок" value={formatManagerDate(task?.final_due_at || task?.due_date)} />
-      <Field title="Срок ответа" value={formatManagerDate(task?.response_due_at)} />
-      <Field title="Следующее действие до" value={formatManagerDate(task?.next_action_due_at)} />
-    </Stack>
-    <Stack direction="row" gap={1} flexWrap="wrap">
-      <Chip size="small" variant="outlined" label={'Риск: ' + riskLabel(task?.risk_level)} />
-      {task?.waiting_for_party && task.waiting_for_party !== 'none' && <Chip size="small" variant="outlined" label={'Ожидаем: ' + waitingLabel(task.waiting_for_party)} />}
-      {task?.communication_channel && <Chip size="small" variant="outlined" label={'Канал: ' + task.communication_channel} />}
-    </Stack>
-    <Field title="Контекст" value={task?.context || task?.description} />
-    <Field title="Ожидаемый результат" value={task?.expected_result} />
-    <Field title="Acceptance criteria" value={task?.acceptance_criteria} />
-    <Divider />
-    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3}><Field title="Milestone / Sprint" value={[task?.milestone, task?.sprint].filter(Boolean).join(' · ')} /><Field title="Оценка" value={task?.estimate_minutes ? task.estimate_minutes + ' мин' : undefined} /><Field title="Срок" value={task?.due_date ? new Date(task.due_date).toLocaleDateString('ru-RU') : undefined} /></Stack>
-    {task?.is_blocked && <Alert severity="warning"><strong>Причина:</strong> {task.blocked_reason || 'не указана'}</Alert>}
-  </Stack>
-
+function TaskOverviewForm({ form, setForm, projects }: { form: TaskCreate; setForm: (value: TaskCreate) => void; projects: any[] }) {
   return <Stack spacing={2}>
     <TextField label="Название" required value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} />
     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
@@ -264,19 +249,6 @@ function Overview({ form, setForm, editing, projects, task }: { form: TaskCreate
   </Stack>
 }
 
-function formatManagerDate(value?: string | null) {
-  return value ? new Date(value).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }) : undefined
-}
-function riskLabel(value?: Task['risk_level']) {
-  return ({ low: 'низкий', medium: 'средний', high: 'высокий', critical: 'критичный' } as const)[value || 'low']
-}
-function waitingLabel(value: NonNullable<Task['waiting_for_party']>) {
-  return ({ internal: 'команду', client: 'клиента', insurer: 'страховую', vendor: 'подрядчика', none: 'никого' } as const)[value]
-}
-
-function Field({ title, value }: { title: string; value?: string | null }) {
-  return <Box><Typography variant="caption" color="text.secondary" fontWeight={700}>{title}</Typography><Typography sx={{ whiteSpace: 'pre-wrap' }}>{value || 'Не указано'}</Typography></Box>
-}
 function RelatedPrograms({ task }: { task: Task }) {
   const queryClient = useQueryClient()
   const [selectedId, setSelectedId] = useState('')

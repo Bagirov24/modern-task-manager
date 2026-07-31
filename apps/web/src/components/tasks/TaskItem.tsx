@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import {
-  Card, CardActionArea, CardContent, Typography, Chip, Box,
+  Card, ButtonBase, CardContent, Typography, Chip, Box,
   IconButton, Stack, Tooltip, alpha,
 } from '@mui/material'
 import {
@@ -33,11 +33,12 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 
 interface Props {
   task: Task
+  onOpen?: (task: Task) => void
   onEdit?: (task: Task) => void
   onDelete?: (task: Task) => void
 }
 
-export default function TaskItem({ task, onEdit, onDelete }: Props) {
+export default function TaskItem({ task, onOpen, onEdit, onDelete }: Props) {
   const updateTask = useTaskStore((s) => s.updateTask)
   const setSelectedTask = useTaskStore((s) => s.setSelectedTask)
   const isDone = task.status === 'done'
@@ -93,7 +94,7 @@ export default function TaskItem({ task, onEdit, onDelete }: Props) {
         transition: 'all 0.2s ease',
       }}
     >
-      <CardActionArea onClick={() => setSelectedTask(task)} sx={{ p: 0 }}>
+      <Box>
         <CardContent sx={{ p: 2, pl: 3, '&:last-child': { pb: 2 } }}>
           <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
             <IconButton size="small" onClick={toggle} sx={{ mt: -0.25, color: isDone ? 'success.main' : 'text.disabled' }}>
@@ -101,6 +102,7 @@ export default function TaskItem({ task, onEdit, onDelete }: Props) {
             </IconButton>
 
             <Box sx={{ flex: 1, minWidth: 0 }}>
+              <ButtonBase aria-label={`Открыть задачу ${task.title}`} onClick={() => onOpen ? onOpen(task) : setSelectedTask(task)} sx={{ display: 'block', width: '100%', textAlign: 'left', borderRadius: 1 }}>
               <Typography
                 variant="body1"
                 fontWeight={500}
@@ -111,6 +113,7 @@ export default function TaskItem({ task, onEdit, onDelete }: Props) {
               >
                 {task.title}
               </Typography>
+              </ButtonBase>
 
               {task.description && (
                 <Typography variant="body2" color="text.secondary" noWrap sx={{ mt: 0.5 }}>
@@ -164,7 +167,7 @@ export default function TaskItem({ task, onEdit, onDelete }: Props) {
             </Stack>
           </Box>
         </CardContent>
-      </CardActionArea>
+      </Box>
     </MotionCard>
   )
 }
