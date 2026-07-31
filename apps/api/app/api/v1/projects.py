@@ -655,6 +655,27 @@ async def get_project_stats(
         )
     )
     overdue_count: int = overdue_r.scalar() or 0
+
+    risk_r = await db.execute(
+        select(
+            func.count(Task.id).filter(
+                (Task.is_blocked.is_(True)) | (Task.workflow_status == "blocked")
+            ).label("blocked_count"),
+            func.count(Task.id).filter(
+                Task.next_action.is_(None),
+                Task.next_action_description.is_(None),
+                Task.follow_up_action_description.is_(None),
+            ).label("missing_next_action_count"),
+        ).where(
+            Task.project_id == project_id,
+            Task.status.notin_([TaskStatus.DONE, TaskStatus.ARCHIVED]),
+            Task.workflow_status.notin_(["done", "cancelled"]),
+        )
+    )
+    risk_row = risk_r.one()
+    blocked_count: int = risk_row.blocked_count or 0
+    missing_next_action_count: int = risk_row.missing_next_action_count or 0
+
     for s in TaskStatus:
         by_status.setdefault(s.value, 0)
     for p in TaskPriority:
@@ -663,6 +684,8 @@ async def get_project_stats(
     return {
         "total_tasks": total, "completed_tasks": completed,
         "overdue_count": overdue_count,
+        "blocked_count": blocked_count,
+        "missing_next_action_count": missing_next_action_count,
         "progress": round(completed / total * 100) if total else 0,
         "by_status": by_status, "by_priority": by_priority,
     }

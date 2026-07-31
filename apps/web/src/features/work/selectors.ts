@@ -12,7 +12,7 @@ const closedCommunicationStatuses = new Set(['done', 'archived'])
 export function buildActionItems(tasks: Task[], communications: CommunicationItem[], currentUserId: string): ActionItem[] {
   const items = [
     ...tasks.map((task) => taskToActionItem(task, currentUserId)),
-    ...communications.map((communication) => communicationToActionItem(communication, currentUserId)),
+    ...communications.map((communication) => communicationToActionItem(communication)),
   ].filter((item) => Boolean(currentUserId) && item.ownerId === currentUserId)
 
   return sortItems(items, new Date())
@@ -67,9 +67,9 @@ function taskToActionItem(task: Task, currentUserId: string): ActionItem {
   }
 }
 
-function communicationToActionItem(communication: CommunicationItem, currentUserId: string): ActionItem {
+function communicationToActionItem(communication: CommunicationItem): ActionItem {
   const ownerId = communication.action_owner_id ?? null
-  const state = communicationState(communication, ownerId, currentUserId)
+  const state = classifyCommunicationState(communication)
 
   return {
     entityKey: `communication:${communication.id}`,
@@ -97,10 +97,9 @@ function taskState(task: Task, ownerId: string | null, currentUserId: string): A
   return 'actionable'
 }
 
-function communicationState(communication: CommunicationItem, ownerId: string | null, currentUserId: string): ActionItem['state'] {
+export function classifyCommunicationState(communication: CommunicationItem): ActionItem['state'] {
   if (closedCommunicationStatuses.has(communication.action_status)) return 'done'
   if (waitingCommunicationStatuses.has(communication.action_status) || communication.waiting_for_user_id || (communication.waiting_for_party && communication.waiting_for_party !== 'none')) return 'waiting'
-  if (ownerId && ownerId !== currentUserId) return 'waiting'
   if (communication.action_status === 'fyi') return 'done'
   return 'actionable'
 }

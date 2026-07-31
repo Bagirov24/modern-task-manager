@@ -61,7 +61,7 @@ beforeEach(() => {
   mocks.tasks.mockReturnValue(taskQuery())
   mocks.projects.mockReturnValue(projectQuery())
   mocks.communications.mockResolvedValue({ data: { items: [], total: 0, groups: {}, page: 1, per_page: 100 } })
-  mocks.projectStats.mockResolvedValue({ data: { total_tasks: 0, completed_tasks: 0, overdue_count: 0, progress: 0, by_status: {}, by_priority: {} } })
+  mocks.projectStats.mockResolvedValue({ data: { total_tasks: 0, completed_tasks: 0, overdue_count: 0, blocked_count: 0, missing_next_action_count: 0, progress: 0, by_status: {}, by_priority: {} } })
 })
 
 describe('useMyWork query composition', () => {
@@ -124,7 +124,7 @@ describe('useMyWork query composition', () => {
     mocks.projects.mockReturnValue(projectQuery({ projects: [
       { id: 'large', name: 'Большой проект', task_count: 150, is_overdue: false, status: 'active' },
     ] }))
-    mocks.projectStats.mockResolvedValue({ data: { total_tasks: 150, completed_tasks: 120, overdue_count: 0, progress: 80, by_status: {}, by_priority: {} } })
+    mocks.projectStats.mockResolvedValue({ data: { total_tasks: 150, completed_tasks: 120, overdue_count: 0, blocked_count: 0, missing_next_action_count: 0, progress: 80, by_status: {}, by_priority: {} } })
 
     const { result } = renderHook(() => useMyWork(), { wrapper: wrapper() })
     await waitFor(() => expect(result.current.projects[0]?.progress).toBe(80))
@@ -132,18 +132,79 @@ describe('useMyWork query composition', () => {
     expect(mocks.projectStats).toHaveBeenCalledWith('large')
     expect(result.current.projects[0].healthLabel).toBe('On track')
   })
+
+  it('retains successful project aggregates when another stats request fails', async () => {
+    mocks.projects.mockReturnValue(projectQuery({ projects: [
+      { id: 'healthy', name: 'Healthy project', task_count: 150, is_overdue: false, status: 'active' },
+      { id: 'failed', name: 'Failed stats project', task_count: 20, is_overdue: false, status: 'active' },
+    ] }))
+    mocks.projectStats.mockImplementation((projectId: string) => projectId === 'healthy'
+      ? Promise.resolve({ data: {
+        total_tasks: 150, completed_tasks: 120, overdue_count: 0, blocked_count: 0,
+        missing_next_action_count: 0, progress: 80, by_status: {}, by_priority: {},
+      } })
+      : Promise.reject(new Error('Stats unavailable')))
+
+    const { result } = renderHook(() => useMyWork(), { wrapper: wrapper() })
+    await waitFor(() => expect(result.current.states.projects.loading).toBe(false))
+
+    expect(result.current.projects.find((project) => project.projectId === 'healthy')).toMatchObject({
+      progress: 80,
+      healthLabel: 'On track',
+    })
+    expect(result.current.projects.find((project) => project.projectId === 'failed')).toMatchObject({
+      progress: null,
+      healthLabel: 'Needs attention',
+      reason: 'Не удалось загрузить полную сводку проекта',
+    })
+    expect(result.current.states.projects.warning).toContain('Failed stats project')
+  })
 })
 
 describe('project summary completeness', () => {
   it('uses complete project aggregates instead of risk counts from a partial 100-task page', () => {
     const project = { id: 'large', name: 'Большой проект', task_count: 150, is_overdue: false, status: 'active' } as any
-    const stats = { large: { total_tasks: 150, completed_tasks: 120, overdue_count: 0, progress: 80, by_status: {}, by_priority: {} } }
+    const stats = { large: { total_tasks: 150, completed_tasks: 120, overdue_count: 0, blocked_count: 0, missing_next_action_count: 0, progress: 80, by_status: {}, by_priority: {} } }
 
     const [summary] = buildProjectSummaries([project], stats)
 
     expect(summary.progress).toBe(80)
     expect(summary.healthLabel).toBe('On track')
     expect(summary.reason).toBe('Критических отклонений по сводке проекта нет')
+  })
+
+  it('uses complete blocked and missing-next-action aggregates in project health', () => {
+    const projects = [
+      { id: 'blocked', name: 'Blocked project', is_overdue: false, status: 'active' },
+      { id: 'missing', name: 'Missing action project', is_overdue: false, status: 'active' },
+    ] as any
+    const stats = {
+      blocked: {
+        total_tasks: 10, completed_tasks: 2, overdue_count: 0, blocked_count: 2,
+        missing_next_action_count: 0, progress: 20, by_status: {}, by_priority: {},
+      },
+      missing: {
+        total_tasks: 10, completed_tasks: 2, overdue_count: 0, blocked_count: 0,
+        missing_next_action_count: 3, progress: 20, by_status: {}, by_priority: {},
+      },
+    }
+
+    const summaries = buildProjectSummaries(projects, stats)
+
+    expect(summaries[0].healthLabel).toBe('At risk')
+    expect(summaries[0].reason).toContain('2 заблокировано')
+    expect(summaries[1].healthLabel).toBe('Needs attention')
+    expect(summaries[1].reason).toContain('3 задач без следующего действия')
+  })
+
+  it('does not claim On track when risk aggregates are unavailable', () => {
+    const project = { id: 'legacy', name: 'Legacy project', is_overdue: false, status: 'active' } as any
+    const stats = { legacy: { total_tasks: 5, completed_tasks: 1, overdue_count: 0, progress: 20, by_status: {}, by_priority: {} } }
+
+    const [summary] = buildProjectSummaries([project], stats)
+
+    expect(summary.healthLabel).toBe('Needs attention')
+    expect(summary.reason).toBe('Сводка рисков проекта неполная')
   })
 
   it('names an overdue project deadline as the off-track reason', () => {

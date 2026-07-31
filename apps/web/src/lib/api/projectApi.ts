@@ -12,6 +12,8 @@ export interface ProjectStats {
   total_tasks: number
   completed_tasks: number
   overdue_count: number
+  blocked_count?: number
+  missing_next_action_count?: number
   progress: number
   by_status: Record<string, number>
   by_priority: Record<string, number>

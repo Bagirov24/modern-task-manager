@@ -39,8 +39,17 @@ export default function TeamRadar({ attention, projects, state }: TeamRadarProps
                 <Chip size="small" color={healthColor[project.healthLabel]} variant="outlined" label={project.healthLabel} />
               </Stack>
               <Stack direction="row" alignItems="center" gap={1} sx={{ mt: 1.5 }}>
-                <LinearProgress variant="determinate" value={project.progress} sx={{ flex: 1, height: 6, borderRadius: 1 }} />
-                <Typography variant="caption" fontWeight={700}>{project.progress}%</Typography>
+                {project.progress === null ? (
+                  <>
+                    <Box aria-label="Прогресс недоступен" sx={{ flex: 1, height: 6, borderRadius: 1, bgcolor: 'action.disabledBackground' }} />
+                    <Typography variant="caption" fontWeight={700}>Нет данных</Typography>
+                  </>
+                ) : (
+                  <>
+                    <LinearProgress variant="determinate" value={project.progress} sx={{ flex: 1, height: 6, borderRadius: 1 }} />
+                    <Typography variant="caption" fontWeight={700}>{project.progress}%</Typography>
+                  </>
+                )}
               </Stack>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1.25 }}>{project.reason}</Typography>
               <Typography variant="body2" sx={{ mt: 0.5 }}><strong>Дальше:</strong> {project.recommendedAction}</Typography>

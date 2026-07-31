@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from httpx import AsyncClient
 
-from tests.conftest import make_project, register_and_login
+from tests.conftest import make_project, make_task, register_and_login
 
 
 async def test_create_project(client: AsyncClient):
@@ -91,6 +91,29 @@ async def test_project_stats(client: AsyncClient):
     body = resp.json()
     assert "total_tasks" in body
     assert "progress" in body
+
+async def test_project_stats_include_complete_blocked_and_missing_action_counts(client: AsyncClient):
+    headers = await register_and_login(client)
+    project = await make_project(client, headers)
+    await make_task(
+        client,
+        headers,
+        title="Blocked with action",
+        project_id=project["id"],
+        is_blocked=True,
+        next_action="Resolve dependency",
+    )
+    await make_task(client, headers, title="Missing action", project_id=project["id"])
+    await make_task(
+        client, headers, title="Ready with action",
+        project_id=project["id"], next_action="Ship result",
+    )
+
+    resp = await client.get(f"/api/v1/projects/{project['id']}/stats", headers=headers)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["blocked_count"] == 1
+    assert body["missing_next_action_count"] == 1
 
 
 async def test_project_isolation(client: AsyncClient):

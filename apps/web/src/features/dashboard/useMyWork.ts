@@ -17,7 +17,7 @@ const PROJECT_LIMIT = 6
 export interface DashboardProjectSummary {
   projectId: string
   name: string
-  progress: number
+  progress: number | null
   healthLabel: 'On track' | 'Needs attention' | 'At risk' | 'Off track'
   reason: string
   recommendedAction: string
@@ -64,11 +64,23 @@ export function useMyWork(): MyWorkViewModel {
   const projectStatsQuery = useQuery({
     queryKey: ['projects', 'dashboard-stats', dashboardProjectIds],
     queryFn: async () => {
-      const entries = await Promise.all(dashboardProjectIds.map(async (projectId) => {
+      const settled = await Promise.allSettled(dashboardProjectIds.map(async (projectId) => {
         const response = await projectApi.stats(projectId)
-        return [projectId, response.data] as const
+        return response.data
       }))
-      return Object.fromEntries(entries) as Record<string, ProjectStats>
+      const statsByProject: Record<string, ProjectStats> = {}
+      const failedProjectIds: string[] = []
+
+      settled.forEach((result, index) => {
+        const projectId = dashboardProjectIds[index]
+        if (result.status === 'fulfilled') {
+          statsByProject[projectId] = result.value
+        } else {
+          failedProjectIds.push(projectId)
+        }
+      })
+
+      return { statsByProject, failedProjectIds }
     },
     enabled: dashboardProjectIds.length > 0 && !projectsQuery.error,
   })
@@ -88,7 +100,11 @@ export function useMyWork(): MyWorkViewModel {
         blocked: activeItems.filter((item) => item.isBlocked).length,
         missingNextAction: work.actions.filter((item) => !item.nextAction).length,
       },
-      projects: buildProjectSummaries(projects, projectStatsQuery.data).slice(0, PROJECT_LIMIT),
+      projects: buildProjectSummaries(
+        projects,
+        projectStatsQuery.data?.statsByProject,
+        new Set(projectStatsQuery.data?.failedProjectIds),
+      ).slice(0, PROJECT_LIMIT),
     }
   }, [communications, currentUserId, pinnedFocusEntityKey, projectStatsQuery.data, projects, tasks])
 
@@ -103,13 +119,19 @@ export function useMyWork(): MyWorkViewModel {
     { loading: communicationsQuery.isLoading, error: queryError(communicationsQuery.error) },
   ], retryWork)
   const projectStatsError = queryError(projectStatsQuery.error)
+  const failedProjectNames = (projectStatsQuery.data?.failedProjectIds ?? [])
+    .map((projectId) => projects.find((project) => project.id === projectId)?.name ?? projectId)
+    .join(', ')
+  const partialStatsWarning = failedProjectNames ? 'Не удалось загрузить сводку проектов: ' + failedProjectNames : null
   const projectsState = !dashboardProjectIds.length || projectsQuery.loading || projectsQuery.error
     ? singleSourceState(projectsQuery.loading, projectsQuery.error, retryProjects)
     : projectStatsQuery.isLoading
       ? singleSourceState(true, null, retryProjects)
       : projectStatsError
         ? { loading: false, error: null, warning: projectStatsError, retry: retryProjects }
-        : singleSourceState(false, null, retryProjects)
+        : partialStatsWarning
+          ? { loading: false, error: null, warning: partialStatsWarning, retry: retryProjects }
+          : singleSourceState(false, null, retryProjects)
 
   return {
     ...model,
@@ -128,25 +150,46 @@ export function useMyWork(): MyWorkViewModel {
   }
 }
 
-export function buildProjectSummaries(projects: Project[], statsByProject: Record<string, ProjectStats> = {}): DashboardProjectSummary[] {
+export function buildProjectSummaries(
+  projects: Project[],
+  statsByProject: Record<string, ProjectStats> = {},
+  failedProjectIds: Set<string> = new Set(),
+): DashboardProjectSummary[] {
   return projects.map((project) => {
     const stats = statsByProject[project.id]
-    const progress = stats?.progress ?? 0
+    const progress = stats?.progress ?? null
 
+    if (failedProjectIds.has(project.id)) {
+      return summary(project, null, 'Needs attention', 'Не удалось загрузить полную сводку проекта', 'Повторить загрузку сводки проекта')
+    }
     if (project.is_overdue) {
       return summary(project, progress, 'Off track', 'Срок проекта просрочен', 'Пересобрать план и согласовать новый срок')
     }
-    if (stats && stats.overdue_count >= 3) {
-      return summary(project, progress, 'Off track', `${stats.overdue_count} просроченных задач по полной сводке`, 'Пересобрать план и снять критические просрочки')
+
+    const overdue = stats?.overdue_count ?? 0
+    const blocked = stats?.blocked_count ?? 0
+    const missingNextAction = stats?.missing_next_action_count
+    const riskReasons: string[] = []
+    if (overdue) riskReasons.push(overdue + ' просрочено')
+    if (blocked) riskReasons.push(blocked + ' заблокировано')
+
+    if (overdue >= 3 || blocked >= 3) {
+      return summary(project, progress, 'Off track', riskReasons.join(', '), 'Пересобрать план и снять критические риски')
     }
-    if (stats?.overdue_count) {
-      return summary(project, progress, 'At risk', `${stats.overdue_count} просроченных задач по полной сводке`, 'Разобрать просрочки и назначить ответственных')
+    if (overdue || blocked) {
+      return summary(project, progress, 'At risk', riskReasons.join(', '), 'Разобрать риски и назначить ответственных')
     }
     if (project.status === 'on_hold') {
       return summary(project, progress, 'At risk', 'Проект приостановлен', 'Определить условие и владельца возобновления')
     }
     if (project.status === 'planning') {
       return summary(project, progress, 'Needs attention', 'Проект находится на этапе планирования', 'Зафиксировать план, сроки и ответственных')
+    }
+    if (!stats || typeof stats.blocked_count !== 'number' || typeof missingNextAction !== 'number') {
+      return summary(project, progress, 'Needs attention', 'Сводка рисков проекта неполная', 'Повторить загрузку полной сводки проекта')
+    }
+    if (missingNextAction) {
+      return summary(project, progress, 'Needs attention', missingNextAction + ' задач без следующего действия', 'Уточнить следующие действия по активным задачам')
     }
     return summary(project, progress, 'On track', 'Критических отклонений по сводке проекта нет', 'Продолжать выполнение по плану')
   })
@@ -172,7 +215,7 @@ function queryError(error: unknown) {
   return error instanceof Error ? error.message : error ? String(error) : null
 }
 
-function summary(project: Project, progress: number, healthLabel: DashboardProjectSummary['healthLabel'], reason: string, recommendedAction: string): DashboardProjectSummary {
+function summary(project: Project, progress: number | null, healthLabel: DashboardProjectSummary['healthLabel'], reason: string, recommendedAction: string): DashboardProjectSummary {
   return { projectId: project.id, name: project.name, progress, healthLabel, reason, recommendedAction }
 }
 

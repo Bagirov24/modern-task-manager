@@ -10,6 +10,7 @@ import {
   InfoOutlined, PersonSearchOutlined, Search, TaskAltOutlined, Telegram,
 } from '@mui/icons-material'
 import { communicationApi } from '@/lib/api/communicationApi'
+import { classifyCommunicationState } from '@/features/work/selectors'
 import { projectApi } from '@/lib/api/projectApi'
 import { useAuthStore } from '@/lib/store/authStore'
 import type { CommunicationActionStatus, CommunicationItem, CommunicationItemInput } from '@/lib/types'
@@ -25,8 +26,6 @@ const communicationStatuses = new Set<CommunicationActionStatus>([
   'new', 'needs_my_reply', 'need_customer_input', 'need_internal_input', 'waiting_for_reply',
   'ready_to_respond', 'fyi', 'done', 'archived',
 ])
-const actionableStatuses = new Set<CommunicationActionStatus>(['new', 'needs_my_reply', 'ready_to_respond'])
-const waitingStatuses = new Set<CommunicationActionStatus>(['need_customer_input', 'need_internal_input', 'waiting_for_reply'])
 
 export type InboxScope = 'all' | 'my-actions' | 'my-waiting'
 
@@ -43,7 +42,8 @@ export function readInboxFilters(searchParams: URLSearchParams): { scope: InboxS
 export function matchesInboxScope(item: CommunicationItem, scope: InboxScope, currentUserId: string): boolean {
   if (scope === 'all') return true
   if (!currentUserId || item.action_owner_id !== currentUserId) return false
-  return scope === 'my-actions' ? actionableStatuses.has(item.action_status) : waitingStatuses.has(item.action_status)
+  const state = classifyCommunicationState(item)
+  return scope === 'my-actions' ? state === 'actionable' : state === 'waiting'
 }
 
 const emptyInput: CommunicationItemInput = {

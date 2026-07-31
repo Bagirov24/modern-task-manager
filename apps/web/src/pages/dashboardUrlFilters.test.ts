@@ -37,4 +37,20 @@ describe('Dashboard destination URL filters', () => {
     expect(matchesInboxScope(unassigned, 'my-actions', 'me')).toBe(false)
     expect(matchesInboxScope(waiting, 'my-waiting', 'me')).toBe(true)
   })
+
+  it('uses Dashboard waiting markers even when the Inbox status looks actionable', () => {
+    const waitingForParty = {
+      action_owner_id: 'me', action_status: 'needs_my_reply',
+      waiting_for_party: 'internal', waiting_for_user_id: null,
+    } as any
+    const waitingForUser = {
+      action_owner_id: 'me', action_status: 'needs_my_reply',
+      waiting_for_party: 'none', waiting_for_user_id: 'colleague',
+    } as any
+
+    expect(matchesInboxScope(waitingForParty, 'my-waiting', 'me')).toBe(true)
+    expect(matchesInboxScope(waitingForParty, 'my-actions', 'me')).toBe(false)
+    expect(matchesInboxScope(waitingForUser, 'my-waiting', 'me')).toBe(true)
+    expect(matchesInboxScope(waitingForUser, 'my-actions', 'me')).toBe(false)
+  })
 })
