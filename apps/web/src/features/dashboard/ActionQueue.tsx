@@ -3,23 +3,27 @@ import { ArrowForward, CheckCircleOutline } from '@mui/icons-material'
 import { Box, Button, Chip, Paper, Stack, Typography } from '@mui/material'
 import AttentionState from '@/components/common/AttentionState'
 import DeadlineIndicator from '@/components/common/DeadlineIndicator'
-import StatusBadge from '@/components/common/StatusBadge'
 import type { ActionItem } from '@/features/work/types'
+import ActionStatusChip from './ActionStatusChip'
+import DashboardStateNotice from './DashboardStateNotice'
+import type { DashboardSectionState } from './useMyWork'
 
 interface ActionQueueProps {
   items: ActionItem[]
-  loading: boolean
-  error: string | null
-  onRetry: () => void
+  state: DashboardSectionState
 }
 
-export default function ActionQueue({ items, loading, error, onRetry }: ActionQueueProps) {
+export default function ActionQueue({ items, state }: ActionQueueProps) {
   const visibleItems = items.slice(0, 7)
   return (
     <Box component="section" role="region" aria-labelledby="action-queue-heading">
-      <SectionHeader id="action-queue-heading" title="Мои действия" count={visibleItems.length} to="/tasks?view=list&preset=my-actions" linkLabel="Все действия" />
+      <SectionHeader id="action-queue-heading" title="Мои действия" count={visibleItems.length} links={[
+        { to: '/tasks?view=list&preset=my-actions', label: 'Мои задачи' },
+        { to: '/inbox?scope=my-actions', label: 'Мои ответы' },
+      ]} />
+      <DashboardStateNotice warning={state.warning} onRetry={state.retry} />
       <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
-        <AttentionState loading={loading} error={error} onRetry={onRetry} empty={!visibleItems.length} emptyTitle="Действий нет" emptyDescription="Очередь на сегодня разобрана.">
+        <AttentionState loading={state.loading} error={state.error} onRetry={state.retry} empty={!visibleItems.length} emptyTitle="Действий нет" emptyDescription="Очередь на сегодня разобрана.">
           <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none' }}>
             {visibleItems.map((item) => <ActionRow key={item.entityKey} item={item} />)}
           </Box>
@@ -40,7 +44,7 @@ function ActionRow({ item }: { item: ActionItem }) {
         </Box>
         <Stack direction="row" gap={0.75} alignItems="center" flexWrap="wrap">
           <Chip size="small" variant="outlined" label={item.sourceLabel === 'Task' ? 'Задача' : item.sourceLabel} />
-          <StatusBadge status={item.isBlocked ? 'blocked' : 'ready'} />
+          <ActionStatusChip item={item} />
           {item.dueAt && <DeadlineIndicator type="next_action" value={item.dueAt} />}
         </Stack>
       </Stack>
@@ -48,14 +52,16 @@ function ActionRow({ item }: { item: ActionItem }) {
   )
 }
 
-export function SectionHeader({ id, title, count, to, linkLabel }: { id: string; title: string; count: number; to: string; linkLabel: string }) {
+export function SectionHeader({ id, title, count, links }: { id: string; title: string; count: number; links: Array<{ to: string; label: string }> }) {
   return (
-    <Stack direction="row" justifyContent="space-between" alignItems="center" gap={2} sx={{ mb: 1 }}>
+    <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} gap={1} sx={{ mb: 1 }}>
       <Stack direction="row" alignItems="center" gap={1}>
         <Typography id={id} component="h2" variant="h5" fontWeight={750}>{title}</Typography>
         <Chip size="small" label={count} />
       </Stack>
-      <Button component={RouterLink} to={to} size="small" endIcon={<ArrowForward />}>{linkLabel}</Button>
+      <Stack direction="row" gap={0.5} flexWrap="wrap">
+        {links.map((link) => <Button key={link.to} component={RouterLink} to={link.to} size="small" endIcon={<ArrowForward />}>{link.label}</Button>)}
+      </Stack>
     </Stack>
   )
 }

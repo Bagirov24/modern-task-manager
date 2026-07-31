@@ -42,6 +42,15 @@ interface UIState {
   setPinnedFocusEntityKey: (entityKey: string | null) => void
 }
 
+export function partializeUIState(state: UIState) {
+  return {
+    mode: state.mode,
+    language: state.language,
+    sidebarCollapsed: state.sidebarCollapsed,
+    pinnedFocusEntityKey: state.pinnedFocusEntityKey,
+  }
+}
+
 export const useUIStore = create<UIState>()(
   devtools(
     persist(
@@ -88,9 +97,7 @@ export const useUIStore = create<UIState>()(
       }),
       {
         name: 'ui-store',
-        partialize: (state) => ({
-          pinnedFocusEntityKey: state.pinnedFocusEntityKey,
-        }),
+        partialize: partializeUIState,
       },
     ),
   ),

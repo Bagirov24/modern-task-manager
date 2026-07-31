@@ -3,24 +3,28 @@ import { HourglassTop } from '@mui/icons-material'
 import { Box, Paper, Stack, Typography } from '@mui/material'
 import AttentionState from '@/components/common/AttentionState'
 import DeadlineIndicator from '@/components/common/DeadlineIndicator'
-import StatusBadge from '@/components/common/StatusBadge'
 import type { ActionItem } from '@/features/work/types'
+import ActionStatusChip from './ActionStatusChip'
+import DashboardStateNotice from './DashboardStateNotice'
 import { SectionHeader } from './ActionQueue'
+import type { DashboardSectionState } from './useMyWork'
 
 interface WaitingQueueProps {
   items: ActionItem[]
-  loading: boolean
-  error: string | null
-  onRetry: () => void
+  state: DashboardSectionState
 }
 
-export default function WaitingQueue({ items, loading, error, onRetry }: WaitingQueueProps) {
+export default function WaitingQueue({ items, state }: WaitingQueueProps) {
   const visibleItems = items.slice(0, 4)
   return (
     <Box component="section" role="region" aria-labelledby="waiting-queue-heading">
-      <SectionHeader id="waiting-queue-heading" title="Жду ответа" count={visibleItems.length} to="/inbox?action_status=waiting_for_reply" linkLabel="Все ожидания" />
+      <SectionHeader id="waiting-queue-heading" title="Жду ответа" count={visibleItems.length} links={[
+        { to: '/tasks?view=list&preset=my-waiting', label: 'Задачи в ожидании' },
+        { to: '/inbox?scope=my-waiting', label: 'Ожидания во входящих' },
+      ]} />
+      <DashboardStateNotice warning={state.warning} onRetry={state.retry} />
       <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
-        <AttentionState loading={loading} error={error} onRetry={onRetry} empty={!visibleItems.length} emptyTitle="Ожиданий нет" emptyDescription="Сейчас ни от кого не требуется ответ.">
+        <AttentionState loading={state.loading} error={state.error} onRetry={state.retry} empty={!visibleItems.length} emptyTitle="Ожиданий нет" emptyDescription="Сейчас ни от кого не требуется ответ.">
           <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none' }}>
             {visibleItems.map((item) => (
               <Box component="li" key={item.entityKey} sx={{ px: 1.5, py: 1.25, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 0 } }}>
@@ -31,7 +35,7 @@ export default function WaitingQueue({ items, loading, error, onRetry }: Waiting
                     <Typography variant="body2" color="text.secondary" noWrap>{item.nextAction || 'Ожидаем следующий контакт'}</Typography>
                   </Box>
                   <Stack direction="row" gap={0.75} alignItems="center" flexWrap="wrap">
-                    <StatusBadge status="waiting_for_internal" />
+                    <ActionStatusChip item={item} />
                     {item.dueAt && <DeadlineIndicator type="response" value={item.dueAt} />}
                   </Stack>
                 </Stack>

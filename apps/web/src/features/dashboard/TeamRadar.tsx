@@ -1,16 +1,15 @@
-import { Link as RouterLink } from 'react-router-dom'
 import { BlockOutlined, EventBusyOutlined, PlaylistRemoveOutlined } from '@mui/icons-material'
 import { Box, Chip, LinearProgress, Paper, Stack, Typography } from '@mui/material'
+import { Link as RouterLink } from 'react-router-dom'
 import AttentionState from '@/components/common/AttentionState'
-import type { DashboardProjectSummary } from './useMyWork'
+import DashboardStateNotice from './DashboardStateNotice'
+import type { DashboardProjectSummary, DashboardSectionState } from './useMyWork'
 import { SectionHeader } from './ActionQueue'
 
 interface TeamRadarProps {
   attention: { overdue: number; blocked: number; missingNextAction: number }
   projects: DashboardProjectSummary[]
-  loading: boolean
-  error: string | null
-  onRetry: () => void
+  state: DashboardSectionState
 }
 
 const healthColor = {
@@ -20,17 +19,18 @@ const healthColor = {
   'Off track': 'error',
 } as const
 
-export default function TeamRadar({ attention, projects, loading, error, onRetry }: TeamRadarProps) {
+export default function TeamRadar({ attention, projects, state }: TeamRadarProps) {
   const visibleProjects = projects.slice(0, 6)
   return (
     <Box component="section" role="region" aria-labelledby="team-radar-heading">
-      <SectionHeader id="team-radar-heading" title="Команда и проекты" count={visibleProjects.length} to="/projects" linkLabel="Все проекты" />
+      <SectionHeader id="team-radar-heading" title="Команда и проекты" count={visibleProjects.length} links={[{ to: '/projects', label: 'Все проекты' }]} />
       <Stack direction="row" gap={1} flexWrap="wrap" sx={{ mb: 1.5 }}>
-        <Chip component={RouterLink} to="/tasks?preset=overdue" clickable icon={<EventBusyOutlined />} color={attention.overdue ? 'error' : 'default'} variant={attention.overdue ? 'filled' : 'outlined'} label={`Просрочено: ${attention.overdue}`} />
-        <Chip component={RouterLink} to="/tasks?preset=blocked" clickable icon={<BlockOutlined />} color={attention.blocked ? 'warning' : 'default'} variant={attention.blocked ? 'filled' : 'outlined'} label={`Заблокировано: ${attention.blocked}`} />
-        <Chip component={RouterLink} to="/tasks?view=list&preset=missing-next-action" clickable icon={<PlaylistRemoveOutlined />} color={attention.missingNextAction ? 'info' : 'default'} variant={attention.missingNextAction ? 'filled' : 'outlined'} label={`Без следующего действия: ${attention.missingNextAction}`} />
+        <Chip icon={<EventBusyOutlined />} color={attention.overdue ? 'error' : 'default'} variant={attention.overdue ? 'filled' : 'outlined'} label={`Просрочено: ${attention.overdue}`} />
+        <Chip icon={<BlockOutlined />} color={attention.blocked ? 'warning' : 'default'} variant={attention.blocked ? 'filled' : 'outlined'} label={`Заблокировано: ${attention.blocked}`} />
+        <Chip icon={<PlaylistRemoveOutlined />} color={attention.missingNextAction ? 'info' : 'default'} variant={attention.missingNextAction ? 'filled' : 'outlined'} label={`Без следующего действия: ${attention.missingNextAction}`} />
       </Stack>
-      <AttentionState loading={loading} error={error} onRetry={onRetry} empty={!visibleProjects.length} emptyTitle="Проектов нет" emptyDescription="Активные проекты появятся здесь после создания.">
+      <DashboardStateNotice warning={state.warning} onRetry={state.retry} />
+      <AttentionState loading={state.loading} error={state.error} onRetry={state.retry} empty={!visibleProjects.length} emptyTitle="Проектов нет" emptyDescription="Активные проекты появятся здесь после создания.">
         <Box component="ul" sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5, m: 0, p: 0, listStyle: 'none' }}>
           {visibleProjects.map((project) => (
             <Paper component="li" key={project.projectId} variant="outlined" sx={{ p: 2, minWidth: 0 }}>

@@ -8,6 +8,15 @@ export interface ProjectListResponse {
   per_page: number
 }
 
+export interface ProjectStats {
+  total_tasks: number
+  completed_tasks: number
+  overdue_count: number
+  progress: number
+  by_status: Record<string, number>
+  by_priority: Record<string, number>
+}
+
 export interface ProjectCreate {
   name: string
   description?: string
@@ -23,5 +32,5 @@ export const projectApi = {
   update: (id: string, data: Partial<Project>) =>
     api.patch<Project>(`/projects/${id}`, data),
   delete: (id: string) => api.delete(`/projects/${id}`),
-  stats: (id: string) => api.get(`/projects/${id}/stats`),
+  stats: (id: string) => api.get<ProjectStats>(`/projects/${id}/stats`),
 }

@@ -13,7 +13,7 @@ export function buildActionItems(tasks: Task[], communications: CommunicationIte
   const items = [
     ...tasks.map((task) => taskToActionItem(task, currentUserId)),
     ...communications.map((communication) => communicationToActionItem(communication, currentUserId)),
-  ]
+  ].filter((item) => Boolean(currentUserId) && item.ownerId === currentUserId)
 
   return sortItems(items, new Date())
 }
@@ -62,6 +62,8 @@ function taskToActionItem(task: Task, currentUserId: string): ActionItem {
     isBlocked: Boolean(task.is_blocked || task.workflow_status === 'blocked'),
     nextAction: task.next_action_description ?? task.next_action ?? task.follow_up_action_description ?? null,
     sourceLabel: 'Task',
+    sourceStatus: task.workflow_status,
+    waitingParty: task.waiting_for_party ?? null,
   }
 }
 
@@ -83,6 +85,8 @@ function communicationToActionItem(communication: CommunicationItem, currentUser
     isBlocked: Boolean(communication.waiting_for_user_id),
     nextAction: communication.next_action ?? null,
     sourceLabel: communication.source_type,
+    sourceStatus: communication.action_status,
+    waitingParty: communication.waiting_for_party ?? null,
   }
 }
 

@@ -10,10 +10,10 @@ export default function DashboardPage() {
 
   return (
     <Stack spacing={3} sx={{ maxWidth: 1440, mx: 'auto' }}>
-      <FocusNowCard focus={work.focus} candidates={work.actions} loading={work.loading} error={work.error} onRetry={work.refetch} />
-      <ActionQueue items={work.actions} loading={work.loading} error={work.error} onRetry={work.refetch} />
-      <WaitingQueue items={work.waiting} loading={work.loading} error={work.error} onRetry={work.refetch} />
-      <TeamRadar attention={work.attention} projects={work.projects} loading={work.loading} error={work.error} onRetry={work.refetch} />
+      <FocusNowCard focus={work.focus} candidates={work.actions} state={work.states.focus} />
+      <ActionQueue items={work.actions} state={work.states.actions} />
+      <WaitingQueue items={work.waiting} state={work.states.waiting} />
+      <TeamRadar attention={work.attention} projects={work.projects} state={work.states.projects} />
     </Stack>
   )
 }

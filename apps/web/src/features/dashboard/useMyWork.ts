@@ -1,10 +1,11 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { communicationApi } from '@/lib/api/communicationApi'
+import { projectApi, type ProjectStats } from '@/lib/api/projectApi'
 import { useProjectsQuery } from '@/lib/hooks/useProjectsQuery'
 import { useTasksQuery } from '@/lib/hooks/useTasksQuery'
 import { useAuthStore } from '@/lib/store/authStore'
-import type { Project, Task } from '@/lib/types'
+import type { Project } from '@/lib/types'
 import { useUIStore } from '@/store/uiStore'
 import { buildActionItems, selectFocusNow, splitMyWork } from '@/features/work/selectors'
 import type { ActionItem, FocusSelection } from '@/features/work/types'
@@ -22,12 +23,25 @@ export interface DashboardProjectSummary {
   recommendedAction: string
 }
 
+export interface DashboardSectionState {
+  loading: boolean
+  error: string | null
+  warning: string | null
+  retry: () => void
+}
+
 export interface MyWorkViewModel {
   focus: FocusSelection | null
   actions: ActionItem[]
   waiting: ActionItem[]
   attention: { overdue: number; blocked: number; missingNextAction: number }
   projects: DashboardProjectSummary[]
+  states: {
+    focus: DashboardSectionState
+    actions: DashboardSectionState
+    waiting: DashboardSectionState
+    projects: DashboardSectionState
+  }
   loading: boolean
   error: string | null
   refetch: () => void
@@ -46,6 +60,18 @@ export function useMyWork(): MyWorkViewModel {
   const tasks = Array.isArray(tasksQuery.tasks) ? tasksQuery.tasks : []
   const projects = Array.isArray(projectsQuery.projects) ? projectsQuery.projects : []
   const communications = communicationsQuery.data?.items ?? []
+  const dashboardProjectIds = projects.slice(0, PROJECT_LIMIT).map((project) => project.id)
+  const projectStatsQuery = useQuery({
+    queryKey: ['projects', 'dashboard-stats', dashboardProjectIds],
+    queryFn: async () => {
+      const entries = await Promise.all(dashboardProjectIds.map(async (projectId) => {
+        const response = await projectApi.stats(projectId)
+        return [projectId, response.data] as const
+      }))
+      return Object.fromEntries(entries) as Record<string, ProjectStats>
+    },
+    enabled: dashboardProjectIds.length > 0 && !projectsQuery.error,
+  })
 
   const model = useMemo(() => {
     const now = new Date()
@@ -62,57 +88,92 @@ export function useMyWork(): MyWorkViewModel {
         blocked: activeItems.filter((item) => item.isBlocked).length,
         missingNextAction: work.actions.filter((item) => !item.nextAction).length,
       },
-      projects: buildProjectSummaries(projects, tasks, now).slice(0, PROJECT_LIMIT),
+      projects: buildProjectSummaries(projects, projectStatsQuery.data).slice(0, PROJECT_LIMIT),
     }
-  }, [communications, currentUserId, pinnedFocusEntityKey, projects, tasks])
+  }, [communications, currentUserId, pinnedFocusEntityKey, projectStatsQuery.data, projects, tasks])
 
-  const error = tasksQuery.error || projectsQuery.error || (communicationsQuery.error instanceof Error ? communicationsQuery.error.message : null)
+  const retryWork = () => {
+    void Promise.allSettled([tasksQuery.fetchTasks(), communicationsQuery.refetch()])
+  }
+  const retryProjects = () => {
+    void Promise.allSettled([projectsQuery.fetchProjects(), projectStatsQuery.refetch()])
+  }
+  const workState = combineSourceStates([
+    { loading: tasksQuery.loading, error: tasksQuery.error },
+    { loading: communicationsQuery.isLoading, error: queryError(communicationsQuery.error) },
+  ], retryWork)
+  const projectStatsError = queryError(projectStatsQuery.error)
+  const projectsState = !dashboardProjectIds.length || projectsQuery.loading || projectsQuery.error
+    ? singleSourceState(projectsQuery.loading, projectsQuery.error, retryProjects)
+    : projectStatsQuery.isLoading
+      ? singleSourceState(true, null, retryProjects)
+      : projectStatsError
+        ? { loading: false, error: null, warning: projectStatsError, retry: retryProjects }
+        : singleSourceState(false, null, retryProjects)
 
   return {
     ...model,
-    loading: tasksQuery.loading || projectsQuery.loading || communicationsQuery.isLoading,
-    error,
+    states: {
+      focus: workState,
+      actions: workState,
+      waiting: workState,
+      projects: projectsState,
+    },
+    loading: workState.loading || projectsState.loading,
+    error: workState.error || projectsState.error,
     refetch: () => {
-      void Promise.all([
-        tasksQuery.fetchTasks(),
-        projectsQuery.fetchProjects(),
-        communicationsQuery.refetch(),
-      ])
+      retryWork()
+      retryProjects()
     },
   }
 }
 
-export function buildProjectSummaries(projects: Project[], tasks: Task[], now: Date): DashboardProjectSummary[] {
+export function buildProjectSummaries(projects: Project[], statsByProject: Record<string, ProjectStats> = {}): DashboardProjectSummary[] {
   return projects.map((project) => {
-    const projectTasks = tasks.filter((task) => task.project_id === project.id)
-    const completed = projectTasks.filter(isTaskClosed).length
-    const active = projectTasks.filter((task) => !isTaskClosed(task))
-    const overdue = active.filter((task) => Boolean(task.due_date && new Date(task.due_date).getTime() < now.getTime())).length
-    const blocked = active.filter((task) => Boolean(task.is_blocked || task.workflow_status === 'blocked')).length
-    const missingNextAction = active.filter((task) => !task.next_action && !task.next_action_description).length
-    const total = project.task_count ?? projectTasks.length
-    const completedCount = project.completed_count ?? completed
-    const progress = total ? Math.min(100, Math.round((completedCount / total) * 100)) : 0
+    const stats = statsByProject[project.id]
+    const progress = stats?.progress ?? 0
 
-    if (project.is_overdue || overdue >= 3 || blocked >= 3) {
-      return summary(project, progress, 'Off track', `${overdue} просрочено, ${blocked} заблокировано`, 'Пересобрать план и снять критические блокировки')
+    if (project.is_overdue) {
+      return summary(project, progress, 'Off track', 'Срок проекта просрочен', 'Пересобрать план и согласовать новый срок')
     }
-    if (overdue || blocked) {
-      return summary(project, progress, 'At risk', `${overdue} просрочено, ${blocked} заблокировано`, 'Разобрать риски и назначить ответственных')
+    if (stats && stats.overdue_count >= 3) {
+      return summary(project, progress, 'Off track', `${stats.overdue_count} просроченных задач по полной сводке`, 'Пересобрать план и снять критические просрочки')
     }
-    if (missingNextAction) {
-      return summary(project, progress, 'Needs attention', `${missingNextAction} задач без следующего действия`, 'Уточнить следующие действия по активным задачам')
+    if (stats?.overdue_count) {
+      return summary(project, progress, 'At risk', `${stats.overdue_count} просроченных задач по полной сводке`, 'Разобрать просрочки и назначить ответственных')
     }
-    return summary(project, progress, 'On track', 'Критических отклонений нет', 'Продолжать выполнение по плану')
+    if (project.status === 'on_hold') {
+      return summary(project, progress, 'At risk', 'Проект приостановлен', 'Определить условие и владельца возобновления')
+    }
+    if (project.status === 'planning') {
+      return summary(project, progress, 'Needs attention', 'Проект находится на этапе планирования', 'Зафиксировать план, сроки и ответственных')
+    }
+    return summary(project, progress, 'On track', 'Критических отклонений по сводке проекта нет', 'Продолжать выполнение по плану')
   })
+}
+
+function combineSourceStates(sources: Array<{ loading: boolean; error: string | null }>, retry: () => void): DashboardSectionState {
+  const errors = sources.map((source) => source.error).filter((error): error is string => Boolean(error))
+  const hasSuccessfulSource = sources.some((source) => !source.loading && !source.error)
+
+  return {
+    loading: !hasSuccessfulSource && !errors.length && sources.some((source) => source.loading),
+    error: !hasSuccessfulSource && errors.length ? errors.join('. ') : null,
+    warning: hasSuccessfulSource && errors.length ? errors.join('. ') : null,
+    retry,
+  }
+}
+
+function singleSourceState(loading: boolean, error: string | null, retry: () => void): DashboardSectionState {
+  return { loading, error, warning: null, retry }
+}
+
+function queryError(error: unknown) {
+  return error instanceof Error ? error.message : error ? String(error) : null
 }
 
 function summary(project: Project, progress: number, healthLabel: DashboardProjectSummary['healthLabel'], reason: string, recommendedAction: string): DashboardProjectSummary {
   return { projectId: project.id, name: project.name, progress, healthLabel, reason, recommendedAction }
-}
-
-function isTaskClosed(task: Task) {
-  return task.status === 'done' || task.status === 'archived' || task.workflow_status === 'done' || task.workflow_status === 'cancelled'
 }
 
 function isOverdue(item: ActionItem, now: Date) {

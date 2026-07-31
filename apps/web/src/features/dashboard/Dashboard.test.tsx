@@ -31,6 +31,8 @@ function action(entityKey: `task:${string}`, title: string) {
     isBlocked: false,
     nextAction: 'Выполнить следующий шаг',
     sourceLabel: 'Task',
+    sourceStatus: 'ready',
+    waitingParty: null,
   }
 }
 
@@ -56,6 +58,12 @@ function renderDashboardWithFixtures() {
       reason: 'Работа идёт по плану',
       recommendedAction: 'Продолжать выполнение',
     })),
+    states: {
+      focus: { loading: false, error: null, warning: null, retry: vi.fn() },
+      actions: { loading: false, error: null, warning: null, retry: vi.fn() },
+      waiting: { loading: false, error: null, warning: null, retry: vi.fn() },
+      projects: { loading: false, error: null, warning: null, retry: vi.fn() },
+    },
     loading: false,
     error: null,
     refetch: vi.fn(),
