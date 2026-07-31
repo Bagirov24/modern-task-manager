@@ -105,7 +105,7 @@ const getDesignTokens = (mode: PaletteMode) => ({
         root: {
           textTransform: 'none' as const,
           fontWeight: 500,
-          borderRadius: 6,
+          borderRadius: 8,
           padding: '9px 18px',
           fontSize: '0.875rem',
         },
@@ -146,11 +146,15 @@ const getDesignTokens = (mode: PaletteMode) => ({
       },
     },
     MuiChip: {
+      defaultProps: {
+        size: 'small' as const,
+      },
       styleOverrides: {
         root: {
           borderRadius: 8,
           fontWeight: 500,
           fontSize: '0.75rem',
+          minHeight: 28,
         },
       },
     },
@@ -174,7 +178,7 @@ const getDesignTokens = (mode: PaletteMode) => ({
     MuiDialog: {
       styleOverrides: {
         paper: {
-          borderRadius: 12,
+          borderRadius: 8,
         },
       },
     },
@@ -188,9 +192,10 @@ const getDesignTokens = (mode: PaletteMode) => ({
     MuiListItemButton: {
       styleOverrides: {
         root: {
-          borderRadius: 12,
+          borderRadius: 8,
           margin: '2px 12px',
           padding: '8px 16px',
+          minHeight: 48,
           '&.Mui-selected': {
             fontWeight: 600,
           },
