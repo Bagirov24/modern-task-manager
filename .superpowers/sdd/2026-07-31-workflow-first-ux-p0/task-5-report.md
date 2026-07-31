@@ -63,3 +63,15 @@ Result: 4/4 tests failed against production because accessible view tabs, remova
 - `npm run build`: TypeScript and Vite production build passed.
 - Vite continues to report the pre-existing chunk-size warning.
 
+
+## Second Review Fixes
+
+- Added shared `matchesTaskPreset` logic under `features/tasks` and kept the existing TasksPage export backward compatible.
+- Calendar now reads `project_id` and `preset` from the URL, applies both to displayed tasks, and uses the authenticated user for personal action presets.
+- Project chips now update only `project_id` while preserving all other URL parameters.
+
+### Final Verification
+
+- Focused Calendar/workspace/preset tests: 15 passed.
+- Full frontend suite: 15 files, 71 tests passed.
+- Production build: passed; the existing chunk-size warning remains.
