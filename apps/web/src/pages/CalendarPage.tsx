@@ -33,7 +33,9 @@ import { ru } from 'date-fns/locale'
 import { useTasks } from '@/lib/hooks/useTasks'
 import { useProjects } from '@/lib/hooks/useProjects'
 import { useUIStore } from '@/store/uiStore'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useAuthStore } from '@/lib/store/authStore'
+import { matchesTaskPreset } from '@/features/tasks/taskPresetFilters'
 import TaskDetailDialog from '@/components/tasks/TaskDetailDialog'
 import type { Task, Project } from '@/lib/types'
 
@@ -635,11 +637,14 @@ function GanttLiteView({
 export default function CalendarPage() {
   const theme = useTheme()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const openModal = useUIStore((s) => s.openModal)
+  const currentUserId = useAuthStore((state) => state.user?.id ?? '')
 
   const [viewMode, setViewMode] = useState<ViewMode>('month')
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [projectFilter, setProjectFilter] = useState<string>('all')
+  const projectFilter = searchParams.get('project_id') ?? 'all'
+  const preset = searchParams.get('preset')
 
   // Task detail dialog
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
@@ -666,9 +671,16 @@ export default function CalendarPage() {
     return allTasks.filter((t) => {
       if (!t.due_date && !t.start_date) return false // no date = not on calendar
       if (projectFilter !== 'all' && t.project_id !== projectFilter) return false
-      return true
+      return matchesTaskPreset(t, preset, currentUserId, new Date())
     })
-  }, [allTasks, projectFilter])
+  }, [allTasks, projectFilter, preset, currentUserId])
+
+  const selectProject = (projectId: string) => {
+    const next = new URLSearchParams(searchParams)
+    if (projectId === 'all') next.delete('project_id')
+    else next.set('project_id', projectId)
+    setSearchParams(next, { replace: true })
+  }
 
   // Overdue tasks (non-done, due_date in past)
   const overdueTasks = useMemo(
@@ -775,7 +787,7 @@ export default function CalendarPage() {
         <Chip
           label="Все проекты"
           size="small"
-          onClick={() => setProjectFilter('all')}
+          onClick={() => selectProject('all')}
           color={projectFilter === 'all' ? 'primary' : 'default'}
         />
         {projects.map((p) => (
@@ -783,7 +795,7 @@ export default function CalendarPage() {
             key={p.id}
             label={p.name}
             size="small"
-            onClick={() => setProjectFilter(p.id)}
+            onClick={() => selectProject(p.id)}
             color={projectFilter === p.id ? 'primary' : 'default'}
             sx={{
               '&.MuiChip-colorDefault': {
