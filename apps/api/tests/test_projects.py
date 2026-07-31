@@ -106,6 +106,14 @@ async def test_project_stats_include_complete_blocked_and_missing_action_counts(
     await make_task(client, headers, title="Null action", project_id=project["id"])
     await make_task(client, headers, title="Empty action", project_id=project["id"], next_action="")
     await make_task(client, headers, title="Whitespace action", project_id=project["id"], next_action="   ")
+    await make_task(client, headers, title="Tab-only action", project_id=project["id"], next_action="\t\t")
+    await make_task(
+        client,
+        headers,
+        title="Mixed whitespace action",
+        project_id=project["id"],
+        next_action="\r\n \t",
+    )
     await make_task(client, headers, title="Nonempty action", project_id=project["id"], next_action="Ship result")
     await make_task(
         client,
@@ -119,9 +127,9 @@ async def test_project_stats_include_complete_blocked_and_missing_action_counts(
     resp = await client.get(f"/api/v1/projects/{project['id']}/stats", headers=headers)
     assert resp.status_code == 200
     body = resp.json()
-    assert body["total_tasks"] == 6
+    assert body["total_tasks"] == 8
     assert body["blocked_count"] == 1
-    assert body["missing_next_action_count"] == 3
+    assert body["missing_next_action_count"] == 5
 
 
 async def test_project_isolation(client: AsyncClient):

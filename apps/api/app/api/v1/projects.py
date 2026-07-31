@@ -56,6 +56,7 @@ _SORT_COLS = {
     "created_at": Project.created_at,
     "updated_at": Project.updated_at,
 }
+_POSTGRES_BLANK_PATTERN = r"^[[:space:]]*$"
 
 
 # ---------------------------------------------------------------------------
@@ -662,9 +663,12 @@ async def get_project_stats(
                 (Task.is_blocked.is_(True)) | (Task.workflow_status == "blocked")
             ).label("blocked_count"),
             func.count(Task.id).filter(
-                Task.next_action.is_(None) | (func.btrim(Task.next_action) == ""),
-                Task.next_action_description.is_(None) | (func.btrim(Task.next_action_description) == ""),
-                Task.follow_up_action_description.is_(None) | (func.btrim(Task.follow_up_action_description) == ""),
+                Task.next_action.is_(None)
+                | Task.next_action.regexp_match(_POSTGRES_BLANK_PATTERN),
+                Task.next_action_description.is_(None)
+                | Task.next_action_description.regexp_match(_POSTGRES_BLANK_PATTERN),
+                Task.follow_up_action_description.is_(None)
+                | Task.follow_up_action_description.regexp_match(_POSTGRES_BLANK_PATTERN),
             ).label("missing_next_action_count"),
         ).where(
             Task.project_id == project_id,
