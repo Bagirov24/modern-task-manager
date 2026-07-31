@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.project_tag import ProjectTag
-from app.models.task import Label  # Label живёт в task.py или отдельной модели
+from app.models.label import Label
 from app.models.user import User
 from app.schemas.tag_search import TagSearchResponse
 from app.schemas.unified_tag import TagScope, UnifiedTagResponse

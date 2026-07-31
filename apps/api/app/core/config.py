@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     # OpenAI
     OPENAI_API_KEY: str = ""
 
+    # Binary document attachments live outside PostgreSQL.
+    OBJECT_STORAGE_DIR: str = "/app/.data/object-storage"
+    ATTACHMENT_MAX_BYTES: int = 20 * 1024 * 1024
+
     # CORS
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
 

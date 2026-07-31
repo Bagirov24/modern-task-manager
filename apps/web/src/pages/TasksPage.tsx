@@ -16,14 +16,20 @@ import {
   Search as SearchIcon, Add as AddIcon, Refresh as RefreshIcon,
   ViewList as ListIcon, ViewKanban as KanbanIcon,
   Timeline as TimelineIcon,
+  CalendarMonth as CalendarIcon,
 } from '@mui/icons-material'
 import { useTasksQuery } from '@/lib/hooks/useTasksQuery'
 import { useUIStore } from '@/store/uiStore'
+import { useTaskStore } from '@/store/taskStore'
 
 export default function TasksPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedView = searchParams.get('view')
-  const initialView = requestedView === 'list' || requestedView === 'timeline' ? requestedView : 'kanban'
+  const storedView = useTaskStore((state) => state.viewMode)
+  const rememberView = useTaskStore((state) => state.setViewMode)
+  const initialView = requestedView === 'list' || requestedView === 'timeline' || requestedView === 'kanban'
+    ? requestedView
+    : storedView === 'calendar' ? 'list' : storedView
   const requestedStatus = searchParams.get('status')
   const initialStatus = requestedStatus === 'todo' || requestedStatus === 'in_progress' || requestedStatus === 'done' ? requestedStatus : 'all'
   const [statusFilter, setStatusFilter] = useState<string>(initialStatus)
@@ -54,8 +60,8 @@ export default function TasksPage() {
     const nextStatus = searchParams.get('status')
     setStatusFilter(nextStatus === 'todo' || nextStatus === 'in_progress' || nextStatus === 'done' ? nextStatus : 'all')
     const nextView = searchParams.get('view')
-    if (nextView === 'list' || nextView === 'kanban' || nextView === 'timeline') setViewMode(nextView)
-  }, [searchParams])
+    if (nextView === 'list' || nextView === 'kanban' || nextView === 'timeline') { setViewMode(nextView); rememberView(nextView) }
+  }, [searchParams, rememberView])
 
   useEffect(() => {
     if (!modalState.isOpen) return
@@ -83,6 +89,23 @@ export default function TasksPage() {
     }
   }, [modalState, closeModal, tasks])
 
+  useEffect(() => {
+    const taskId = searchParams.get('task')
+    if (!taskId) return
+    const task = tasks.find((item) => item.id === taskId)
+    if (task) {
+      setDialogTask(task)
+      setDialogMode('view')
+      setDialogOpen(true)
+    }
+  }, [searchParams, tasks])
+
+  const closeTaskPanel = () => {
+    setDialogOpen(false)
+    const next = new URLSearchParams(searchParams)
+    next.delete('task')
+    setSearchParams(next, { replace: true })
+  }
   const selectStatus = (status: string) => {
     setStatusFilter(status)
     const next = new URLSearchParams(searchParams)
@@ -90,11 +113,24 @@ export default function TasksPage() {
     else next.set('status', status)
     setSearchParams(next, { replace: true })
   }
+  const preset = searchParams.get('preset')
   const filteredTasks = useMemo(() => tasks.filter((t: any) => {
     if (statusFilter !== 'all' && t.status !== statusFilter) return false
+    const now = new Date()
+    const today = now.toISOString().slice(0, 10)
+    const due = t.due_date?.slice(0, 10)
+    const weekEnd = new Date(now.getTime() + 7 * 86400000)
+    if (preset === 'inbox' && t.workflow_status !== 'inbox' && t.project_id) return false
+    if (preset === 'today' && due !== today) return false
+    if (preset === 'overdue' && (!t.due_date || new Date(t.due_date) >= now || t.status === 'done')) return false
+    if (preset === 'blocked' && !t.is_blocked) return false
+    if (preset === 'unassigned' && t.assignee_id) return false
+    if (preset === 'needs-planning' && (!['urgent', 'high'].includes(t.priority) || (t.due_date && t.is_planning_complete))) return false
+    if (preset === 'missing-documentation' && (t.documentation_count || 0) > 0) return false
+    if (preset === 'due-this-week' && (!t.due_date || new Date(t.due_date) < now || new Date(t.due_date) > weekEnd)) return false
+    if (preset === 'recently-completed' && (t.status !== 'done' || !t.completed_at || now.getTime() - new Date(t.completed_at).getTime() > 7 * 86400000)) return false
     return true
-  }), [tasks, statusFilter])
-
+  }), [tasks, statusFilter, preset])
   const stats = useMemo(() => ({
     total: tasks.length,
     todo: tasks.filter((t: any) => t.status === 'todo').length,
@@ -138,7 +174,9 @@ export default function TasksPage() {
             <Tooltip title="Обновить"><IconButton onClick={() => fetchTasks()}><RefreshIcon /></IconButton></Tooltip>
             <ToggleButtonGroup value={viewMode} exclusive onChange={(_, v) => {
               if (!v) return
+              if (v === 'calendar') { rememberView('calendar'); window.location.assign('/calendar'); return }
               setViewMode(v)
+              rememberView(v)
               const next = new URLSearchParams(searchParams)
               next.set('view', v)
               setSearchParams(next, { replace: true })
@@ -146,6 +184,7 @@ export default function TasksPage() {
               <ToggleButton value="list"><Tooltip title="Список"><ListIcon /></Tooltip></ToggleButton>
               <ToggleButton value="kanban"><Tooltip title="Канбан"><KanbanIcon /></Tooltip></ToggleButton>
               <ToggleButton value="timeline"><Tooltip title="Timeline"><TimelineIcon /></Tooltip></ToggleButton>
+              <ToggleButton value="calendar"><Tooltip title="Календарь"><CalendarIcon /></Tooltip></ToggleButton>
             </ToggleButtonGroup>
             <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate}>Задача</Button>
           </Stack>
@@ -164,6 +203,29 @@ export default function TasksPage() {
                 {loading ? <Skeleton width={48} height={42} /> : <Typography variant="h5" fontWeight={800}>{value}</Typography>}
               </CardContent>
             </Card>
+          ))}
+        </Stack>
+
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap aria-label="Сохранённые представления">
+          {[
+            ['my-work', 'My Work'], ['today', 'Today'], ['overdue', 'Overdue'],
+            ['blocked', 'Blocked'], ['unassigned', 'Unassigned'], ['needs-planning', 'Needs Planning'],
+            ['missing-documentation', 'Missing Documentation'], ['due-this-week', 'Due This Week'],
+            ['recently-completed', 'Recently Completed'],
+          ].map(([value, label]) => (
+            <Chip
+              key={value}
+              size="small"
+              variant={preset === value ? 'filled' : 'outlined'}
+              color={preset === value ? 'primary' : 'default'}
+              label={label}
+              onClick={() => {
+                const next = new URLSearchParams(searchParams)
+                if (value === 'my-work') next.delete('preset')
+                else next.set('preset', value)
+                setSearchParams(next, { replace: true })
+              }}
+            />
           ))}
         </Stack>
 
@@ -200,7 +262,7 @@ export default function TasksPage() {
         )}
       </Stack>
 
-      <TaskDetailDialog open={dialogOpen} onClose={() => setDialogOpen(false)} task={dialogTask} mode={dialogMode} initialValues={dialogInitialValues} />
+      <TaskDetailDialog open={dialogOpen} onClose={closeTaskPanel} task={dialogTask} mode={dialogMode} initialValues={dialogInitialValues} />
 
       <Dialog open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)}>
         <DialogTitle>Удалить задачу?</DialogTitle>

@@ -37,7 +37,6 @@ router = APIRouter()
 _STATUS_COLOR = {
     TaskStatus.TODO:        "#8892aa",
     TaskStatus.IN_PROGRESS: "#38bdf8",
-    TaskStatus.IN_REVIEW:   "#a78bfa",
     TaskStatus.DONE:        "#34d399",
     TaskStatus.ARCHIVED:    "#475569",
 }

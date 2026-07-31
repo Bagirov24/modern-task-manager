@@ -2,14 +2,18 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from app.api.v1 import auth, tasks, projects, comments, labels, notifications, subtasks
+from app.api.v1 import (
+    auth, comments, communication_items, documents, labels, manager_status, notifications, project_tags,
+    project_templates, projects, search, subtasks, tags, task_panel, tasks, test_data, workspace_links,
+)
 from app.api import health
 from app.websocket.manager import setup_websocket
 from app.core.database import engine
-from app.models import user, task, project, comment, label, notification  # noqa: F401
+from app import models  # noqa: F401
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.middleware.correlation import CorrelationIDMiddleware
 from app.core.config import settings
@@ -44,6 +48,22 @@ app = FastAPI(
     # Set to None in production via an env-conditioned override if needed.
 )
 
+
+
+@app.exception_handler(RequestValidationError)
+async def safe_validation_error_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """Return validation details without echoing submitted values."""
+    details = [
+        {
+            "type": error.get("type", "value_error"),
+            "loc": list(error.get("loc", ())),
+            "msg": error.get("msg", "Invalid input"),
+        }
+        for error in exc.errors()
+    ]
+    return JSONResponse(status_code=422, content={"detail": details})
 
 # ---------------------------------------------------------------------------
 # Global exception handler
@@ -98,6 +118,16 @@ app.include_router(projects.router,      prefix="/api/v1/projects",      tags=["
 app.include_router(comments.router,      prefix="/api/v1/comments",      tags=["Comments"])
 app.include_router(labels.router,        prefix="/api/v1/labels",        tags=["Labels"])
 app.include_router(notifications.router, prefix="/api/v1/notifications", tags=["Notifications"])
+app.include_router(task_panel.router,     prefix="/api/v1/tasks",         tags=["Task panel"])
+app.include_router(project_templates.router, prefix="/api/v1/project-templates", tags=["Project templates"])
+app.include_router(project_tags.router,  prefix="/api/v1/project-tags",  tags=["Project tags"])
+app.include_router(tags.router,          prefix="/api/v1/tags",          tags=["Tags"])
+app.include_router(documents.router,     prefix="/api/v1/documents",     tags=["Documents"])
+app.include_router(test_data.router,     prefix="/api/v1/test-data",     tags=["Test Data Vault"])
+app.include_router(search.router,        prefix="/api/v1/search",        tags=["Search"])
+app.include_router(workspace_links.router, prefix="/api/v1/workspace-links", tags=["Workspace links"])
+app.include_router(communication_items.router, prefix="/api/v1/communication-items", tags=["Action Inbox"])
+app.include_router(manager_status.router, prefix="/api/v1/status", tags=["Manager status"])
 app.include_router(health.router,        tags=["Health"])
 
 # WebSocket

@@ -15,7 +15,7 @@ import type { Task, Label } from '../lib/types'
 
 export type { Task }
 
-export type ViewMode = 'list' | 'board' | 'timeline' | 'calendar'
+export type ViewMode = 'list' | 'kanban' | 'timeline' | 'calendar'
 export type SortBy = 'created_at' | 'due_date' | 'priority' | 'position'
 export type SortOrder = 'asc' | 'desc'
 
@@ -61,7 +61,7 @@ export const useTaskStore = create<TaskState>()(
         filter: {},
         sortBy: 'position',
         sortOrder: 'asc',
-        viewMode: 'board',
+        viewMode: 'list',
 
         setTasks: (tasks) => set({ tasks }),
 

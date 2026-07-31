@@ -1,5 +1,6 @@
 import { useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useUIStore } from '@/store/uiStore'
 
 interface Shortcut {
   key: string
@@ -44,8 +45,12 @@ export function useKeyboardShortcuts(shortcuts: Shortcut[]) {
 
 export function useGlobalShortcuts() {
   const navigate = useNavigate()
+  const openModal = useUIStore((state) => state.openModal)
+  const setCommandPaletteOpen = useUIStore((state) => state.setCommandPaletteOpen)
 
   useKeyboardShortcuts([
+    { key: 'k', ctrl: true, action: () => setCommandPaletteOpen(true), description: 'Быстрый поиск' },
+    { key: 'c', action: () => openModal('task.quickCreate'), description: 'Создать задачу' },
     { key: 't', ctrl: true, shift: true, action: () => navigate('/tasks'), description: 'Перейти к задачам' },
     { key: 'p', ctrl: true, shift: true, action: () => navigate('/projects'), description: 'Перейти к проектам' },
     { key: 's', ctrl: true, shift: true, action: () => navigate('/settings'), description: 'Настройки' },

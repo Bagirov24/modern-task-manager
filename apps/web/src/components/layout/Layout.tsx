@@ -8,6 +8,7 @@ import Sidebar from './Sidebar'
 import Header from './Header'
 import { useGlobalShortcuts } from '@/lib/hooks/useKeyboardShortcuts'
 import { useUIStore } from '@/store/uiStore'
+import QuickTaskDialog from '@/components/tasks/QuickTaskDialog'
 
 export const DRAWER_WIDTH = 280
 export const COLLAPSED_WIDTH = 80
@@ -111,6 +112,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           </Fab>
         </Tooltip>
       </Box>
+      <QuickTaskDialog />
     </Box>
   )
 }

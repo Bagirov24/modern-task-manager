@@ -35,11 +35,10 @@ import {
   AlternateEmail,
   DoneAll,
   Menu as MenuIcon,
-  CalendarViewWeek as TimelineIcon,
 } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/lib/store/authStore'
-import { useThemeStore } from '@/lib/store/themeStore'
+
 import { useNotifications } from '@/lib/hooks/useNotifications'
 import { useUIStore } from '@/store/uiStore'
 import type { AppNotification } from '@/lib/types'
@@ -60,7 +59,8 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
-  const { mode, toggleTheme } = useThemeStore()
+  const mode = useUIStore((state) => state.mode)
+  const toggleTheme = useUIStore((state) => state.toggleTheme)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [notifAnchor, setNotifAnchor] = useState<null | HTMLElement>(null)
   const [search, setSearch] = useState('')
@@ -155,7 +155,6 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
         <Box sx={{ flex: 1 }} />
 
         <Stack direction="row" spacing={1} alignItems="center">
-          <Chip icon={<TimelineIcon />} label="Timeline" variant="outlined" onClick={() => navigate('/tasks?view=timeline')} sx={{ display: { xs: 'none', lg: 'inline-flex' } }} />
           <Tooltip title={mode === 'dark' ? 'Светлая тема' : 'Тёмная тема'}>
             <IconButton onClick={toggleTheme} sx={{ color: 'text.secondary' }}>
               {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}

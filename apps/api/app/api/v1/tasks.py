@@ -29,6 +29,41 @@ from app.schemas.task import TaskCreate, TaskListResponse, TaskResponse, TaskUpd
 
 router = APIRouter()
 
+_WORKFLOW_TO_LEGACY = {
+    "inbox": TaskStatus.TODO,
+    "backlog": TaskStatus.TODO,
+    "clarification_needed": TaskStatus.TODO,
+    "planned": TaskStatus.TODO,
+    "ready": TaskStatus.TODO,
+    "in_progress": TaskStatus.IN_PROGRESS,
+    "waiting_for_internal": TaskStatus.IN_PROGRESS,
+    "waiting_for_client": TaskStatus.IN_PROGRESS,
+    "review": TaskStatus.IN_PROGRESS,
+    "ready_to_send": TaskStatus.IN_PROGRESS,
+    "done": TaskStatus.DONE,
+    "cancelled": TaskStatus.ARCHIVED,
+    "blocked": TaskStatus.IN_PROGRESS,
+}
+_LEGACY_TO_WORKFLOW = {
+    TaskStatus.TODO: "backlog",
+    TaskStatus.IN_PROGRESS: "in_progress",
+    TaskStatus.DONE: "done",
+    TaskStatus.ARCHIVED: "cancelled",
+}
+
+
+def _ensure_ready(values: dict) -> None:
+    if values.get("workflow_status") != "ready":
+        return
+    required = ("context", "expected_result", "acceptance_criteria", "assignee_id", "project_id")
+    missing = [field for field in required if not values.get(field)]
+    if missing:
+        raise HTTPException(status_code=422, detail={
+            "code": "incomplete_planning",
+            "message": "Неполная постановка",
+            "missing_fields": missing,
+        })
+
 
 def _base_query(user_id):
     """Base select with eager-loaded relations to prevent N+1 queries.
@@ -89,10 +124,21 @@ async def create_task(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    task = Task(
-        **task_data.model_dump(exclude={"label_ids"}),
-        assignee_id=current_user.id,
-    )
+    values = task_data.model_dump(exclude={"label_ids"})
+    assignee_id = values.pop("assignee_id") or current_user.id
+    if assignee_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Assigning another user is not available in personal scope")
+    values["assignee_id"] = assignee_id
+    values["manager_id"] = values.get("manager_id") or current_user.id
+    values["final_due_at"] = values.get("final_due_at") or values.get("due_date")
+    values["next_action_description"] = values.get("next_action_description") or values.get("next_action")
+    values["next_action"] = values.get("next_action") or values.get("next_action_description")
+    values["next_action_owner_id"] = values.get("next_action_owner_id") or current_user.id
+    if values["workflow_status"] == "blocked":
+        values["is_blocked"] = True
+    values["status"] = _WORKFLOW_TO_LEGACY.get(values["workflow_status"], values["status"])
+    _ensure_ready(values)
+    task = Task(**values)
     db.add(task)
     await db.commit()
     await db.refresh(task)
@@ -132,8 +178,31 @@ async def update_task(
         raise HTTPException(status_code=404, detail="Task not found")
 
     update_data = task_data.model_dump(exclude_unset=True)
+    if "workflow_status" in update_data:
+        update_data["status"] = _WORKFLOW_TO_LEGACY[update_data["workflow_status"]]
+        if update_data["workflow_status"] == "blocked":
+            update_data["is_blocked"] = True
+    elif "status" in update_data:
+        update_data["workflow_status"] = _LEGACY_TO_WORKFLOW[update_data["status"]]
+    prospective = {
+        field: update_data.get(field, getattr(task, field, None))
+        for field in ("workflow_status", "context", "expected_result", "acceptance_criteria", "assignee_id", "project_id")
+    }
+    _ensure_ready(prospective)
+    if update_data.get("is_blocked") and not update_data.get("blocked_reason", task.blocked_reason):
+        raise HTTPException(status_code=422, detail="Blocked tasks require a reason")
+    if update_data.get("is_blocked") is False:
+        update_data["blocked_reason"] = None
+        update_data["blocked_by_task_id"] = None
     if "status" in update_data and update_data["status"] == TaskStatus.DONE:
         update_data["completed_at"] = datetime.now(timezone.utc)
+    if "due_date" in update_data and "final_due_at" not in update_data:
+        update_data["final_due_at"] = update_data["due_date"]
+    if "next_action" in update_data and "next_action_description" not in update_data:
+        update_data["next_action_description"] = update_data["next_action"]
+    if "next_action_description" in update_data and "next_action" not in update_data:
+        update_data["next_action"] = update_data["next_action_description"]
+    update_data["last_activity_at"] = datetime.now(timezone.utc)
 
     for field, value in update_data.items():
         setattr(task, field, value)

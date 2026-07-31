@@ -12,6 +12,10 @@ import ProjectDetailPage from '@/pages/ProjectDetailPage'
 import CalendarPage from '@/pages/CalendarPage'
 import AnalyticsPage from '@/pages/AnalyticsPage'
 import SettingsPage from '@/pages/SettingsPage'
+import DocumentsPage from '@/pages/DocumentsPage'
+import TestDataVaultPage from '@/pages/TestDataVaultPage'
+import WorkspaceLinksPage from '@/pages/WorkspaceLinksPage'
+import ActionInboxPage from '@/pages/ActionInboxPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 import { Box, CircularProgress } from '@mui/material'
 
@@ -74,9 +78,15 @@ export default function App() {
       <Route element={<AuthGuard />}>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/tasks" element={<TasksPage />} />
+        <Route path="/inbox" element={<ActionInboxPage />} />
+        <Route path="/boards" element={<Navigate to="/tasks?view=kanban" replace />} />
         <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
         <Route path="/calendar" element={<CalendarPage />} />
+        <Route path="/documents" element={<DocumentsPage />} />
+        <Route path="/knowledge" element={<DocumentsPage />} />
+        <Route path="/test-data" element={<TestDataVaultPage />} />
+        <Route path="/links" element={<WorkspaceLinksPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>

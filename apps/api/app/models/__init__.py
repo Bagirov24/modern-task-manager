@@ -4,3 +4,11 @@ from app.models.project import Project as Project
 from app.models.comment import Comment as Comment
 from app.models.label import Label as Label
 from app.models.notification import Notification as Notification
+from app.models.project_activity import ProjectActivity as ProjectActivity
+from app.models.project_member import ProjectMember as ProjectMember
+from app.models.project_tag import ProjectTag as ProjectTag
+from app.models.project_template import ProjectTemplate as ProjectTemplate
+from app.models.document import Document as Document
+from app.models.test_data import TestDataSet as TestDataSet
+from app.models.workspace_link import WorkspaceLink as WorkspaceLink
+from app.models.communication_item import CommunicationItem as CommunicationItem

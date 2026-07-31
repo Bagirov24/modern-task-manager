@@ -18,7 +18,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import (
-    Column, DateTime, Enum, ForeignKey, Index, Integer,
+    Boolean, Column, DateTime, Enum, ForeignKey, Index, Integer,
     String, Text,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -74,6 +74,31 @@ class Task(Base):
     start_date = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
     position = Column(Integer, default=0, nullable=False)
+    workflow_status = Column(String(30), default="backlog", nullable=False, server_default="backlog")
+    is_blocked = Column(Boolean, default=False, nullable=False, server_default="false")
+    blocked_reason = Column(Text, nullable=True)
+    blocked_by_task_id = Column(UUID(as_uuid=True), ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True)
+    context = Column(Text, nullable=True)
+    expected_result = Column(Text, nullable=True)
+    acceptance_criteria = Column(Text, nullable=True)
+    next_action = Column(Text, nullable=True)
+    estimate_minutes = Column(Integer, nullable=True)
+    milestone = Column(String(255), nullable=True)
+    sprint = Column(String(255), nullable=True)
+    task_type = Column(String(40), nullable=False, default="task", server_default="task")
+    manager_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    final_due_at = Column(DateTime(timezone=True), nullable=True)
+    response_due_at = Column(DateTime(timezone=True), nullable=True)
+    next_action_owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    next_action_description = Column(Text, nullable=True)
+    next_action_due_at = Column(DateTime(timezone=True), nullable=True)
+    waiting_for_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    waiting_for_party = Column(String(20), nullable=False, default="none", server_default="none")
+    follow_up_action_description = Column(Text, nullable=True)
+    risk_level = Column(String(20), nullable=False, default="low", server_default="low")
+    last_activity_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    last_external_communication_at = Column(DateTime(timezone=True), nullable=True)
+    communication_channel = Column(String(30), nullable=True)
 
     project_id = Column(
         UUID(as_uuid=True),
@@ -96,8 +121,19 @@ class Task(Base):
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False
     )
 
-    assignee = relationship("User", back_populates="tasks")
+    assignee = relationship("User", back_populates="tasks", foreign_keys=[assignee_id])
     project = relationship("Project", back_populates="tasks")
     comments = relationship("Comment", back_populates="task", cascade="all, delete-orphan")
-    subtasks = relationship("Task", backref="parent", remote_side=[id])
+    parent = relationship("Task", remote_side=[id], back_populates="subtasks", foreign_keys=[parent_id])
+    subtasks = relationship("Task", back_populates="parent", foreign_keys=[parent_id])
+    blocked_by_task = relationship("Task", remote_side=[id], foreign_keys=[blocked_by_task_id])
     labels = relationship("Label", secondary="task_labels", back_populates="tasks")
+    workspace_links = relationship(
+        "WorkspaceLink",
+        secondary="task_workspace_links",
+        back_populates="tasks",
+        lazy="selectin",
+    )
+    manager = relationship("User", foreign_keys=[manager_id])
+    next_action_owner = relationship("User", foreign_keys=[next_action_owner_id])
+    waiting_for_user = relationship("User", foreign_keys=[waiting_for_user_id])

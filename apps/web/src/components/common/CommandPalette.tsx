@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,10 @@ import {
   Settings as SettingsIcon,
   Logout as LogoutIcon,
   ChevronRight as ArrowIcon,
+  ArticleOutlined as DocumentIcon,
+  DatasetOutlined as DataIcon,
+  ChatBubbleOutline as CommentIcon,
+  AttachFileOutlined as AttachmentIcon,
 } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { useUIStore } from '@/store/uiStore'
@@ -33,8 +38,9 @@ import { useTaskStore } from '@/store/taskStore'
 import { useProjectStore } from '@/store/projectStore'
 import { useAuthStore } from '@/lib/store/authStore'
 import { disconnectSocket } from '@/lib/socket/socketClient'
+import { searchApi } from '@/lib/api/searchApi'
 
-type CommandGroup = 'navigation' | 'tasks' | 'projects' | 'actions'
+type CommandGroup = 'navigation' | 'search' | 'tasks' | 'projects' | 'actions'
 
 interface Command {
   id: string
@@ -47,13 +53,14 @@ interface Command {
 }
 
 const groupLabels: Record<CommandGroup, string> = {
+  search: 'Везде',
   navigation: 'Навигация',
   tasks: 'Задачи',
   projects: 'Проекты',
   actions: 'Действия',
 }
 
-const groupOrder: CommandGroup[] = ['navigation', 'actions', 'tasks', 'projects']
+const groupOrder: CommandGroup[] = ['search', 'navigation', 'actions', 'tasks', 'projects']
 
 export default function CommandPalette() {
   const navigate = useNavigate()
@@ -112,7 +119,35 @@ export default function CommandPalette() {
     action: () => navigate(`/projects/${p.id}`),
   })), [projects, navigate])
 
-  const allCommands = useMemo(() => [...staticCommands, ...taskCommands, ...projectCommands], [staticCommands, taskCommands, projectCommands])
+  const remoteSearch = useQuery({
+    queryKey: ['global-search', query],
+    queryFn: async () => (await searchApi.search(query.trim())).data.results,
+    enabled: open && query.trim().length >= 2,
+    staleTime: 15_000,
+  })
+
+  const resultIcon = (type: string) => {
+    if (type === 'document') return <DocumentIcon fontSize="small" />
+    if (type === 'test_data') return <DataIcon fontSize="small" />
+    if (type === 'comment') return <CommentIcon fontSize="small" />
+    if (type === 'attachment' || type === 'link') return <AttachmentIcon fontSize="small" />
+    if (type === 'project') return <ProjectIcon fontSize="small" />
+    return <TaskIcon fontSize="small" />
+  }
+
+  const searchCommands: Command[] = (remoteSearch.data || []).map((result) => ({
+    id: 'search-' + result.type + '-' + result.id,
+    label: result.title,
+    description: [result.path, result.context].filter(Boolean).join(' · '),
+    group: 'search',
+    icon: resultIcon(result.type),
+    action: () => navigate(result.url),
+  }))
+
+  const allCommands = useMemo(
+    () => [...searchCommands, ...staticCommands, ...taskCommands, ...projectCommands],
+    [searchCommands, staticCommands, taskCommands, projectCommands],
+  )
 
   const filtered = useMemo(() => {
     if (!query.trim()) return allCommands

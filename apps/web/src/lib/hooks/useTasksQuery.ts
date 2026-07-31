@@ -16,6 +16,7 @@ export function useTasksQuery(projectId?: string, search?: string) {
       const response = await taskApi.list({
         ...(projectId ? { project_id: projectId } : {}),
         ...(search ? { search } : {}),
+        per_page: 100,
       })
       return response.data.tasks
     },

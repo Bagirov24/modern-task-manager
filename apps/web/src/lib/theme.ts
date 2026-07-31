@@ -4,13 +4,13 @@ const getDesignTokens = (mode: PaletteMode) => ({
   palette: {
     mode,
     primary: {
-      main: '#4C8DFF',
-      light: '#9CC2FF',
-      dark: '#2457B8',
+      main: mode === 'dark' ? '#60A5FA' : '#2563EB',
+      light: '#93C5FD',
+      dark: '#1D4ED8',
       contrastText: '#FFFFFF',
     },
     secondary: {
-      main: '#14B8A6',
+      main: mode === 'dark' ? '#2DD4BF' : '#0F766E',
       light: '#5EEAD4',
       dark: '#0F766E',
       contrastText: '#FFFFFF',
@@ -23,41 +23,41 @@ const getDesignTokens = (mode: PaletteMode) => ({
     ...(mode === 'dark'
       ? {
           background: {
-            default: '#1C1B1F',
-            paper: '#2B2930',
+            default: '#0B1120',
+            paper: '#111827',
           },
           text: {
-            primary: '#E6E1E5',
-            secondary: '#CAC4D0',
+            primary: '#F8FAFC',
+            secondary: '#94A3B8',
           },
-          divider: 'rgba(230, 225, 229, 0.12)',
+          divider: '#263247',
         }
       : {
           background: {
-            default: '#FFFBFE',
+            default: '#F8FAFC',
             paper: '#FFFFFF',
           },
           text: {
-            primary: '#1C1B1F',
-            secondary: '#49454F',
+            primary: '#0F172A',
+            secondary: '#64748B',
           },
-          divider: 'rgba(28, 27, 31, 0.12)',
+          divider: '#E2E8F0',
         }),
     error: {
-      main: '#B3261E',
+      main: mode === 'dark' ? '#F87171' : '#DC2626',
       light: '#F2B8B5',
       dark: '#601410',
     },
     warning: {
-      main: '#F9A825',
+      main: mode === 'dark' ? '#FBBF24' : '#D97706',
       light: '#FFD54F',
     },
     info: {
-      main: '#0288D1',
+      main: '#0284C7',
       light: '#4FC3F7',
     },
     success: {
-      main: '#2E7D32',
+      main: mode === 'dark' ? '#4ADE80' : '#16A34A',
       light: '#81C784',
     },
   },
@@ -88,6 +88,18 @@ const getDesignTokens = (mode: PaletteMode) => ({
     ...Array(19).fill('0px 8px 12px 6px rgba(0,0,0,0.15), 0px 4px 4px rgba(0,0,0,0.3)'),
   ] as any,
   components: {
+    MuiButtonBase: {
+      styleOverrides: {
+        root: {
+          '&:focus-visible': {
+            outline: '3px solid',
+            outlineColor: mode === 'dark' ? '#93C5FD' : '#2563EB',
+            outlineOffset: 2,
+          },
+          '@media (max-width:600px)': { minHeight: 44 },
+        },
+      },
+    },
     MuiButton: {
       styleOverrides: {
         root: {

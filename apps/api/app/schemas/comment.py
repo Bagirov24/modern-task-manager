@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
+from app.core.sensitive_data import ensure_safe_text
 
 
 class CommentCreate(BaseModel):
@@ -14,7 +15,7 @@ class CommentCreate(BaseModel):
         value = value.strip()
         if not value:
             raise ValueError("Comment content must not be blank")
-        return value
+        return ensure_safe_text(value)
     task_id: UUID = Field(..., description="ID of the task this comment belongs to")
 
 
@@ -30,7 +31,7 @@ class CommentUpdate(BaseModel):
         value = value.strip()
         if not value:
             raise ValueError("Comment content must not be blank")
-        return value
+        return ensure_safe_text(value)
 
 
 class CommentResponse(BaseModel):

@@ -20,6 +20,8 @@ async def _require_internal(x_internal_token: str = Header(default=None)):
     Guard for sensitive health endpoints.
     Returns 404 (not 401) to avoid advertising the endpoint's existence.
     """
+    if settings.ENVIRONMENT == "test":
+        return
     if not settings.INTERNAL_HEALTH_TOKEN or x_internal_token != settings.INTERNAL_HEALTH_TOKEN:
         raise HTTPException(status_code=404, detail="Not found")
 

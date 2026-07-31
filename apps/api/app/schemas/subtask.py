@@ -1,9 +1,10 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
 
 from app.models.task import TaskStatus, TaskPriority
+from app.core.sensitive_data import ensure_safe_text
 
 
 class SubtaskCreate(BaseModel):
@@ -15,6 +16,12 @@ class SubtaskCreate(BaseModel):
     assignee_id: Optional[UUID] = Field(None, description="Assigned user ID")
     parent_id: UUID = Field(..., description="Parent task ID")
 
+    @model_validator(mode="after")
+    def reject_sensitive_text(self):
+        ensure_safe_text(self.title)
+        ensure_safe_text(self.description)
+        return self
+
 
 class SubtaskUpdate(BaseModel):
     """Schema for updating a subtask."""
@@ -24,6 +31,12 @@ class SubtaskUpdate(BaseModel):
     priority: Optional[TaskPriority] = Field(None, description="Updated subtask priority")
     due_date: Optional[datetime] = Field(None, description="Updated due date")
     assignee_id: Optional[UUID] = Field(None, description="Updated assigned user ID")
+
+    @model_validator(mode="after")
+    def reject_sensitive_text(self):
+        ensure_safe_text(self.title)
+        ensure_safe_text(self.description)
+        return self
 
 
 class SubtaskResponse(BaseModel):
