@@ -106,7 +106,7 @@ function sortItems(items: ActionItem[], now: Date): ActionItem[] {
     const stateRank = stateOrder(a) - stateOrder(b)
     if (stateRank) return stateRank
 
-    const overdueRank = Number(isOverdue(a, now)) - Number(isOverdue(b, now))
+    const overdueRank = Number(isOverdue(b, now)) - Number(isOverdue(a, now))
     if (overdueRank) return overdueRank
 
     const priorityComparison = a.priorityRank - b.priorityRank

@@ -11,6 +11,14 @@ describe('workflow-first selectors', () => {
     expect(items.map((item) => item.entityKey)).toEqual(['communication:c1', 'task:t1'])
   })
 
+  it('ranks overdue actionable work before future urgent work', () => {
+    const result = splitMyWork([
+      { entityKey: 'task:overdue', title: 'Overdue low', priorityRank: 3, state: 'actionable', dueAt: '2026-07-30T09:00:00Z', finalDueAt: null },
+      { entityKey: 'task:future', title: 'Future urgent', priorityRank: 0, state: 'actionable', dueAt: '2026-08-01T09:00:00Z', finalDueAt: null },
+    ] as any, new Date('2026-07-31T08:00:00Z'))
+    expect(result.actions.map((item) => item.entityKey)).toEqual(['task:overdue', 'task:future'])
+  })
+
   it('keeps waiting items out of active actions', () => {
     const result = splitMyWork([{ entityKey: 'task:t1', kind: 'task', state: 'waiting', dueAt: null } as any], new Date('2026-07-31T08:00:00Z'))
     expect(result.actions).toHaveLength(0)
