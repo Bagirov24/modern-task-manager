@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAuthStore } from '@/lib/store/authStore'
-import { useThemeStore } from '@/lib/store/themeStore'
+import { useUIStore } from '@/store/uiStore'
 import api from '@/lib/api/client'
 import {
   Alert,
@@ -49,7 +49,7 @@ function loadNotifications(): NotificationPreferences {
 export default function SettingsPage() {
   const user = useAuthStore((state) => state.user)
   const updateProfile = useAuthStore((state) => state.updateProfile)
-  const { mode, setMode } = useThemeStore()
+  const { mode, setMode } = useUIStore()
   const [username, setUsername] = useState(user?.username || '')
   const [fullName, setFullName] = useState(user?.full_name || '')
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || '')

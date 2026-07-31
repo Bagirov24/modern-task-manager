@@ -1,8 +1,3 @@
-/**
- * ARCH FIX: uiStore is the single theme source of truth.
- * Replaces the orphan src/lib/store/themeStore.ts (which main.tsx was reading).
- * main.tsx now imports useUIStore instead of useThemeStore.
- */
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 
@@ -24,7 +19,6 @@ interface ModalState {
 interface UIState {
   sidebarOpen: boolean
   sidebarCollapsed: boolean
-  // Merged from themeStore — single source of truth for theme
   mode: ThemeMode
   language: 'en' | 'ru'
   snackbars: SnackbarItem[]
