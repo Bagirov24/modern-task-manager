@@ -25,6 +25,7 @@ interface UIState {
   modal: ModalState
   searchOpen: boolean
   commandPaletteOpen: boolean
+  pinnedFocusEntityKey: string | null
 
   toggleSidebar: () => void
   setSidebarOpen: (open: boolean) => void
@@ -38,6 +39,7 @@ interface UIState {
   closeModal: () => void
   setSearchOpen: (open: boolean) => void
   setCommandPaletteOpen: (open: boolean) => void
+  setPinnedFocusEntityKey: (entityKey: string | null) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -52,6 +54,7 @@ export const useUIStore = create<UIState>()(
         modal: { isOpen: false, type: null, data: null },
         searchOpen: false,
         commandPaletteOpen: false,
+        pinnedFocusEntityKey: null,
 
         toggleSidebar: () =>
           set((state) => ({ sidebarOpen: !state.sidebarOpen })),
@@ -81,13 +84,12 @@ export const useUIStore = create<UIState>()(
 
         setSearchOpen: (open) => set({ searchOpen: open }),
         setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
+        setPinnedFocusEntityKey: (entityKey) => set({ pinnedFocusEntityKey: entityKey }),
       }),
       {
         name: 'ui-store',
         partialize: (state) => ({
-          mode: state.mode,
-          language: state.language,
-          sidebarCollapsed: state.sidebarCollapsed,
+          pinnedFocusEntityKey: state.pinnedFocusEntityKey,
         }),
       },
     ),
