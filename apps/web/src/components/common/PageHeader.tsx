@@ -14,7 +14,23 @@ export default function PageHeader({ title, description, actions }: PageHeaderPr
         <Typography variant="h4" fontWeight={800}>{title}</Typography>
         {description && <Typography variant="body2" color="text.secondary">{description}</Typography>}
       </Box>
-      {actions && <Stack direction="row" spacing={1} alignItems="center">{actions}</Stack>}
+      {actions && (
+        <Stack
+          data-testid="page-header-actions"
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          useFlexGap
+          sx={(theme) => ({
+            width: '100%',
+            minWidth: 0,
+            flexWrap: 'wrap',
+            [theme.breakpoints.up('md')]: { width: 'auto', flexWrap: 'nowrap' },
+          })}
+        >
+          {actions}
+        </Stack>
+      )}
     </Stack>
   )
 }

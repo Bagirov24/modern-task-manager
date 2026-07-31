@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { Task, TaskCreate } from '@/lib/types'
 import TaskList from '@/components/tasks/TaskList'
 import KanbanBoard from '@/components/tasks/KanbanBoard'
@@ -26,13 +26,14 @@ import { useProjectStore } from '@/store/projectStore'
 
 export default function TasksPage() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
   const requestedView = searchParams.get('view')
   const lastTaskView = useUIStore((state) => state.lastTaskView)
   const setLastTaskView = useUIStore((state) => state.setLastTaskView)
   const rememberLegacyView = useTaskStore((state) => state.setViewMode)
-  const initialView: TaskView = isTaskView(requestedView)
+  const initialView: TaskView = isWorkspaceView(requestedView)
     ? requestedView
-    : lastTaskView
+    : isWorkspaceView(lastTaskView) ? lastTaskView : 'list'
   const requestedStatus = searchParams.get('status')
   const initialStatus = requestedStatus === 'todo' || requestedStatus === 'in_progress' || requestedStatus === 'done' ? requestedStatus : 'all'
   const [statusFilter, setStatusFilter] = useState<string>(initialStatus)
@@ -46,7 +47,8 @@ export default function TasksPage() {
   const [dialogInitialValues, setDialogInitialValues] = useState<Partial<TaskCreate>>({})
   const searchInputRef = useRef<HTMLInputElement>(null)
 
-  const { tasks: rawTasks, loading, error, fetchTasks, deleteTask, updateTask } = useTasksQuery(undefined, search)
+  const projectId = searchParams.get('project_id') ?? undefined
+  const { tasks: rawTasks, loading, error, fetchTasks, deleteTask, updateTask } = useTasksQuery(projectId, search)
   const tasks: any[] = useMemo(() => Array.isArray(rawTasks) ? rawTasks : [], [rawTasks])
 
   const addSnackbar = useUIStore((s) => s.addSnackbar)
@@ -66,14 +68,16 @@ export default function TasksPage() {
     const nextStatus = searchParams.get('status')
     setStatusFilter(nextStatus === 'todo' || nextStatus === 'in_progress' || nextStatus === 'done' ? nextStatus : 'all')
     const nextView = searchParams.get('view')
-    if (isTaskView(nextView)) {
+    if (nextView === 'calendar') {
+      navigate(calendarLocation(searchParams), { replace: true })
+    } else if (isWorkspaceView(nextView)) {
       setViewMode(nextView)
       setLastTaskView(nextView)
       rememberLegacyView(nextView)
     } else {
-      setViewMode(lastTaskView)
+      setViewMode(isWorkspaceView(lastTaskView) ? lastTaskView : 'list')
     }
-  }, [searchParams, lastTaskView, setLastTaskView, rememberLegacyView])
+  }, [searchParams, lastTaskView, setLastTaskView, rememberLegacyView, navigate])
 
   useEffect(() => {
     const focusSearch = (event: KeyboardEvent) => {
@@ -201,17 +205,19 @@ export default function TasksPage() {
   }
 
   const selectView = (view: TaskView) => {
-    setLastTaskView(view)
-    rememberLegacyView(view)
     if (view === 'calendar') {
-      window.location.assign('/calendar')
+      navigate(calendarLocation(searchParams))
       return
     }
+    setLastTaskView(view)
+    rememberLegacyView(view)
     setViewMode(view)
     const next = new URLSearchParams(searchParams)
     next.set('view', view)
     setSearchParams(next, { replace: true })
   }
+  if (requestedView === 'calendar') return null
+
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
       <Stack spacing={3}>
@@ -317,8 +323,15 @@ export default function TasksPage() {
   )
 }
 
-function isTaskView(value: string | null): value is TaskView {
-  return value === 'list' || value === 'kanban' || value === 'calendar' || value === 'timeline'
+function isWorkspaceView(value: string | null): value is Exclude<TaskView, 'calendar'> {
+  return value === 'list' || value === 'kanban' || value === 'timeline'
+}
+
+function calendarLocation(searchParams: URLSearchParams): string {
+  const next = new URLSearchParams(searchParams)
+  next.delete('view')
+  const query = next.toString()
+  return query ? `/calendar?${query}` : '/calendar'
 }
 
 const presetLabels: Record<string, string> = {

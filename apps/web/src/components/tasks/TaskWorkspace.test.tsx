@@ -9,15 +9,22 @@ import { useProjectStore } from '@/store/projectStore'
 import { useUIStore } from '@/store/uiStore'
 import TasksPage from '@/pages/TasksPage'
 
+const mocks = vi.hoisted(() => ({
+  useTasksQuery: vi.fn(),
+}))
+
 vi.mock('@/lib/hooks/useTasksQuery', () => ({
-  useTasksQuery: () => ({
-    tasks: [],
-    loading: false,
-    error: null,
-    fetchTasks: vi.fn(),
-    deleteTask: vi.fn(),
-    updateTask: vi.fn(),
-  }),
+  useTasksQuery: (...args: unknown[]) => {
+    mocks.useTasksQuery(...args)
+    return {
+      tasks: [],
+      loading: false,
+      error: null,
+      fetchTasks: vi.fn(),
+      deleteTask: vi.fn(),
+      updateTask: vi.fn(),
+    }
+  },
 }))
 
 vi.mock('@/lib/store/authStore', () => ({
@@ -40,6 +47,7 @@ function renderWorkspace(path: string) {
       <MemoryRouter initialEntries={[path]}>
         <Routes>
           <Route path="/tasks" element={<><TasksPage /><LocationProbe /></>} />
+          <Route path="/calendar" element={<><div>Calendar page</div><LocationProbe /></>} />
         </Routes>
       </MemoryRouter>
     </ThemeProvider>,
@@ -91,6 +99,44 @@ describe('task workspace', () => {
     expect((useUIStore.getState() as typeof useUIStore extends { getState: () => infer T } ? T : never).lastTaskView).toBe('kanban')
   })
 
+  it('passes the active project filter to the task query', () => {
+    renderWorkspace('/tasks?project_id=p1')
+
+    expect(mocks.useTasksQuery).toHaveBeenCalledWith('p1', '')
+  })
+
+  it('opens the dedicated calendar route without replacing the saved task view', async () => {
+    useUIStore.setState({ lastTaskView: 'timeline' } as never)
+    renderWorkspace('/tasks?preset=overdue&project_id=p1&view=timeline')
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Календарь' }))
+
+    expect(await screen.findByText('Calendar page')).toBeVisible()
+    expect(screen.getByLabelText('current search')).toHaveTextContent('?preset=overdue&project_id=p1')
+    expect(useUIStore.getState().lastTaskView).toBe('timeline')
+  })
+
+  it('redirects a direct calendar task view without rendering list content', async () => {
+    useUIStore.setState({ lastTaskView: 'kanban' } as never)
+    renderWorkspace('/tasks?view=calendar&preset=today&project_id=p1')
+
+    expect(await screen.findByText('Calendar page')).toBeVisible()
+    expect(screen.queryByText('List content')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('current search')).toHaveTextContent('?preset=today&project_id=p1')
+    expect(useUIStore.getState().lastTaskView).toBe('kanban')
+  })
+
+  it('constrains and wraps header actions for narrow viewports', () => {
+    renderWorkspace('/tasks')
+
+    const actionsStyle = getComputedStyle(screen.getByTestId('page-header-actions'))
+    const switcherStyle = getComputedStyle(screen.getByTestId('task-view-switcher'))
+
+    expect(actionsStyle.width).toBe('100%')
+    expect(actionsStyle.minWidth).toBe('0px')
+    expect(actionsStyle.flexWrap).toBe('wrap')
+    expect(switcherStyle.minWidth).toBe('0px')
+  })
   it('focuses task search with slash unless the user is already editing', () => {
     renderWorkspace('/tasks')
     const search = screen.getByRole('textbox', { name: 'Поиск задач' })

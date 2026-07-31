@@ -25,12 +25,19 @@ export default function ViewSwitcher({ value, onChange }: ViewSwitcherProps) {
 
   return (
     <Tabs
+      data-testid="task-view-switcher"
       value={value}
       onChange={handleChange}
       aria-label="Представление задач"
       variant="scrollable"
       scrollButtons="auto"
-      sx={{ minHeight: 44, '& .MuiTab-root': { minHeight: 44, minWidth: 96 } }}
+      sx={{
+        flex: 1,
+        minWidth: 0,
+        maxWidth: '100%',
+        minHeight: 44,
+        '& .MuiTab-root': { minHeight: 44, minWidth: 96 },
+      }}
     >
       {views.map((view) => (
         <Tab key={view.value} value={view.value} icon={view.icon} iconPosition="start" label={view.label} />
