@@ -96,7 +96,7 @@ const getDesignTokens = (mode: PaletteMode) => ({
             outlineColor: mode === 'dark' ? '#93C5FD' : '#2563EB',
             outlineOffset: 2,
           },
-          '@media (max-width:600px)': { minHeight: 44 },
+          '@media (max-width:600px)': { minHeight: 44, minWidth: 44 },
         },
       },
     },
