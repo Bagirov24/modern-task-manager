@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Drawer, FormControl,
   IconButton, InputLabel, List, ListItem, ListItemText, MenuItem, Paper, Select, Stack,
-  Tab, Tabs, TextField, Typography, useMediaQuery, useTheme,
+  Tab, Tabs, TextField, Tooltip, Typography, useMediaQuery, useTheme,
 } from '@mui/material'
 import {
   Add, ArticleOutlined, Close, Launch, LinkOutlined, OpenInNew, ScienceOutlined, Send,
@@ -164,7 +164,13 @@ export default function TaskDetailDialog({ open, onClose, task, mode, initialVal
     onClose={onClose}
     transitionDuration={180}
     ModalProps={{ keepMounted: false }}
-    PaperProps={{ 'data-testid': 'task-drawer-paper', sx: { width: mobile ? '100%' : 720, maxWidth: '100vw', borderRadius: 0 } }}
+    PaperProps={{
+      'data-testid': 'task-drawer-paper',
+      role: 'dialog',
+      'aria-modal': true,
+      'aria-label': mode === 'create' ? 'Создание задачи' : task?.title || 'Задача',
+      sx: { width: mobile ? '100%' : 720, maxWidth: '100vw', borderRadius: 0 },
+    }}
   >
     <Stack sx={{ height: '100%' }}>
       <TaskDrawerHeader
@@ -185,7 +191,7 @@ export default function TaskDetailDialog({ open, onClose, task, mode, initialVal
         {tab === 0 && <Stack spacing={3}>{editing || !task ? <TaskOverviewForm form={form} setForm={setForm} projects={projectOptions} /> : <TaskOverviewTab task={task} />}{task && <RelatedPrograms task={task} />}</Stack>}
         {tab === 1 && <Stack spacing={2}>
           <Stack direction="row" justifyContent="space-between" alignItems="center"><Typography variant="h6" fontWeight={750}>Документация задачи</Typography><Button startIcon={<Add />} onClick={() => navigate('/documents?task_id=' + task?.id)}>Документ</Button></Stack>
-          {documents.isLoading ? <CircularProgress size={24} /> : !documents.data?.length ? <Alert severity="info">Brief, acceptance criteria и test plan ещё не привязаны.</Alert> : <List disablePadding>{documents.data.map((document) => <ListItem key={document.id} divider secondaryAction={<IconButton onClick={() => navigate('/documents?document=' + document.id)}><OpenInNew /></IconButton>}><ArticleOutlined sx={{ mr: 1.5 }} /><ListItemText primary={document.title} secondary={document.document_type + ' · v' + document.version} /></ListItem>)}</List>}
+          {documents.isLoading ? <CircularProgress size={24} /> : !documents.data?.length ? <Alert severity="info">Brief, acceptance criteria и test plan ещё не привязаны.</Alert> : <List disablePadding>{documents.data.map((document) => <ListItem key={document.id} divider secondaryAction={<Tooltip title={'Открыть документ'}><IconButton aria-label={'Открыть документ'} onClick={() => navigate('/documents?document=' + document.id)} sx={{ minWidth: 44, minHeight: 44 }}><OpenInNew /></IconButton></Tooltip>}><ArticleOutlined sx={{ mr: 1.5 }} /><ListItemText primary={document.title} secondary={document.document_type + ' · v' + document.version} /></ListItem>)}</List>}
         </Stack>}
         {tab === 2 && task && <TaskCommunicationsTab task={task} onCountChange={setCommunicationCount} />}
         {tab === 3 && <Stack spacing={2}>
@@ -195,7 +201,7 @@ export default function TaskDetailDialog({ open, onClose, task, mode, initialVal
         </Stack>}
         {tab === 4 && <Stack spacing={2}>
           <Typography variant="h6" fontWeight={750}>Комментарии и изменения</Typography>
-          <Stack direction="row" spacing={1}><TextField fullWidth multiline maxRows={4} placeholder="Добавить комментарий" value={comment} onChange={(event) => setComment(event.target.value)} /><IconButton color="primary" aria-label="Отправить комментарий" onClick={() => void addComment()}><Send /></IconButton></Stack>
+          <Stack direction="row" spacing={1}><TextField fullWidth multiline maxRows={4} placeholder="Добавить комментарий" value={comment} onChange={(event) => setComment(event.target.value)} /><Tooltip title={'Отправить комментарий'}><IconButton color="primary" aria-label={'Отправить комментарий'} onClick={() => void addComment()} sx={{ minWidth: 44, minHeight: 44 }}><Send /></IconButton></Tooltip></Stack>
           {comments.isLoading ? <CircularProgress size={24} /> : !(comments.data as any)?.comments?.length ? <Typography color="text.secondary">Активности пока нет.</Typography> : (comments.data as any).comments.map((item: any) => <Paper key={item.id} variant="outlined" sx={{ p: 1.5 }}><Typography variant="body2">{item.content}</Typography><Typography variant="caption" color="text.secondary">{new Date(item.created_at).toLocaleString('ru-RU')}</Typography></Paper>)}
         </Stack>}
       </Box>
@@ -260,6 +266,6 @@ function RelatedPrograms({ task }: { task: Task }) {
   const detach = async (linkId: string) => { await workspaceLinkApi.detachFromTask(task.id, linkId); await refresh() }
   return <Box><Divider sx={{ mb: 2 }} /><Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.25}><Stack direction="row" gap={1} alignItems="center"><LinkOutlined color="action" /><Typography variant="h6" fontWeight={750}>Связанные программы</Typography></Stack><Button size="small" onClick={() => window.open('/links', '_blank', 'noopener,noreferrer')}>Каталог</Button></Stack>
     <Stack direction={{ xs: 'column', sm: 'row' }} gap={1} mb={1.5}><FormControl fullWidth size="small"><InputLabel>Добавить программу</InputLabel><Select label="Добавить программу" value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>{options.map((link) => <MenuItem key={link.id} value={link.id}>{link.title} · {link.project_name || 'Общее'}</MenuItem>)}</Select></FormControl><Button variant="outlined" disabled={!selectedId} onClick={() => void attach()}>Связать</Button></Stack>
-    {!linked.data?.length ? <Typography variant="body2" color="text.secondary">Программы не привязаны. Добавьте Kibana, Swagger, Staging или другую полезную ссылку.</Typography> : <Stack spacing={0.75}>{linked.data.map((link) => <Paper key={link.id} variant="outlined" sx={{ px: 1.5, py: 1 }}><Stack direction="row" alignItems="center" gap={1}><Box sx={{ minWidth: 0, flex: 1 }}><Typography variant="body2" fontWeight={700} noWrap>{link.title}</Typography><Typography variant="caption" color="text.secondary">{link.project_name || 'Общее'} · {link.environment || link.category}</Typography></Box><Button component="a" href={link.url} target="_blank" rel="noopener noreferrer" size="small" endIcon={<Launch />}>Открыть</Button><IconButton size="small" aria-label="Отвязать программу" onClick={() => void detach(link.id)}><Close fontSize="small" /></IconButton></Stack></Paper>)}</Stack>}
+    {!linked.data?.length ? <Typography variant="body2" color="text.secondary">Программы не привязаны. Добавьте Kibana, Swagger, Staging или другую полезную ссылку.</Typography> : <Stack spacing={0.75}>{linked.data.map((link) => <Paper key={link.id} variant="outlined" sx={{ px: 1.5, py: 1 }}><Stack direction="row" alignItems="center" gap={1}><Box sx={{ minWidth: 0, flex: 1 }}><Typography variant="body2" fontWeight={700} noWrap>{link.title}</Typography><Typography variant="caption" color="text.secondary">{link.project_name || 'Общее'} · {link.environment || link.category}</Typography></Box><Button component="a" href={link.url} target="_blank" rel="noopener noreferrer" size="small" endIcon={<Launch />}>Открыть</Button><Tooltip title={'Отвязать программу'}><IconButton size="small" aria-label={'Отвязать программу'} onClick={() => void detach(link.id)} sx={{ minWidth: 44, minHeight: 44 }}><Close fontSize="small" /></IconButton></Tooltip></Stack></Paper>)}</Stack>}
   </Box>
 }

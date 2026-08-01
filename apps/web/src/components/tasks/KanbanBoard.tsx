@@ -217,17 +217,17 @@ function KanbanCard({ task, onOpen, onEdit, onDelete }: KanbanCardProps) {
               </Stack>
 
               <Stack direction="row" spacing={0}>
-                {onOpen && <Tooltip title="Открыть"><IconButton size="small" aria-label={`Открыть задачу ${task.title}`} onClick={(e) => { e.stopPropagation(); onOpen(task) }} sx={{ p: 0.4 }}><OpenIcon fontSize="small" /></IconButton></Tooltip>}
+                {onOpen && <Tooltip title="Открыть"><IconButton size="small" aria-label={`Открыть задачу ${task.title}`} onClick={(e) => { e.stopPropagation(); onOpen(task) }} sx={{ p: 0.4, minWidth: { xs: 44, sm: 32 }, minHeight: { xs: 44, sm: 32 } }}><OpenIcon fontSize="small" /></IconButton></Tooltip>}
                 {onEdit && (
                   <Tooltip title="Редактировать">
-                    <IconButton size="small" onClick={(e) => { e.stopPropagation(); onEdit(task) }} sx={{ p: 0.4 }}>
+                    <IconButton size="small" aria-label={`Редактировать ${task.title}`} onClick={(e) => { e.stopPropagation(); onEdit(task) }} sx={{ p: 0.4, minWidth: { xs: 44, sm: 32 }, minHeight: { xs: 44, sm: 32 } }}>
                       <EditIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                 )}
                 {onDelete && (
                   <Tooltip title="Удалить">
-                    <IconButton size="small" onClick={(e) => { e.stopPropagation(); onDelete(task) }} sx={{ p: 0.4, color: 'error.main' }}>
+                    <IconButton size="small" aria-label={`Удалить ${task.title}`} onClick={(e) => { e.stopPropagation(); onDelete(task) }} sx={{ p: 0.4, color: 'error.main', minWidth: { xs: 44, sm: 32 }, minHeight: { xs: 44, sm: 32 } }}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>

@@ -109,7 +109,7 @@ export function LinkCard({ link, onEdit, onDelete, onFavorite }: { link: Workspa
     <Stack direction="row" alignItems="flex-start" gap={1.5}>
       <Box sx={{ width: 40, height: 40, borderRadius: 1, display: 'grid', placeItems: 'center', bgcolor: 'action.hover', color: 'primary.main', flexShrink: 0 }}><Icon /></Box>
       <Box sx={{ minWidth: 0, flex: 1 }}><Typography variant="h6" fontWeight={750} noWrap>{link.title}</Typography><Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>{link.description}</Typography></Box>
-      <Tooltip title={link.is_favorite ? 'Убрать из избранного' : 'Закрепить сверху'}><IconButton aria-label={link.is_favorite ? 'Убрать из избранного' : 'Закрепить сверху'} color={link.is_favorite ? 'warning' : 'default'} onClick={onFavorite}>{link.is_favorite ? <Star /> : <StarBorder />}</IconButton></Tooltip>
+      <Tooltip title={link.is_favorite ? 'Убрать из избранного' : 'Закрепить сверху'}><IconButton aria-label={link.is_favorite ? 'Убрать из избранного' : 'Закрепить сверху'} color={link.is_favorite ? 'warning' : 'default'} onClick={onFavorite} sx={{ minWidth: 44, minHeight: 44 }}>{link.is_favorite ? <Star /> : <StarBorder />}</IconButton></Tooltip>
     </Stack>
     <Stack direction="row" gap={0.75} flexWrap="wrap" mt={1.5}>
       <Chip size="small" label={link.project_name || 'Общее'} />
@@ -124,7 +124,7 @@ export function LinkCard({ link, onEdit, onDelete, onFavorite }: { link: Workspa
     </Stack>
     <Stack direction="row" justifyContent="space-between" alignItems="center" mt={1.5}>
       <Typography variant="caption" color="text.secondary">Изменено {new Date(link.updated_at).toLocaleDateString('ru-RU')}</Typography>
-      <Stack direction="row" gap={0.5}><Button component="a" href={link.url} target="_blank" rel="noopener noreferrer" variant="contained" size="small" endIcon={<Launch />}>Открыть</Button><Tooltip title="Редактировать"><IconButton size="small" aria-label="Редактировать" onClick={onEdit}><EditOutlined fontSize="small" /></IconButton></Tooltip><Tooltip title="Удалить"><IconButton size="small" aria-label="Удалить" color="error" onClick={onDelete}><DeleteOutline fontSize="small" /></IconButton></Tooltip></Stack>
+      <Stack direction="row" gap={0.5}><Button component="a" href={link.url} target="_blank" rel="noopener noreferrer" variant="contained" size="small" endIcon={<Launch />}>Открыть</Button><Tooltip title="Редактировать"><IconButton size="small" aria-label="Редактировать" onClick={onEdit} sx={{ minWidth: 44, minHeight: 44 }}><EditOutlined fontSize="small" /></IconButton></Tooltip><Tooltip title="Удалить"><IconButton size="small" aria-label="Удалить" color="error" onClick={onDelete} sx={{ minWidth: 44, minHeight: 44 }}><DeleteOutline fontSize="small" /></IconButton></Tooltip></Stack>
     </Stack>
   </Paper>
 }

@@ -125,7 +125,7 @@ export default function ProjectsPage() {
         </Box>
         <Stack direction="row" spacing={1}>
           <Tooltip title="Обновить">
-            <IconButton onClick={() => fetchProjects()}><RefreshIcon /></IconButton>
+            <IconButton aria-label="Обновить проекты" onClick={() => fetchProjects()} sx={{ minWidth: 44, minHeight: 44 }}><RefreshIcon /></IconButton>
           </Tooltip>
           <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
             Новый проект
@@ -180,10 +180,10 @@ export default function ProjectsPage() {
                     </Box>
                     <Stack direction="row">
                       <Tooltip title="Редактировать">
-                        <IconButton size="small" onClick={(event) => { event.stopPropagation(); openEdit(project) }}><EditIcon fontSize="small" /></IconButton>
+                        <IconButton size="small" aria-label={`Редактировать ${project.name}`} onClick={(event) => { event.stopPropagation(); openEdit(project) }} sx={{ minWidth: 44, minHeight: 44 }}><EditIcon fontSize="small" /></IconButton>
                       </Tooltip>
                       <Tooltip title="Удалить">
-                        <IconButton size="small" color="error" onClick={(event) => { event.stopPropagation(); setDeleteConfirm(project) }}><DeleteIcon fontSize="small" /></IconButton>
+                        <IconButton size="small" color="error" aria-label={`Удалить ${project.name}`} onClick={(event) => { event.stopPropagation(); setDeleteConfirm(project) }} sx={{ minWidth: 44, minHeight: 44 }}><DeleteIcon fontSize="small" /></IconButton>
                       </Tooltip>
                     </Stack>
                   </Box>

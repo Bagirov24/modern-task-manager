@@ -142,9 +142,9 @@ export default function DocumentsPage() {
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', position: 'sticky', top: 0, bgcolor: 'background.paper', zIndex: 2 }}>
               <Stack direction="row" spacing={1} alignItems="center"><DescriptionOutlined color="primary" /><Chip size="small" label={`v${selected.version}`} /><Chip size="small" variant="outlined" label={selected.status === 'published' ? 'Опубликован' : 'Черновик'} /></Stack>
               <Stack direction="row" spacing={0.5}>
-                <Tooltip title="История версий"><IconButton aria-label="История версий" onClick={() => setHistoryOpen(true)}><History /></IconButton></Tooltip>
-                <Tooltip title="Добавить ссылку"><IconButton aria-label="Добавить ссылку" onClick={() => setLinkOpen(true)}><LinkIcon /></IconButton></Tooltip>
-                <Tooltip title="Загрузить файл"><IconButton component="label" aria-label="Загрузить файл"><UploadFile /><input hidden type="file" onChange={(event) => { const file = event.target.files?.[0]; if (file) documentApi.upload(selected.id, file).then(() => queryClient.invalidateQueries({ queryKey: ['documents'] })) }} /></IconButton></Tooltip>
+                <Tooltip title="История версий"><IconButton aria-label="История версий" onClick={() => setHistoryOpen(true)} sx={{ minWidth: 44, minHeight: 44 }}><History /></IconButton></Tooltip>
+                <Tooltip title="Добавить ссылку"><IconButton aria-label="Добавить ссылку" onClick={() => setLinkOpen(true)} sx={{ minWidth: 44, minHeight: 44 }}><LinkIcon /></IconButton></Tooltip>
+                <Tooltip title="Загрузить файл"><IconButton component="label" aria-label="Загрузить файл" sx={{ minWidth: 44, minHeight: 44 }}><UploadFile /><input hidden type="file" onChange={(event) => { const file = event.target.files?.[0]; if (file) documentApi.upload(selected.id, file).then(() => queryClient.invalidateQueries({ queryKey: ['documents'] })) }} /></IconButton></Tooltip>
                 <Button variant="contained" startIcon={save.isPending ? <CircularProgress size={16} color="inherit" /> : <Save />} onClick={() => save.mutate()} disabled={save.isPending}>Сохранить</Button>
               </Stack>
             </Stack>

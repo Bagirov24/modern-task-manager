@@ -19,4 +19,9 @@ describe('uiStore persistence', () => {
       lastTaskView: 'timeline',
     })
   })
+
+  it('keeps the transient mobile sidebar closed by default', () => {
+    expect(useUIStore.getInitialState().sidebarOpen).toBe(false)
+    expect(partializeUIState(useUIStore.getState())).not.toHaveProperty('sidebarOpen')
+  })
 })

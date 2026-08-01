@@ -75,7 +75,7 @@ export default function ProjectDetailPage() {
       <Stack spacing={2.5}>
         <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
           <Stack direction="row" spacing={1.5} alignItems="flex-start">
-            <Tooltip title="К проектам"><IconButton onClick={() => navigate('/projects')}><BackIcon /></IconButton></Tooltip>
+            <Tooltip title="К проектам"><IconButton aria-label="К проектам" onClick={() => navigate('/projects')} sx={{ minWidth: 44, minHeight: 44 }}><BackIcon /></IconButton></Tooltip>
             <Box>
               <Stack direction="row" spacing={1} alignItems="center">
                 <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: project.color || 'primary.main' }} />

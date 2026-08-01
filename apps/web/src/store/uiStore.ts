@@ -59,7 +59,7 @@ export const useUIStore = create<UIState>()(
   devtools(
     persist(
       (set) => ({
-        sidebarOpen: true,
+        sidebarOpen: false,
         sidebarCollapsed: false,
         mode: 'dark',
         language: 'ru',

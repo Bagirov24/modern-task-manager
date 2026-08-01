@@ -85,7 +85,7 @@ export default function Sidebar({ drawerWidth, collapsedWidth, open, mobileOpen,
           <Box sx={{ width: 36, height: 36, display: 'grid', placeItems: 'center', bgcolor: '#2563EB', borderRadius: 1, flexShrink: 0 }}><RocketLaunch sx={{ fontSize: 20 }} /></Box>
           {open && <Box sx={{ minWidth: 0 }}><Typography fontWeight={800} noWrap>Modern Task Manager</Typography><Typography variant="caption" sx={{ color: '#94A3B8' }} noWrap>Единое рабочее пространство</Typography></Box>}
         </Stack>
-        {!isMobile && open && <Tooltip title="Свернуть"><IconButton size="small" onClick={() => setSidebarCollapsed(true)} sx={{ color: '#94A3B8' }}><ChevronLeft /></IconButton></Tooltip>}
+        {!isMobile && open && <Tooltip title="Свернуть"><IconButton size="small" aria-label={'Свернуть'} onClick={() => setSidebarCollapsed(true)} sx={{ color: '#94A3B8', minWidth: 44, minHeight: 44 }}><ChevronLeft /></IconButton></Tooltip>}
       </Stack>
       <Divider sx={{ borderColor: 'rgba(148,163,184,0.16)' }} />
       <List dense sx={{ flex: 1, overflowY: 'auto', py: 1, px: 0 }}>
@@ -110,7 +110,7 @@ export default function Sidebar({ drawerWidth, collapsedWidth, open, mobileOpen,
       <Stack direction="row" alignItems="center" gap={1.25} sx={{ px: open ? 1.5 : 1, py: 1.25, minHeight: 68 }}>
         <Tooltip title={!open ? (user?.full_name || user?.username || 'Профиль') : ''} placement="right"><Avatar onClick={() => navigateTo('/settings')} sx={{ width: 36, height: 36, bgcolor: '#2563EB', cursor: 'pointer', flexShrink: 0 }}>{userInitial}</Avatar></Tooltip>
         {open && <Box sx={{ minWidth: 0, flex: 1, cursor: 'pointer' }} onClick={() => navigateTo('/settings')}><Typography variant="body2" fontWeight={700} noWrap>{user?.full_name || user?.username || 'Пользователь'}</Typography><Typography variant="caption" sx={{ color: '#94A3B8' }} noWrap>{user?.email}</Typography></Box>}
-        {open && <Tooltip title="Выйти"><IconButton size="small" onClick={handleLogout} sx={{ color: '#94A3B8' }}><Logout fontSize="small" /></IconButton></Tooltip>}
+        {open && <Tooltip title="Выйти"><IconButton size="small" aria-label={'Выйти'} onClick={handleLogout} sx={{ color: '#94A3B8', minWidth: 44, minHeight: 44 }}><Logout fontSize="small" /></IconButton></Tooltip>}
       </Stack>
     </Box>
   )

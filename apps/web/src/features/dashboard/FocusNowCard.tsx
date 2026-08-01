@@ -51,7 +51,7 @@ export default function FocusNowCard({ focus, candidates, state }: FocusNowCardP
         </Box>
         <Stack direction="row" gap={1} alignItems="flex-start" flexWrap="wrap">
           <Button variant="outlined" startIcon={<SwapHoriz />} disabled={!candidates.length} onClick={(event) => setAnchorEl(event.currentTarget)}>Сменить задачу</Button>
-          {selected && <Button component={RouterLink} to={entityPath(selected)} variant="contained" endIcon={<ArrowOutward />}>Открыть</Button>}
+          {selected && <Button component={RouterLink} to={entityPath(selected)} variant="contained" endIcon={<ArrowOutward />} aria-label={`Открыть задачу ${selected.title}`}>Открыть</Button>}
         </Stack>
       </Stack>
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)} MenuListProps={{ role: 'listbox', 'aria-label': 'Выбор фокуса' }}>

@@ -114,8 +114,9 @@ export const useAuthStore = create<AuthState>()(
             apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`
             const resp = await apiClient.get('/auth/me')
             set({ user: resp.data, isAuthenticated: true })
-          } catch {
-            get().logout()
+          } catch (error) {
+            const status = axios.isAxiosError(error) ? error.response?.status : undefined
+            if (status === 401 || status === 403) get().logout()
           }
         },
       }),

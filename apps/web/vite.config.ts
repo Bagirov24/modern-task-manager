@@ -2,6 +2,8 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
+const apiProxyTarget = process.env.VITE_API_PROXY_TARGET ?? 'http://api:8000'
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -19,8 +21,11 @@ export default defineConfig({
       interval: 500,
     },
     proxy: {
-      '/api': 'http://api:8000',
-      '/ws': { target: 'http://api:8000', ws: true },
+      '/api': {
+        target: apiProxyTarget,
+        changeOrigin: true,
+      },
+      '/ws': { target: process.env.VITE_WS_PROXY_TARGET ?? apiProxyTarget, ws: true },
     },
   },
 })

@@ -1,4 +1,4 @@
-import { Box, Button, CircularProgress, IconButton, Stack, Typography } from '@mui/material'
+import { Box, Button, CircularProgress, IconButton, Stack, Tooltip, Typography } from '@mui/material'
 import { Close, EditOutlined, Summarize } from '@mui/icons-material'
 
 interface Props {
@@ -16,8 +16,8 @@ export default function TaskDrawerHeader({ title, contextLabel, canEdit, statusL
     <Box sx={{ minWidth: 0 }}><Typography variant="caption" color="text.secondary">{contextLabel}</Typography><Typography fontWeight={750} noWrap>{title}</Typography></Box>
     <Stack direction="row" spacing={0.5}>
       {canEdit && <Button size="small" startIcon={statusLoading ? <CircularProgress size={16} /> : <Summarize />} onClick={onStatus} sx={{ minHeight: 44 }}>Статус</Button>}
-      {canEdit && <IconButton aria-label="Редактировать" onClick={onEdit} sx={{ minWidth: 44, minHeight: 44 }}><EditOutlined /></IconButton>}
-      <IconButton aria-label="Закрыть" onClick={onClose} sx={{ minWidth: 44, minHeight: 44 }}><Close /></IconButton>
+      {canEdit && <Tooltip title={'Редактировать'}><IconButton aria-label={'Редактировать'} onClick={onEdit} sx={{ minWidth: 44, minHeight: 44 }}><EditOutlined /></IconButton></Tooltip>}
+      <Tooltip title={'Закрыть'}><IconButton aria-label={'Закрыть'} onClick={onClose} sx={{ minWidth: 44, minHeight: 44 }}><Close /></IconButton></Tooltip>
     </Stack>
   </Stack>
 }

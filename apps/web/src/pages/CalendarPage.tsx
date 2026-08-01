@@ -808,16 +808,16 @@ export default function CalendarPage() {
 
       {/* Navigation bar */}
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-        <IconButton onClick={goPrev} size="small"><ChevronLeft /></IconButton>
+        <Tooltip title="Предыдущий период"><IconButton onClick={goPrev} size="small" aria-label="Предыдущий период" sx={{ minWidth: 44, minHeight: 44 }}><ChevronLeft /></IconButton></Tooltip>
         <Typography
           variant="h6" fontWeight={600}
           sx={{ minWidth: { xs: 160, md: 240 }, textAlign: 'center' }}
         >
           {navLabel}
         </Typography>
-        <IconButton onClick={goNext} size="small"><ChevronRight /></IconButton>
+        <Tooltip title="Следующий период"><IconButton onClick={goNext} size="small" aria-label="Следующий период" sx={{ minWidth: 44, minHeight: 44 }}><ChevronRight /></IconButton></Tooltip>
         <Tooltip title="Сегодня">
-          <IconButton onClick={goToday} size="small"><TodayIcon /></IconButton>
+          <IconButton onClick={goToday} size="small" aria-label="Сегодня" sx={{ minWidth: 44, minHeight: 44 }}><TodayIcon /></IconButton>
         </Tooltip>
         <Box sx={{ flex: 1 }} />
         <Button

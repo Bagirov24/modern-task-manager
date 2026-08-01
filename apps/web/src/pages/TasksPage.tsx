@@ -284,7 +284,7 @@ export default function TasksPage() {
           title="Задачи"
           description="Канбан, список и timeline в одном рабочем пространстве"
           actions={<>
-            <Tooltip title="Обновить"><IconButton onClick={() => fetchTasks()}><RefreshIcon /></IconButton></Tooltip>
+            <Tooltip title="Обновить"><IconButton aria-label={'Обновить'} onClick={() => fetchTasks()} sx={{ minWidth: 44, minHeight: 44 }}><RefreshIcon /></IconButton></Tooltip>
             <ViewSwitcher value={viewMode} onChange={selectView} />
             <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate}>Задача</Button>
           </>}

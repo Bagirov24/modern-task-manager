@@ -64,7 +64,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
   return (
     <AppBar position="sticky" elevation={0} sx={{ bgcolor: 'background.paper', borderBottom: '1px solid', borderColor: 'divider', backdropFilter: 'blur(10px)', backgroundColor: (theme) => alpha(theme.palette.background.paper, 0.82) }}>
       <Toolbar sx={{ gap: 1.5, minHeight: 72 }}>
-        <IconButton onClick={onToggleSidebar} aria-label="Открыть навигацию" sx={{ color: 'text.secondary' }}><MenuIcon /></IconButton>
+        <Tooltip title={'Открыть навигацию'}><IconButton onClick={onToggleSidebar} aria-label={'Открыть навигацию'} sx={{ color: 'text.secondary', minWidth: 44, minHeight: 44 }}><MenuIcon /></IconButton></Tooltip>
         <Box sx={{ display: { xs: 'none', md: 'block' } }}>
           <Typography variant="subtitle1" fontWeight={700} sx={{ textTransform: 'capitalize' }}>{todayLabel}</Typography>
           <Typography variant="caption" color="text.secondary">Сфокусируйтесь на приоритетных задачах</Typography>
@@ -88,11 +88,11 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
         <Box sx={{ flex: 1 }} />
         <Stack direction="row" spacing={1} alignItems="center">
           <Button variant="contained" startIcon={<AddIcon />} onClick={openQuickCreate} sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>Создать</Button>
-          <Tooltip title="Создать задачу"><IconButton onClick={openQuickCreate} aria-label="Создать задачу" sx={{ display: { xs: 'inline-flex', sm: 'none' }, color: 'primary.main' }}><AddIcon /></IconButton></Tooltip>
-          <Tooltip title={mode === 'dark' ? 'Светлая тема' : 'Тёмная тема'}><IconButton onClick={toggleTheme} aria-label="Переключить тему" sx={{ color: 'text.secondary' }}>{mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}</IconButton></Tooltip>
-          <IconButton onClick={(event) => setNotifAnchor(event.currentTarget)} aria-label="Уведомления" sx={{ color: 'text.secondary', bgcolor: 'action.hover', '&:hover': { bgcolor: 'action.selected' } }}>
+          <Tooltip title="Создать задачу"><IconButton onClick={openQuickCreate} aria-label="Создать задачу" sx={{ display: { xs: 'inline-flex', sm: 'none' }, color: 'primary.main', minWidth: 44, minHeight: 44 }}><AddIcon /></IconButton></Tooltip>
+          <Tooltip title={mode === 'dark' ? 'Светлая тема' : 'Тёмная тема'}><IconButton onClick={toggleTheme} aria-label="Переключить тему" sx={{ color: 'text.secondary', minWidth: 44, minHeight: 44 }}>{mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}</IconButton></Tooltip>
+          <Tooltip title={'Уведомления'}><IconButton onClick={(event) => setNotifAnchor(event.currentTarget)} aria-label={'Уведомления'} sx={{ color: 'text.secondary', bgcolor: 'action.hover', minWidth: 44, minHeight: 44, '&:hover': { bgcolor: 'action.selected' } }}>
             <Badge badgeContent={unreadCount} color="error" variant={unreadCount > 0 ? 'standard' : 'dot'}><BellIcon /></Badge>
-          </IconButton>
+          </IconButton></Tooltip>
         </Stack>
         <Popover open={Boolean(notifAnchor)} anchorEl={notifAnchor} onClose={() => setNotifAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }} PaperProps={{ sx: { width: 380, maxHeight: 480, borderRadius: 1, mt: 1 } }}>
           <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -112,9 +112,9 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
             </List>
           )}
         </Popover>
-        <IconButton onClick={(event) => setAnchorEl(event.currentTarget)} aria-label="Открыть меню профиля">
+        <Tooltip title={'Профиль'}><IconButton onClick={(event) => setAnchorEl(event.currentTarget)} aria-label={'Открыть меню профиля'} sx={{ minWidth: 44, minHeight: 44 }}>
           <Avatar sx={{ width: 34, height: 34, bgcolor: 'primary.main', fontSize: 14, fontWeight: 700 }}>{user?.username?.charAt(0)?.toUpperCase() || 'U'}</Avatar>
-        </IconButton>
+        </IconButton></Tooltip>
         <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)} PaperProps={{ sx: { mt: 1, minWidth: 180, borderRadius: 1 } }}>
           <Box sx={{ px: 2, py: 1 }}><Typography variant="body2" fontWeight={700}>{user?.full_name || user?.username || 'Пользователь'}</Typography><Typography variant="caption" color="text.secondary">{user?.email || ''}</Typography></Box>
           <Divider />
