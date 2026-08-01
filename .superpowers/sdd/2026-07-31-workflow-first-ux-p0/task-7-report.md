@@ -93,3 +93,14 @@
 - The existing production bundle remains about 1.08 MB before gzip and still emits the legacy chunk-size warning; route-level code splitting is a separate performance task.
 - Frontend lint retains 74 pre-existing type, hook-dependency, and fast-refresh warnings but has no errors.
 - Playwright browser binaries are local tooling prerequisites and are installed with `npx playwright install chromium firefox` on a new machine.
+
+## Final P0 Acceptance Audit (2026-08-01)
+
+- Re-ran the complete frontend suite: 18 files and 94 tests passed.
+- Re-ran TypeScript, lint, production build, API health, backend PostgreSQL regressions, and Ruff; all blocking gates passed.
+- Expanded the browser gate from 4 to 10 scenarios across Chromium and Firefox.
+- Added explicit 1440 px and 1024 px Dashboard checks, while retaining the 390 x 844 mobile gate.
+- Added exact three-action/two-waiting checks, persisted Focus Now selection across refresh, all four task views, and offline error/retry recovery.
+- Removed a latent Sensitive Data Guard fixture flake by replacing the long decimal timestamp in generated titles with a base-36 run id.
+- Isolated fixture and browser traffic with valid per-test addresses so repeated and parallel runs do not share the production-style 100-request window.
+- The final browser result is 10/10 passed. No open Critical or Important P0 finding remains.

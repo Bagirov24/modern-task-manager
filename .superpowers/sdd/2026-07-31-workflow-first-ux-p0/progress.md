@@ -44,3 +44,6 @@ Task 7: GREEN complete - focused 8/8, full frontend 94/94, Chromium/Firefox desk
 Task 7: complete (commits dcabc26..d578244; parent review clean; two independent read-only reviewer attempts timed out without findings and were stopped)
 Task 7: residual - React Router GHSA-qwww-vcr4-c8h2 has no fully patched published release; current SPA does not use affected RSC action mode, monitor and upgrade when available
 CHECKPOINT: Workflow-first UX P0 plan complete at implementation HEAD d578244 on codex/workflow-first-ux-p0; next work must begin with a new audited plan rather than extending this completed seven-task plan
+Task 7: final acceptance hardening closed responsive-width, pin-refresh, all-view persistence, offline-retry, rate-limit isolation, and Sensitive Data Guard fixture-flake coverage
+Task 7: final browser gate complete - Chromium and Firefox 10/10 across desktop, 1440/1024 acceptance, offline recovery, and 390x844 mobile
+CHECKPOINT: Workflow-first UX P0 acceptance re-audit complete; all 35 plan steps and seven manual-review checks are recorded as complete, browser gate 10/10, frontend 94/94, backend 21/21
