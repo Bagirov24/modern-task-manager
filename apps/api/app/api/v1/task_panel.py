@@ -37,7 +37,6 @@ router = APIRouter()
 _STATUS_COLOR = {
     TaskStatus.TODO:        "#8892aa",
     TaskStatus.IN_PROGRESS: "#38bdf8",
-    TaskStatus.IN_REVIEW:   "#a78bfa",
     TaskStatus.DONE:        "#34d399",
     TaskStatus.ARCHIVED:    "#475569",
 }
@@ -64,10 +63,14 @@ def _time_ago(dt: datetime) -> str:
     dt_aware = dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
     diff = now - dt_aware
     s = int(diff.total_seconds())
-    if s < 60:     return "только что"
-    if s < 3600:   return f"{s // 60} мин"
-    if s < 86400:  return f"{s // 3600} ч"
-    if s < 172800: return "вчера"
+    if s < 60:
+        return "только что"
+    if s < 3600:
+        return f"{s // 60} мин"
+    if s < 86400:
+        return f"{s // 3600} ч"
+    if s < 172800:
+        return "вчера"
     return dt_aware.strftime("%d.%m.%Y")
 
 

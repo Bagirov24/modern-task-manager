@@ -1,18 +1,37 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
+from app.core.sensitive_data import ensure_safe_text
 
 
 class CommentCreate(BaseModel):
     """Schema for creating a new comment."""
     content: str = Field(..., min_length=1, max_length=5000, description="Comment text content")
+
+    @field_validator("content")
+    @classmethod
+    def content_must_not_be_blank(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Comment content must not be blank")
+        return ensure_safe_text(value)
     task_id: UUID = Field(..., description="ID of the task this comment belongs to")
 
 
 class CommentUpdate(BaseModel):
     """Schema for updating an existing comment."""
     content: Optional[str] = Field(None, min_length=1, max_length=5000, description="Updated comment text")
+
+    @field_validator("content")
+    @classmethod
+    def content_must_not_be_blank(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        value = value.strip()
+        if not value:
+            raise ValueError("Comment content must not be blank")
+        return ensure_safe_text(value)
 
 
 class CommentResponse(BaseModel):

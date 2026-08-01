@@ -39,6 +39,6 @@ class User(Base):
         nullable=False,
     )
 
-    tasks = relationship("Task", back_populates="assignee")
+    tasks = relationship("Task", back_populates="assignee", foreign_keys="Task.assignee_id")
     projects = relationship("Project", back_populates="owner")
     comments = relationship("Comment", back_populates="author")

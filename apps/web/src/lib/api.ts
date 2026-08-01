@@ -31,8 +31,7 @@ export const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;
   if (token) {
-    config.headers = config.headers ?? {};
-    config.headers['Authorization'] = `Bearer ${token}`;
+    config.headers.set('Authorization', `Bearer ${token}`);
   }
   return config;
 });
@@ -65,8 +64,8 @@ api.interceptors.response.use(
     }
 
     // Don't retry the refresh endpoint itself — that would loop.
-    if (originalRequest.url?.includes('/auth/refresh') ||
-        originalRequest.url?.includes('/auth/login')) {
+    const requestUrl = `${originalRequest.baseURL ?? ''}${originalRequest.url ?? ''}`;
+    if (/\/auth\/(?:refresh|login)\/?(?:[?#].*)?$/.test(requestUrl)) {
       return Promise.reject(error);
     }
 

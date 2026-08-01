@@ -19,17 +19,19 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { useTaskStore } from '@/lib/store/taskStore'
 import TaskItem from './TaskItem'
-import { staggerChildren, taskItem } from '@/lib/animations/variants'
+import { taskItem } from '@/lib/animations/variants'
 import { Stack, Typography, Box } from '@mui/material'
 import { InboxOutlined as EmptyIcon, DragIndicator as DragIcon } from '@mui/icons-material'
 import type { Task } from '@/lib/types'
 
 interface Props {
+  tasks?: Task[]
+  onOpen?: (task: Task) => void
   onEdit?: (task: Task) => void
   onDelete?: (task: Task) => void
 }
 
-function SortableTaskItem({ task, onEdit, onDelete }: { task: Task; onEdit?: (t: Task) => void; onDelete?: (t: Task) => void }) {
+function SortableTaskItem({ task, onOpen, onEdit, onDelete }: { task: Task; onOpen?: (t: Task) => void; onEdit?: (t: Task) => void; onDelete?: (t: Task) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
 
   const style = {
@@ -56,14 +58,15 @@ function SortableTaskItem({ task, onEdit, onDelete }: { task: Task; onEdit?: (t:
         <DragIcon fontSize="small" />
       </Box>
       <Box sx={{ flexGrow: 1 }}>
-        <TaskItem task={task} onEdit={onEdit} onDelete={onDelete} />
+        <TaskItem task={task} onOpen={onOpen} onEdit={onEdit} onDelete={onDelete} />
       </Box>
     </Box>
   )
 }
 
-export default function TaskList({ onEdit, onDelete }: Props) {
-  const tasks = useTaskStore((s) => s.tasks)
+export default function TaskList({ tasks: providedTasks, onOpen, onEdit, onDelete }: Props) {
+  const storedTasks = useTaskStore((s) => s.tasks)
+  const tasks = providedTasks ?? storedTasks
   const filter = useTaskStore((s) => s.filter)
   const setTasks = useTaskStore((s) => s.setTasks)
 
@@ -112,7 +115,7 @@ export default function TaskList({ onEdit, onDelete }: Props) {
           <AnimatePresence mode="popLayout">
             {filtered.map((task) => (
               <motion.div key={task.id} variants={taskItem} layout>
-                <SortableTaskItem task={task} onEdit={onEdit} onDelete={onDelete} />
+                <SortableTaskItem task={task} onOpen={onOpen} onEdit={onEdit} onDelete={onDelete} />
               </motion.div>
             ))}
           </AnimatePresence>

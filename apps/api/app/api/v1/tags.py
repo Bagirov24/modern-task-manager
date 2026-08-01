@@ -7,16 +7,16 @@ GET /tags/        — полный список (admin / settings страниц
 """
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, or_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.project_tag import ProjectTag
-from app.models.task import Label  # Label живёт в task.py или отдельной модели
+from app.models.label import Label
 from app.models.user import User
 from app.schemas.tag_search import TagSearchResponse
 from app.schemas.unified_tag import TagScope, UnifiedTagResponse

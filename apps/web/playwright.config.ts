@@ -17,7 +17,11 @@ export default defineConfig({
     { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
   ],
   webServer: {
-    command: 'pnpm run dev',
+    command: 'npm run dev -- --host 127.0.0.1 --port 5173',
+    env: {
+      ...process.env,
+      VITE_API_PROXY_TARGET: process.env.VITE_API_PROXY_TARGET ?? 'http://127.0.0.1:8000',
+    },
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

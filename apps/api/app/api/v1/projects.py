@@ -34,7 +34,7 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.project import Project, ProjectStatus, ReadmeFormat
+from app.models.project import Project, ProjectStatus
 from app.models.project_activity import ProjectActivity
 from app.models.project_member import MemberRole, ProjectMember
 from app.models.project_tag import ProjectTag, project_tags_table
@@ -44,7 +44,7 @@ from app.models.user import User
 from app.schemas.empty_state import EmptyStateResponse, TemplateSuggestion
 from app.schemas.project import (
     ProjectCreate, ProjectListResponse, ProjectReorder,
-    ProjectResponse, ProjectUpdate, ReadmeUpdate, TagResponse,
+    ProjectResponse, ProjectUpdate, ReadmeUpdate,
 )
 from app.schemas.project_member import MemberInvite, MemberResponse, MemberRoleUpdate
 from app.schemas.task import TaskCreate
@@ -56,6 +56,7 @@ _SORT_COLS = {
     "created_at": Project.created_at,
     "updated_at": Project.updated_at,
 }
+_POSTGRES_BLANK_PATTERN = r"^[[:space:]]*$"
 
 
 # ---------------------------------------------------------------------------
@@ -655,6 +656,30 @@ async def get_project_stats(
         )
     )
     overdue_count: int = overdue_r.scalar() or 0
+
+    risk_r = await db.execute(
+        select(
+            func.count(Task.id).filter(
+                (Task.is_blocked.is_(True)) | (Task.workflow_status == "blocked")
+            ).label("blocked_count"),
+            func.count(Task.id).filter(
+                Task.next_action.is_(None)
+                | Task.next_action.regexp_match(_POSTGRES_BLANK_PATTERN),
+                Task.next_action_description.is_(None)
+                | Task.next_action_description.regexp_match(_POSTGRES_BLANK_PATTERN),
+                Task.follow_up_action_description.is_(None)
+                | Task.follow_up_action_description.regexp_match(_POSTGRES_BLANK_PATTERN),
+            ).label("missing_next_action_count"),
+        ).where(
+            Task.project_id == project_id,
+            Task.status.notin_([TaskStatus.DONE, TaskStatus.ARCHIVED]),
+            Task.workflow_status.notin_(["done", "cancelled"]),
+        )
+    )
+    risk_row = risk_r.one()
+    blocked_count: int = risk_row.blocked_count or 0
+    missing_next_action_count: int = risk_row.missing_next_action_count or 0
+
     for s in TaskStatus:
         by_status.setdefault(s.value, 0)
     for p in TaskPriority:
@@ -663,6 +688,8 @@ async def get_project_stats(
     return {
         "total_tasks": total, "completed_tasks": completed,
         "overdue_count": overdue_count,
+        "blocked_count": blocked_count,
+        "missing_next_action_count": missing_next_action_count,
         "progress": round(completed / total * 100) if total else 0,
         "by_status": by_status, "by_priority": by_priority,
     }

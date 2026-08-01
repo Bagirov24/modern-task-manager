@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from pydantic import BaseModel, Field, computed_field
+from pydantic import BaseModel, Field
 
 from app.models.project_member import MemberRole
 

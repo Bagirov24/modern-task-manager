@@ -1,12 +1,8 @@
-/**
- * ARCH FIX: uiStore is the single theme source of truth.
- * Replaces the orphan src/lib/store/themeStore.ts (which main.tsx was reading).
- * main.tsx now imports useUIStore instead of useThemeStore.
- */
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 
 export type ThemeMode = 'light' | 'dark'
+export type TaskView = 'list' | 'kanban' | 'calendar' | 'timeline'
 
 interface SnackbarItem {
   id: string
@@ -24,13 +20,14 @@ interface ModalState {
 interface UIState {
   sidebarOpen: boolean
   sidebarCollapsed: boolean
-  // Merged from themeStore — single source of truth for theme
   mode: ThemeMode
   language: 'en' | 'ru'
   snackbars: SnackbarItem[]
   modal: ModalState
   searchOpen: boolean
   commandPaletteOpen: boolean
+  pinnedFocusEntityKey: string | null
+  lastTaskView: TaskView
 
   toggleSidebar: () => void
   setSidebarOpen: (open: boolean) => void
@@ -44,13 +41,25 @@ interface UIState {
   closeModal: () => void
   setSearchOpen: (open: boolean) => void
   setCommandPaletteOpen: (open: boolean) => void
+  setPinnedFocusEntityKey: (entityKey: string | null) => void
+  setLastTaskView: (view: TaskView) => void
+}
+
+export function partializeUIState(state: UIState) {
+  return {
+    mode: state.mode,
+    language: state.language,
+    sidebarCollapsed: state.sidebarCollapsed,
+    pinnedFocusEntityKey: state.pinnedFocusEntityKey,
+    lastTaskView: state.lastTaskView,
+  }
 }
 
 export const useUIStore = create<UIState>()(
   devtools(
     persist(
       (set) => ({
-        sidebarOpen: true,
+        sidebarOpen: false,
         sidebarCollapsed: false,
         mode: 'dark',
         language: 'ru',
@@ -58,6 +67,8 @@ export const useUIStore = create<UIState>()(
         modal: { isOpen: false, type: null, data: null },
         searchOpen: false,
         commandPaletteOpen: false,
+        pinnedFocusEntityKey: null,
+        lastTaskView: 'list',
 
         toggleSidebar: () =>
           set((state) => ({ sidebarOpen: !state.sidebarOpen })),
@@ -87,14 +98,12 @@ export const useUIStore = create<UIState>()(
 
         setSearchOpen: (open) => set({ searchOpen: open }),
         setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
+        setPinnedFocusEntityKey: (entityKey) => set({ pinnedFocusEntityKey: entityKey }),
+        setLastTaskView: (lastTaskView) => set({ lastTaskView }),
       }),
       {
         name: 'ui-store',
-        partialize: (state) => ({
-          mode: state.mode,
-          language: state.language,
-          sidebarCollapsed: state.sidebarCollapsed,
-        }),
+        partialize: partializeUIState,
       },
     ),
   ),

@@ -4,15 +4,15 @@ const getDesignTokens = (mode: PaletteMode) => ({
   palette: {
     mode,
     primary: {
-      main: '#6750A4',
-      light: '#D0BCFF',
-      dark: '#381E72',
+      main: mode === 'dark' ? '#60A5FA' : '#2563EB',
+      light: '#93C5FD',
+      dark: '#1D4ED8',
       contrastText: '#FFFFFF',
     },
     secondary: {
-      main: '#625B71',
-      light: '#CCC2DC',
-      dark: '#332D41',
+      main: mode === 'dark' ? '#2DD4BF' : '#0F766E',
+      light: '#5EEAD4',
+      dark: '#0F766E',
       contrastText: '#FFFFFF',
     },
     tertiary: {
@@ -23,60 +23,60 @@ const getDesignTokens = (mode: PaletteMode) => ({
     ...(mode === 'dark'
       ? {
           background: {
-            default: '#1C1B1F',
-            paper: '#2B2930',
+            default: '#0B1120',
+            paper: '#111827',
           },
           text: {
-            primary: '#E6E1E5',
-            secondary: '#CAC4D0',
+            primary: '#F8FAFC',
+            secondary: '#94A3B8',
           },
-          divider: 'rgba(230, 225, 229, 0.12)',
+          divider: '#263247',
         }
       : {
           background: {
-            default: '#FFFBFE',
+            default: '#F8FAFC',
             paper: '#FFFFFF',
           },
           text: {
-            primary: '#1C1B1F',
-            secondary: '#49454F',
+            primary: '#0F172A',
+            secondary: '#64748B',
           },
-          divider: 'rgba(28, 27, 31, 0.12)',
+          divider: '#E2E8F0',
         }),
     error: {
-      main: '#B3261E',
+      main: mode === 'dark' ? '#F87171' : '#DC2626',
       light: '#F2B8B5',
       dark: '#601410',
     },
     warning: {
-      main: '#F9A825',
+      main: mode === 'dark' ? '#FBBF24' : '#D97706',
       light: '#FFD54F',
     },
     info: {
-      main: '#0288D1',
+      main: '#0284C7',
       light: '#4FC3F7',
     },
     success: {
-      main: '#2E7D32',
+      main: mode === 'dark' ? '#4ADE80' : '#16A34A',
       light: '#81C784',
     },
   },
   typography: {
     fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-    h1: { fontSize: '2.5rem', fontWeight: 400, letterSpacing: '-0.02em' },
-    h2: { fontSize: '2rem', fontWeight: 400, letterSpacing: '-0.01em' },
+    h1: { fontSize: '2.5rem', fontWeight: 400, letterSpacing: 0 },
+    h2: { fontSize: '2rem', fontWeight: 400, letterSpacing: 0 },
     h3: { fontSize: '1.75rem', fontWeight: 400 },
     h4: { fontSize: '1.5rem', fontWeight: 500 },
     h5: { fontSize: '1.25rem', fontWeight: 500 },
     h6: { fontSize: '1rem', fontWeight: 500 },
-    subtitle1: { fontSize: '1rem', fontWeight: 500, letterSpacing: '0.01em' },
-    subtitle2: { fontSize: '0.875rem', fontWeight: 500, letterSpacing: '0.005em' },
-    body1: { fontSize: '1rem', fontWeight: 400, letterSpacing: '0.03em' },
-    body2: { fontSize: '0.875rem', fontWeight: 400, letterSpacing: '0.02em' },
-    button: { fontWeight: 500, letterSpacing: '0.02em' },
+    subtitle1: { fontSize: '1rem', fontWeight: 500, letterSpacing: 0 },
+    subtitle2: { fontSize: '0.875rem', fontWeight: 500, letterSpacing: 0 },
+    body1: { fontSize: '1rem', fontWeight: 400, letterSpacing: 0 },
+    body2: { fontSize: '0.875rem', fontWeight: 400, letterSpacing: 0 },
+    button: { fontWeight: 500, letterSpacing: 0 },
   },
   shape: {
-    borderRadius: 16,
+    borderRadius: 8,
   },
   shadows: [
     'none',
@@ -88,13 +88,25 @@ const getDesignTokens = (mode: PaletteMode) => ({
     ...Array(19).fill('0px 8px 12px 6px rgba(0,0,0,0.15), 0px 4px 4px rgba(0,0,0,0.3)'),
   ] as any,
   components: {
+    MuiButtonBase: {
+      styleOverrides: {
+        root: {
+          '&:focus-visible': {
+            outline: '3px solid',
+            outlineColor: mode === 'dark' ? '#93C5FD' : '#2563EB',
+            outlineOffset: 2,
+          },
+          '@media (max-width:600px)': { minHeight: 44, minWidth: 44 },
+        },
+      },
+    },
     MuiButton: {
       styleOverrides: {
         root: {
           textTransform: 'none' as const,
           fontWeight: 500,
-          borderRadius: 20,
-          padding: '10px 24px',
+          borderRadius: 8,
+          padding: '9px 18px',
           fontSize: '0.875rem',
         },
         contained: {
@@ -112,14 +124,13 @@ const getDesignTokens = (mode: PaletteMode) => ({
     MuiCard: {
       styleOverrides: {
         root: {
-          borderRadius: 12,
+          borderRadius: 8,
           border: '1px solid',
           borderColor: 'rgba(0,0,0,0.08)',
           boxShadow: '0px 1px 3px 1px rgba(0,0,0,0.08)',
           transition: 'box-shadow 0.2s ease, transform 0.2s ease',
           '&:hover': {
             boxShadow: '0px 2px 6px 2px rgba(0,0,0,0.12)',
-            transform: 'translateY(-2px)',
           },
         },
       },
@@ -130,23 +141,27 @@ const getDesignTokens = (mode: PaletteMode) => ({
           backgroundImage: 'none',
         },
         rounded: {
-          borderRadius: 12,
+          borderRadius: 8,
         },
       },
     },
     MuiChip: {
+      defaultProps: {
+        size: 'small' as const,
+      },
       styleOverrides: {
         root: {
           borderRadius: 8,
           fontWeight: 500,
           fontSize: '0.75rem',
+          minHeight: 28,
         },
       },
     },
     MuiFab: {
       styleOverrides: {
         root: {
-          borderRadius: 16,
+          borderRadius: 8,
           textTransform: 'none' as const,
         },
       },
@@ -155,7 +170,7 @@ const getDesignTokens = (mode: PaletteMode) => ({
       styleOverrides: {
         root: {
           '& .MuiOutlinedInput-root': {
-            borderRadius: 12,
+            borderRadius: 8,
           },
         },
       },
@@ -163,23 +178,24 @@ const getDesignTokens = (mode: PaletteMode) => ({
     MuiDialog: {
       styleOverrides: {
         paper: {
-          borderRadius: 28,
+          borderRadius: 8,
         },
       },
     },
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          borderRadius: '0 16px 16px 0',
+          borderRadius: 0,
         },
       },
     },
     MuiListItemButton: {
       styleOverrides: {
         root: {
-          borderRadius: 28,
+          borderRadius: 8,
           margin: '2px 12px',
           padding: '8px 16px',
+          minHeight: 48,
           '&.Mui-selected': {
             fontWeight: 600,
           },

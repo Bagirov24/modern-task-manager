@@ -36,6 +36,7 @@ export function useTasks(projectId?: string) {
       return response.data
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create task')
+      throw err
     }
   }, [addTask])
 
@@ -56,6 +57,7 @@ export function useTasks(projectId?: string) {
       // Roll back to previous state
       if (previousTask) updateTaskInStore(previousTask)
       setError(err instanceof Error ? err.message : 'Failed to update task')
+      throw err
     }
   }, [tasks, updateTaskInStore])
 
@@ -69,6 +71,7 @@ export function useTasks(projectId?: string) {
       // Restore task on failure by re-fetching
       await fetchTasks()
       setError(err instanceof Error ? err.message : 'Failed to delete task')
+      throw err
     }
   }, [removeTask, fetchTasks])
 

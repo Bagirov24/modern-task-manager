@@ -1,7 +1,6 @@
 """Tests for task CRUD endpoints."""
 from __future__ import annotations
 
-import pytest
 from httpx import AsyncClient
 
 from tests.conftest import make_task, register_and_login
@@ -48,6 +47,29 @@ async def test_get_task(client: AsyncClient):
     resp = await client.get(f"/api/v1/tasks/{task['id']}", headers=headers)
     assert resp.status_code == 200
     assert resp.json()["id"] == task["id"]
+
+
+async def test_task_response_resolves_commitment_owners(client: AsyncClient):
+    headers = await register_and_login(client)
+    profile_response = await client.get("/api/v1/auth/me", headers=headers)
+    assert profile_response.status_code == 200, profile_response.text
+    profile = profile_response.json()
+
+    response = await client.post(
+        "/api/v1/tasks/",
+        headers=headers,
+        json={
+            "title": "Resolve responsibility",
+            "manager_id": profile["id"],
+            "next_action_owner_id": profile["id"],
+            "waiting_for_user_id": profile["id"],
+        },
+    )
+    assert response.status_code == 201, response.text
+    task = response.json()
+    assert task["manager"]["id"] == profile["id"]
+    assert task["next_action_owner"]["id"] == profile["id"]
+    assert task["waiting_for_user"]["id"] == profile["id"]
 
 
 async def test_update_task(client: AsyncClient):

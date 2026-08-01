@@ -66,6 +66,14 @@ class UserUpdate(BaseModel):
             )
         return v
 
+class PasswordChange(BaseModel):
+    current_password: str = Field(..., min_length=8, max_length=128)
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+    @field_validator("new_password", mode="after")
+    @classmethod
+    def validate_new_password(cls, value: str) -> str:
+        return value
 
 class UserPublicResponse(BaseModel):
     """Safe for multi-user contexts (project members, assignee info, etc.).

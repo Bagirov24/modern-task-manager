@@ -7,13 +7,11 @@ import {
   IconButton,
   LinearProgress,
   Box,
-  Chip,
   Tooltip,
 } from '@mui/material'
 import {
   Star,
   StarBorder,
-  MoreVert,
   Folder,
   Edit,
   Delete,

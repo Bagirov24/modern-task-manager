@@ -24,15 +24,24 @@ UX additions (2026-07-29)
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.models.task import DescriptionFormat, TaskPriority, TaskStatus
+from app.core.sensitive_data import ensure_safe_text
 from app.schemas.user import UserPublicResponse
 
 _CLOSED = {TaskStatus.DONE, TaskStatus.ARCHIVED}
+WorkflowStatus = Literal[
+    "inbox", "backlog", "clarification_needed", "planned", "ready", "in_progress",
+    "waiting_for_internal", "waiting_for_client", "review", "ready_to_send",
+    "done", "cancelled", "blocked",
+]
+TaskType = Literal["task", "bug", "request", "approval", "contract_approval", "incident", "release", "meeting", "follow_up", "requirement_clarification"]
+WaitingParty = Literal["internal", "client", "insurer", "vendor", "none"]
+RiskLevel = Literal["low", "medium", "high", "critical"]
 
 
 # ---------------------------------------------------------------------------
@@ -74,6 +83,31 @@ class TaskCreate(BaseModel):
     start_date: Optional[datetime] = None
     project_id: Optional[UUID] = None
     parent_id: Optional[UUID] = None
+    assignee_id: Optional[UUID] = None
+    workflow_status: WorkflowStatus = "backlog"
+    is_blocked: bool = False
+    blocked_reason: Optional[str] = Field(None, max_length=2_000)
+    blocked_by_task_id: Optional[UUID] = None
+    context: Optional[str] = Field(None, max_length=20_000)
+    expected_result: Optional[str] = Field(None, max_length=20_000)
+    acceptance_criteria: Optional[str] = Field(None, max_length=20_000)
+    next_action: Optional[str] = Field(None, max_length=2_000)
+    estimate_minutes: Optional[int] = Field(None, ge=0, le=1_000_000)
+    milestone: Optional[str] = Field(None, max_length=255)
+    sprint: Optional[str] = Field(None, max_length=255)
+    task_type: TaskType = "task"
+    manager_id: Optional[UUID] = None
+    final_due_at: Optional[datetime] = None
+    response_due_at: Optional[datetime] = None
+    next_action_owner_id: Optional[UUID] = None
+    next_action_description: Optional[str] = Field(None, max_length=2_000)
+    next_action_due_at: Optional[datetime] = None
+    waiting_for_user_id: Optional[UUID] = None
+    waiting_for_party: WaitingParty = "none"
+    follow_up_action_description: Optional[str] = Field(None, max_length=2_000)
+    risk_level: RiskLevel = "low"
+    last_external_communication_at: Optional[datetime] = None
+    communication_channel: Optional[str] = Field(None, max_length=30)
     label_ids: Optional[List[UUID]] = Field(default_factory=list)
 
     @field_validator("title", mode="before")
@@ -82,7 +116,12 @@ class TaskCreate(BaseModel):
         stripped = v.strip()
         if not stripped:
             raise ValueError("title must not be blank or whitespace-only")
-        return stripped
+        return ensure_safe_text(stripped)
+
+    @field_validator("description", "blocked_reason", "context", "expected_result", "acceptance_criteria", "next_action", "next_action_description", "follow_up_action_description")
+    @classmethod
+    def reject_sensitive_description(cls, v: Optional[str]) -> Optional[str]:
+        return ensure_safe_text(v)
 
     @model_validator(mode="after")
     def check_dates(self) -> "TaskCreate":
@@ -102,6 +141,30 @@ class TaskUpdate(BaseModel):
     project_id: Optional[UUID] = None
     assignee_id: Optional[UUID] = None
     position: Optional[int] = Field(None, ge=0)
+    workflow_status: Optional[WorkflowStatus] = None
+    is_blocked: Optional[bool] = None
+    blocked_reason: Optional[str] = Field(None, max_length=2_000)
+    blocked_by_task_id: Optional[UUID] = None
+    context: Optional[str] = Field(None, max_length=20_000)
+    expected_result: Optional[str] = Field(None, max_length=20_000)
+    acceptance_criteria: Optional[str] = Field(None, max_length=20_000)
+    next_action: Optional[str] = Field(None, max_length=2_000)
+    estimate_minutes: Optional[int] = Field(None, ge=0, le=1_000_000)
+    milestone: Optional[str] = Field(None, max_length=255)
+    sprint: Optional[str] = Field(None, max_length=255)
+    task_type: Optional[TaskType] = None
+    manager_id: Optional[UUID] = None
+    final_due_at: Optional[datetime] = None
+    response_due_at: Optional[datetime] = None
+    next_action_owner_id: Optional[UUID] = None
+    next_action_description: Optional[str] = Field(None, max_length=2_000)
+    next_action_due_at: Optional[datetime] = None
+    waiting_for_user_id: Optional[UUID] = None
+    waiting_for_party: Optional[WaitingParty] = None
+    follow_up_action_description: Optional[str] = Field(None, max_length=2_000)
+    risk_level: Optional[RiskLevel] = None
+    last_external_communication_at: Optional[datetime] = None
+    communication_channel: Optional[str] = Field(None, max_length=30)
 
     @field_validator("title", mode="before")
     @classmethod
@@ -111,7 +174,12 @@ class TaskUpdate(BaseModel):
         stripped = v.strip()
         if not stripped:
             raise ValueError("title must not be blank or whitespace-only")
-        return stripped
+        return ensure_safe_text(stripped)
+
+    @field_validator("description", "blocked_reason", "context", "expected_result", "acceptance_criteria", "next_action", "next_action_description", "follow_up_action_description")
+    @classmethod
+    def reject_sensitive_description(cls, v: Optional[str]) -> Optional[str]:
+        return ensure_safe_text(v)
 
     @model_validator(mode="after")
     def check_dates(self) -> "TaskUpdate":
@@ -139,16 +207,44 @@ class TaskResponse(BaseModel):
     assignee: Optional[UserPublicResponse] = None
     parent_id: Optional[UUID] = None
     position: int = 0
+    workflow_status: WorkflowStatus = "backlog"
+    is_blocked: bool = False
+    blocked_reason: Optional[str] = None
+    blocked_by_task_id: Optional[UUID] = None
+    context: Optional[str] = None
+    expected_result: Optional[str] = None
+    acceptance_criteria: Optional[str] = None
+    next_action: Optional[str] = None
+    estimate_minutes: Optional[int] = None
+    milestone: Optional[str] = None
+    sprint: Optional[str] = None
+    task_type: TaskType = "task"
+    manager_id: Optional[UUID] = None
+    manager: Optional[UserPublicResponse] = None
+    final_due_at: Optional[datetime] = None
+    response_due_at: Optional[datetime] = None
+    next_action_owner_id: Optional[UUID] = None
+    next_action_owner: Optional[UserPublicResponse] = None
+    next_action_description: Optional[str] = None
+    next_action_due_at: Optional[datetime] = None
+    waiting_for_user_id: Optional[UUID] = None
+    waiting_for_user: Optional[UserPublicResponse] = None
+    waiting_for_party: WaitingParty = "none"
+    follow_up_action_description: Optional[str] = None
+    risk_level: RiskLevel = "low"
+    last_activity_at: Optional[datetime] = None
+    last_external_communication_at: Optional[datetime] = None
+    communication_channel: Optional[str] = None
+    is_planning_complete: bool = False
+    documentation_count: int = 0
+    comment_count: int = 0
     created_at: datetime
     updated_at: datetime
 
-    # #ux-4 — checklist progress (populated by endpoint, default=empty)
     checklist_summary: ChecklistSummary = Field(
         default_factory=ChecklistSummary,
         description="Subtask completion summary; total=0 when no subtasks exist",
     )
-
-    # #ux-1 — overdue indicator
     is_overdue: bool = Field(
         False,
         description="True when due_date < now AND status not in {done, archived}",
@@ -157,13 +253,20 @@ class TaskResponse(BaseModel):
     model_config = {"from_attributes": True}
 
     @model_validator(mode="after")
-    def compute_is_overdue(self) -> "TaskResponse":
+    def compute_derived_fields(self) -> "TaskResponse":
         if (
             self.due_date
             and self.due_date < datetime.now(timezone.utc)
             and self.status not in _CLOSED
         ):
             self.is_overdue = True
+        self.is_planning_complete = bool(
+            self.context
+            and self.expected_result
+            and self.acceptance_criteria
+            and self.assignee_id
+            and self.project_id
+        )
         return self
 
 

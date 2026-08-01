@@ -28,18 +28,17 @@ only receive events for projects they are members of. Clients must call
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
 from typing import Dict, Optional, Set
 
 import socketio
 from fastapi import FastAPI
-from jose import JWTError, jwt
+import jwt
+from jwt import PyJWTError as JWTError
 from sqlalchemy import select
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.models.project import Project
-from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -253,7 +252,7 @@ async def handle_connect(sid: str, environ: dict, auth: dict | None):
             token,
             settings.SECRET_KEY,
             algorithms=["HS256"],
-            options={"leeway": 10},
+            leeway=10,
         )
         user_id: str | None = payload.get("sub")
         jti: str | None = payload.get("jti")

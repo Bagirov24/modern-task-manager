@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import {
-  Card, CardActionArea, CardContent, Typography, Chip, Box,
+  Card, ButtonBase, CardContent, Typography, Chip, Box,
   IconButton, Stack, Tooltip, alpha,
 } from '@mui/material'
 import {
@@ -33,18 +33,19 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 
 interface Props {
   task: Task
+  onOpen?: (task: Task) => void
   onEdit?: (task: Task) => void
   onDelete?: (task: Task) => void
 }
 
-export default function TaskItem({ task, onEdit, onDelete }: Props) {
+export default function TaskItem({ task, onOpen, onEdit, onDelete }: Props) {
   const updateTask = useTaskStore((s) => s.updateTask)
-  const selectTask = useTaskStore((s) => s.selectTask)
+  const setSelectedTask = useTaskStore((s) => s.setSelectedTask)
   const isDone = task.status === 'done'
 
   const toggle = (e: React.MouseEvent) => {
     e.stopPropagation()
-    updateTask(task.id, { status: isDone ? 'todo' : 'done' })
+    updateTask({ ...task, status: isDone ? 'todo' : 'done' })
   }
 
   const handleEdit = (e: React.MouseEvent) => {
@@ -93,14 +94,15 @@ export default function TaskItem({ task, onEdit, onDelete }: Props) {
         transition: 'all 0.2s ease',
       }}
     >
-      <CardActionArea onClick={() => selectTask(task)} sx={{ p: 0 }}>
+      <Box>
         <CardContent sx={{ p: 2, pl: 3, '&:last-child': { pb: 2 } }}>
           <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-            <IconButton size="small" onClick={toggle} sx={{ mt: -0.25, color: isDone ? 'success.main' : 'text.disabled' }}>
+            <Tooltip title={isDone ? 'Вернуть в работу' : 'Завершить'}><IconButton aria-label={isDone ? 'Вернуть в работу' : 'Завершить'} size="small" onClick={toggle} sx={{ mt: -0.25, color: isDone ? 'success.main' : 'text.disabled', minWidth: 44, minHeight: 44 }}>
               {isDone ? <CheckIcon /> : <UncheckedIcon />}
-            </IconButton>
+            </IconButton></Tooltip>
 
             <Box sx={{ flex: 1, minWidth: 0 }}>
+              <ButtonBase aria-label={`Открыть задачу ${task.title}`} onClick={() => onOpen ? onOpen(task) : setSelectedTask(task)} sx={{ display: 'block', width: '100%', textAlign: 'left', borderRadius: 1 }}>
               <Typography
                 variant="body1"
                 fontWeight={500}
@@ -111,6 +113,7 @@ export default function TaskItem({ task, onEdit, onDelete }: Props) {
               >
                 {task.title}
               </Typography>
+              </ButtonBase>
 
               {task.description && (
                 <Typography variant="body2" color="text.secondary" noWrap sx={{ mt: 0.5 }}>
@@ -133,7 +136,7 @@ export default function TaskItem({ task, onEdit, onDelete }: Props) {
                   sx={{
                     height: 24,
                     fontSize: '0.7rem',
-                    bgcolor: (t: any) => alpha(status.color, 0.15),
+                    bgcolor: alpha(status.color, 0.15),
                     color: status.color,
                     border: 'none',
                   }}
@@ -150,21 +153,21 @@ export default function TaskItem({ task, onEdit, onDelete }: Props) {
               </Stack>
             </Box>
 
-            <Stack direction="row" spacing={0.5} sx={{ opacity: 0, '.MuiCard-root:hover &': { opacity: 1 }, transition: 'opacity 0.2s' }}>
+            <Stack direction="row" spacing={0.5} sx={{ opacity: { xs: 1, sm: 0 }, '&:focus-within, .MuiCard-root:hover &': { opacity: 1 }, transition: 'opacity 0.2s' }}>
               <Tooltip title="Редактировать">
-                <IconButton size="small" onClick={handleEdit}>
+                <IconButton size="small" aria-label={`Редактировать ${task.title}`} onClick={handleEdit} sx={{ minWidth: { xs: 44, sm: 36 }, minHeight: { xs: 44, sm: 36 } }}>
                   <EditIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
               <Tooltip title="Удалить">
-                <IconButton size="small" onClick={handleDelete} sx={{ color: 'error.main' }}>
+                <IconButton size="small" aria-label={`Удалить ${task.title}`} onClick={handleDelete} sx={{ color: 'error.main', minWidth: { xs: 44, sm: 36 }, minHeight: { xs: 44, sm: 36 } }}>
                   <DeleteIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
             </Stack>
           </Box>
         </CardContent>
-      </CardActionArea>
+      </Box>
     </MotionCard>
   )
 }

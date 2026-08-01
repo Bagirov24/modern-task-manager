@@ -15,7 +15,7 @@ export interface CommentCreate {
 
 export const commentApi = {
   getByTask: (taskId: string) =>
-    api.get<Comment[]>(`/comments/task/${taskId}`).then((r) => r.data),
+    api.get<{ comments: Comment[]; total: number }>(`/comments/task/${taskId}`).then((r) => r.data),
 
   create: (data: CommentCreate) =>
     api.post<Comment>('/comments/', data).then((r) => r.data),

@@ -9,6 +9,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.models.project import ProjectStatus, ReadmeFormat
+from app.core.sensitive_data import ensure_safe_text
 from app.schemas.user import UserPublicResponse
 
 _HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
@@ -58,6 +59,8 @@ class ProjectCreate(BaseModel):
 
     @model_validator(mode="after")
     def check_dates(self) -> "ProjectCreate":
+        for value in (self.name, self.description, self.readme):
+            ensure_safe_text(value)
         if self.start_date and self.due_date and self.start_date >= self.due_date:
             raise ValueError("start_date must be before due_date")
         return self
@@ -99,6 +102,8 @@ class ProjectUpdate(BaseModel):
 
     @model_validator(mode="after")
     def check_dates(self) -> "ProjectUpdate":
+        for value in (self.name, self.description, self.readme):
+            ensure_safe_text(value)
         if self.start_date and self.due_date and self.start_date >= self.due_date:
             raise ValueError("start_date must be before due_date")
         return self
@@ -110,6 +115,11 @@ class ProjectUpdate(BaseModel):
 class ReadmeUpdate(BaseModel):
     readme: str = Field(..., max_length=50_000)   # 50k chars for wiki
     readme_format: ReadmeFormat = ReadmeFormat.HTML
+
+    @field_validator("readme")
+    @classmethod
+    def reject_sensitive_text(cls, value: str) -> str:
+        return ensure_safe_text(value)
 
 
 # ---------------------------------------------------------------------------

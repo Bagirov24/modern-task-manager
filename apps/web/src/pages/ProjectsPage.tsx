@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Container,
   Typography,
@@ -19,6 +20,8 @@ import {
   Alert,
   Skeleton,
   CircularProgress,
+  InputAdornment,
+  MenuItem,
 } from '@mui/material'
 import {
   FolderOutlined as FolderIcon,
@@ -26,6 +29,7 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Refresh as RefreshIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material'
 import { useProjectsQuery } from '@/lib/hooks/useProjectsQuery'
 import { useUIStore } from '@/store/uiStore'
@@ -36,17 +40,39 @@ const colorOptions = ['#2196F3', '#4CAF50', '#FF9800', '#F44336', '#9C27B0', '#0
 type ProjectForm = { name: string; description: string; color: string }
 
 export default function ProjectsPage() {
+  const navigate = useNavigate()
   const { projects: rawProjects, loading, error, fetchProjects, createProject, updateProject, deleteProject } = useProjectsQuery()
-  const projects = Array.isArray(rawProjects) ? rawProjects : []
+  const projects = useMemo(() => Array.isArray(rawProjects) ? rawProjects : [], [rawProjects])
   const addSnackbar = useUIStore((s) => s.addSnackbar)
+  const modalState = useUIStore((s) => s.modal)
+  const closeModal = useUIStore((s) => s.closeModal)
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editProject, setEditProject] = useState<Project | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<Project | null>(null)
   const [form, setForm] = useState<ProjectForm>({ name: '', description: '', color: '#2196F3' })
   const [saving, setSaving] = useState(false)
+  const [search, setSearch] = useState('')
+  const [sortBy, setSortBy] = useState<'updated' | 'name' | 'tasks'>('updated')
 
   const activeProjects = useMemo(() => projects.filter((p) => !p.is_archived), [projects])
+  const visibleProjects = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    return activeProjects
+      .filter((project) => !query || project.name.toLowerCase().includes(query) || project.description?.toLowerCase().includes(query))
+      .sort((a, b) => {
+        if (sortBy === 'name') return a.name.localeCompare(b.name, 'ru')
+        if (sortBy === 'tasks') return (b.task_count || 0) - (a.task_count || 0)
+        return new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime()
+      })
+  }, [activeProjects, search, sortBy])
+
+  useEffect(() => {
+    if (modalState.isOpen && modalState.type === 'project.create') {
+      openCreate()
+      closeModal()
+    }
+  }, [modalState, closeModal])
 
   const openCreate = () => {
     setEditProject(null)
@@ -72,6 +98,8 @@ export default function ProjectsPage() {
         addSnackbar({ message: 'Проект создан', type: 'success', duration: 3000 })
       }
       setDialogOpen(false)
+    } catch {
+      addSnackbar({ message: 'Не удалось сохранить проект', type: 'error', duration: 4000 })
     } finally {
       setSaving(false)
     }
@@ -79,9 +107,13 @@ export default function ProjectsPage() {
 
   const confirmDelete = async () => {
     if (!deleteConfirm) return
-    await deleteProject(deleteConfirm.id)
-    addSnackbar({ message: `Проект «${deleteConfirm.name}» удалён`, type: 'success', duration: 3500 })
-    setDeleteConfirm(null)
+    try {
+      await deleteProject(deleteConfirm.id)
+      addSnackbar({ message: `Проект «${deleteConfirm.name}» удалён`, type: 'success', duration: 3500 })
+      setDeleteConfirm(null)
+    } catch {
+      addSnackbar({ message: 'Не удалось удалить проект', type: 'error', duration: 4000 })
+    }
   }
 
   return (
@@ -93,7 +125,7 @@ export default function ProjectsPage() {
         </Box>
         <Stack direction="row" spacing={1}>
           <Tooltip title="Обновить">
-            <IconButton onClick={() => fetchProjects()}><RefreshIcon /></IconButton>
+            <IconButton aria-label="Обновить проекты" onClick={() => fetchProjects()} sx={{ minWidth: 44, minHeight: 44 }}><RefreshIcon /></IconButton>
           </Tooltip>
           <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
             Новый проект
@@ -101,6 +133,28 @@ export default function ProjectsPage() {
         </Stack>
       </Box>
 
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }}>
+        <TextField
+          size="small"
+          placeholder="Поиск проектов..."
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }}
+          sx={{ flex: 1 }}
+        />
+        <TextField
+          select
+          size="small"
+          label="Сортировка"
+          value={sortBy}
+          onChange={(event) => setSortBy(event.target.value as typeof sortBy)}
+          sx={{ minWidth: 220 }}
+        >
+          <MenuItem value="updated">Недавно обновлённые</MenuItem>
+          <MenuItem value="name">По названию</MenuItem>
+          <MenuItem value="tasks">По количеству задач</MenuItem>
+        </TextField>
+      </Stack>
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>Не удалось загрузить проекты с сервера.</Alert>
       )}
@@ -115,9 +169,9 @@ export default function ProjectsPage() {
         </Grid>
       ) : (
         <Grid container spacing={3}>
-          {activeProjects.map((project) => (
+          {visibleProjects.map((project) => (
             <Grid item xs={12} sm={6} md={4} key={project.id}>
-              <Card sx={{ height: '100%', borderLeft: 4, borderColor: project.color || 'primary.main' }}>
+              <Card onClick={() => navigate(`/projects/${project.id}`)} sx={{ height: '100%', borderLeft: 4, borderColor: project.color || 'primary.main', cursor: 'pointer' }}>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -126,10 +180,10 @@ export default function ProjectsPage() {
                     </Box>
                     <Stack direction="row">
                       <Tooltip title="Редактировать">
-                        <IconButton size="small" onClick={() => openEdit(project)}><EditIcon fontSize="small" /></IconButton>
+                        <IconButton size="small" aria-label={`Редактировать ${project.name}`} onClick={(event) => { event.stopPropagation(); openEdit(project) }} sx={{ minWidth: 44, minHeight: 44 }}><EditIcon fontSize="small" /></IconButton>
                       </Tooltip>
                       <Tooltip title="Удалить">
-                        <IconButton size="small" color="error" onClick={() => setDeleteConfirm(project)}><DeleteIcon fontSize="small" /></IconButton>
+                        <IconButton size="small" color="error" aria-label={`Удалить ${project.name}`} onClick={(event) => { event.stopPropagation(); setDeleteConfirm(project) }} sx={{ minWidth: 44, minHeight: 44 }}><DeleteIcon fontSize="small" /></IconButton>
                       </Tooltip>
                     </Stack>
                   </Box>
@@ -145,7 +199,7 @@ export default function ProjectsPage() {
               </Card>
             </Grid>
           ))}
-          {activeProjects.length === 0 && (
+          {visibleProjects.length === 0 && (
             <Grid item xs={12}>
               <Box sx={{ textAlign: 'center', py: 8 }}>
                 <FolderIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />

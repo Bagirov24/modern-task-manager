@@ -7,8 +7,6 @@ import {
   TextField,
   Button,
   Box,
-  ToggleButtonGroup,
-  ToggleButton,
   Typography,
 } from '@mui/material'
 import { useProjects } from '../../hooks/useProjects'
@@ -50,7 +48,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
         await createProject({ name, description, color })
       }
       onClose()
-    } catch (err) {
+    } catch {
       setError('Ошибка при сохранении проекта')
     } finally {
       setLoading(false)

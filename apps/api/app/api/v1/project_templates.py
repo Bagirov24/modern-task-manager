@@ -14,12 +14,13 @@ from typing import Any, List
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
+from app.core.sensitive_data import ensure_safe_text
 from app.core.security import get_current_user
 from app.models.project_template import ProjectTemplate, TemplateSection, TemplateTask
 from app.models.user import User
@@ -38,6 +39,12 @@ class TemplateTaskSchema(BaseModel):
     position: int = 0
     relative_days: int | None = None
 
+    @model_validator(mode="after")
+    def reject_sensitive_text(self):
+        ensure_safe_text(self.title)
+        ensure_safe_text(self.description)
+        return self
+
 
 class TemplateSectionSchema(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
@@ -52,6 +59,12 @@ class TemplateCreate(BaseModel):
     color: str = "#38bdf8"
     is_public: bool = False
     sections: List[TemplateSectionSchema] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def reject_sensitive_text(self):
+        ensure_safe_text(self.name)
+        ensure_safe_text(self.description)
+        return self
 
 
 class TemplateResponse(BaseModel):

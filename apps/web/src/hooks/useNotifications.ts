@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { notificationApi } from '../lib/api/notificationApi'
-import type { Notification } from '../lib/types'
+import type { AppNotification } from '../lib/types'
 
-export { type Notification }
+export type Notification = AppNotification
 
 export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([])

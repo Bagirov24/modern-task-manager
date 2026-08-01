@@ -45,7 +45,6 @@ UnifiedTagResponse — новый общий формат для фильтр-д
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field

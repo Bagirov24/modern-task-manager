@@ -9,6 +9,8 @@ import { api } from './api';
 import { useAuthStore } from '../stores/authStore';
 
 const mock = new MockAdapter(api);
+const originalRefreshTokens = useAuthStore.getState().refreshTokens;
+const originalLogout = useAuthStore.getState().logout;
 
 beforeEach(() => {
   mock.reset();
@@ -16,6 +18,8 @@ beforeEach(() => {
     accessToken: 'valid-access-token',
     refreshToken: 'valid-refresh-token',
     isAuthenticated: true,
+    refreshTokens: originalRefreshTokens,
+    logout: originalLogout,
   });
 });
 

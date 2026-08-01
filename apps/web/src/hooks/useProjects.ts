@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { projectApi } from '../lib/api/projectApi'
 import { useProjectStore } from '../store/projectStore'
 import type { Project } from '../lib/types'
+import type { ProjectCreate } from '../lib/api/projectApi'
 
-export type ProjectCreate = Record<string, any>
+export type { ProjectCreate }
 
 export function useProjects() {
   const { projects, setProjects, addProject, updateProject: updateProjectInStore, removeProject } = useProjectStore()
@@ -36,7 +37,7 @@ export function useProjects() {
     fetchProjects()
   }, [fetchProjects])
 
-  const createProject = useCallback(async (project: Partial<Project>) => {
+  const createProject = useCallback(async (project: ProjectCreate) => {
     setError(null)
     try {
       const newProject: any = await projectApi.create(project)

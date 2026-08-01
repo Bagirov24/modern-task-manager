@@ -86,6 +86,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return self._redis
 
     async def dispatch(self, request: Request, call_next):
+        if settings.ENVIRONMENT == "test":
+            return await call_next(request)
+
         client_ip = _get_client_ip(request)
         key = f"ratelimit:{client_ip}"
 

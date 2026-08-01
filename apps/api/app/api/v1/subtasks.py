@@ -65,7 +65,7 @@ async def create_subtask(
 ):
     parent = await _get_parent(task_id, current_user.id, db)
     subtask = Task(
-        **subtask_data.model_dump(exclude={"label_ids", "parent_id"}),
+        **subtask_data.model_dump(exclude={"label_ids", "parent_id", "project_id", "assignee_id"}),
         parent_id=task_id,
         assignee_id=current_user.id,
         project_id=parent.project_id,

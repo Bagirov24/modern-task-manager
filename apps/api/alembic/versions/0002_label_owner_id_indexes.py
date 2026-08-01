@@ -1,7 +1,7 @@
 """Migration 0002: tighten label.owner_id NOT NULL + add FK indexes.
 
 Revision ID: 0002_label_owner_id_indexes
-Revises: 0001  (adjust if your first revision id is different)
+Revises: 001_add_start_date_timezone
 Create Date: 2026-07-29
 
 What this migration does
@@ -28,14 +28,31 @@ from sqlalchemy.dialects.postgresql import UUID
 
 # revision identifiers
 revision = "0002_label_owner_id_indexes"
-down_revision = "0001"   # <-- update to your actual previous revision id
+down_revision = "001_add_start_date_timezone"
 branch_labels = None
 depends_on = None
 
 
 def upgrade() -> None:
     conn = op.get_bind()
+    inspector = sa.inspect(conn)
 
+    label_columns = {
+        column["name"] for column in inspector.get_columns("labels")
+    }
+    if "owner_id" not in label_columns:
+        op.add_column(
+            "labels",
+            sa.Column("owner_id", UUID(as_uuid=True), nullable=True),
+        )
+        op.create_foreign_key(
+            "fk_labels_owner_id_users",
+            "labels",
+            "users",
+            ["owner_id"],
+            ["id"],
+            ondelete="CASCADE",
+        )
     # ------------------------------------------------------------------
     # 1. Backfill labels.owner_id NULLs
     #    Assign orphan labels to the first superuser / oldest user.

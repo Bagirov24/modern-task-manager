@@ -4,7 +4,7 @@ import {
   Chip, Tooltip, alpha, useTheme, Dialog, DialogTitle,
   DialogContent, DialogActions, Button, List, ListItem,
   ListItemButton, ListItemText, ListItemIcon, ToggleButtonGroup,
-  ToggleButton, Divider, TextField,
+  ToggleButton, Alert, LinearProgress,
 } from '@mui/material'
 import {
   ChevronLeft, ChevronRight,
@@ -22,18 +22,18 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   startOfMonth, endOfMonth,
   startOfWeek, endOfWeek,
-  startOfDay, endOfDay,
   addDays, addWeeks, subWeeks,
   addMonths, subMonths,
   format, isSameMonth, isToday, isPast,
-  parseISO, differenceInCalendarDays, isSameDay,
-  eachHourOfInterval, setHours, setMinutes,
+  parseISO, differenceInCalendarDays,
 } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { useTasks } from '@/lib/hooks/useTasks'
 import { useProjects } from '@/lib/hooks/useProjects'
 import { useUIStore } from '@/store/uiStore'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useAuthStore } from '@/lib/store/authStore'
+import { matchesTaskPreset } from '@/features/tasks/taskPresetFilters'
 import TaskDetailDialog from '@/components/tasks/TaskDetailDialog'
 import type { Task, Project } from '@/lib/types'
 
@@ -93,7 +93,6 @@ function TaskPill({ task, onClick }: { task: Task; onClick: () => void }) {
 
 // ─── Overdue rail ─────────────────────────────────────────────────────────────
 function OverdueRail({ tasks, onTaskClick }: { tasks: Task[]; onTaskClick: (t: Task) => void }) {
-  const theme = useTheme()
   if (!tasks.length) return null
   return (
     <Paper
@@ -635,11 +634,14 @@ function GanttLiteView({
 export default function CalendarPage() {
   const theme = useTheme()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const openModal = useUIStore((s) => s.openModal)
+  const currentUserId = useAuthStore((state) => state.user?.id ?? '')
 
   const [viewMode, setViewMode] = useState<ViewMode>('month')
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [projectFilter, setProjectFilter] = useState<string>('all')
+  const projectFilter = searchParams.get('project_id') ?? 'all'
+  const preset = searchParams.get('preset')
 
   // Task detail dialog
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
@@ -652,8 +654,8 @@ export default function CalendarPage() {
   // Day panel dialog (month view click on occupied date)
   const [dayPanelDate, setDayPanelDate] = useState<Date | null>(null)
 
-  const { tasks: rawTasks } = useTasks()
-  const { projects: rawProjects } = useProjects()
+  const { tasks: rawTasks, loading: tasksLoading, error: tasksError } = useTasks()
+  const { projects: rawProjects, loading: projectsLoading, error: projectsError } = useProjects()
 
   const allTasks: Task[] = useMemo(() => Array.isArray(rawTasks) ? rawTasks : [], [rawTasks])
   const projects: Project[] = useMemo(
@@ -666,9 +668,16 @@ export default function CalendarPage() {
     return allTasks.filter((t) => {
       if (!t.due_date && !t.start_date) return false // no date = not on calendar
       if (projectFilter !== 'all' && t.project_id !== projectFilter) return false
-      return true
+      return matchesTaskPreset(t, preset, currentUserId, new Date())
     })
-  }, [allTasks, projectFilter])
+  }, [allTasks, projectFilter, preset, currentUserId])
+
+  const selectProject = (projectId: string) => {
+    const next = new URLSearchParams(searchParams)
+    if (projectId === 'all') next.delete('project_id')
+    else next.set('project_id', projectId)
+    setSearchParams(next, { replace: true })
+  }
 
   // Overdue tasks (non-done, due_date in past)
   const overdueTasks = useMemo(
@@ -732,9 +741,15 @@ export default function CalendarPage() {
   }
 
   const handleConfirmCreate = () => {
+    if (!createDialogDate) return
+    const selectedDate = format(createDialogDate, 'yyyy-MM-dd')
+    openModal('task.create', {
+      due_date: createMode === 'range' ? format(addDays(createDialogDate, 1), 'yyyy-MM-dd') : selectedDate,
+      start_date: createMode === 'range' ? selectedDate : undefined,
+      project_id: projectFilter === 'all' ? undefined : projectFilter,
+    })
     setCreateDialogDate(null)
     navigate('/tasks')
-    openModal('task.create')
   }
 
   return (
@@ -762,12 +777,14 @@ export default function CalendarPage() {
         </ToggleButtonGroup>
       </Stack>
 
+      {(tasksError || projectsError) && <Alert severity="error" sx={{ mb: 2 }}>Не удалось загрузить календарь.</Alert>}
+      {(tasksLoading || projectsLoading) && <LinearProgress sx={{ mb: 2 }} />}
       {/* Project filter */}
       <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
         <Chip
           label="Все проекты"
           size="small"
-          onClick={() => setProjectFilter('all')}
+          onClick={() => selectProject('all')}
           color={projectFilter === 'all' ? 'primary' : 'default'}
         />
         {projects.map((p) => (
@@ -775,7 +792,7 @@ export default function CalendarPage() {
             key={p.id}
             label={p.name}
             size="small"
-            onClick={() => setProjectFilter(p.id)}
+            onClick={() => selectProject(p.id)}
             color={projectFilter === p.id ? 'primary' : 'default'}
             sx={{
               '&.MuiChip-colorDefault': {
@@ -791,16 +808,16 @@ export default function CalendarPage() {
 
       {/* Navigation bar */}
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-        <IconButton onClick={goPrev} size="small"><ChevronLeft /></IconButton>
+        <Tooltip title="Предыдущий период"><IconButton onClick={goPrev} size="small" aria-label="Предыдущий период" sx={{ minWidth: 44, minHeight: 44 }}><ChevronLeft /></IconButton></Tooltip>
         <Typography
           variant="h6" fontWeight={600}
           sx={{ minWidth: { xs: 160, md: 240 }, textAlign: 'center' }}
         >
           {navLabel}
         </Typography>
-        <IconButton onClick={goNext} size="small"><ChevronRight /></IconButton>
+        <Tooltip title="Следующий период"><IconButton onClick={goNext} size="small" aria-label="Следующий период" sx={{ minWidth: 44, minHeight: 44 }}><ChevronRight /></IconButton></Tooltip>
         <Tooltip title="Сегодня">
-          <IconButton onClick={goToday} size="small"><TodayIcon /></IconButton>
+          <IconButton onClick={goToday} size="small" aria-label="Сегодня" sx={{ minWidth: 44, minHeight: 44 }}><TodayIcon /></IconButton>
         </Tooltip>
         <Box sx={{ flex: 1 }} />
         <Button
