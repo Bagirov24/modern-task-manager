@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from '@mui/material/styles'
@@ -10,6 +10,7 @@ import type { Task } from '@/lib/types'
 import TasksPage from '@/pages/TasksPage'
 import TaskDetailDialog from '../TaskDetailDialog'
 import { useTaskStore } from '@/lib/store/taskStore'
+import { useUIStore } from '@/store/uiStore'
 
 const mocks = vi.hoisted(() => ({
   tasks: [] as Task[], taskGet: vi.fn(), communicationList: vi.fn(),
@@ -30,14 +31,15 @@ vi.mock('@/lib/api/testDataApi', () => ({ testDataApi: { list: vi.fn() } }))
 vi.mock('@/lib/api/commentApi', () => ({ commentApi: { getByTask: vi.fn(), create: vi.fn() } }))
 vi.mock('@/lib/api/workspaceLinkApi', () => ({ workspaceLinkApi: { listForTask: vi.fn(), list: vi.fn() } }))
 vi.mock('@/lib/api/managerStatusApi', () => ({ managerStatusApi: { task: vi.fn() } }))
-vi.mock('@/lib/store/authStore', () => ({ useAuthStore: (selector: (state: { user: { id: string } }) => unknown) => selector({ user: { id: 'u1' } }) }))
+vi.mock('@/lib/store/authStore', () => ({ useAuthStore: (selector: (state: { user: { id: string; username: string } }) => unknown) => selector({ user: { id: 'manager-1', username: 'Manager' } }) }))
 
 const task: Task = {
   id: 'crm-142', title: 'CRM-142', status: 'in_progress', priority: 'high', position: 0,
   workflow_status: 'in_progress', is_blocked: true, blocked_reason: 'Waiting for API contract',
   next_action_description: 'Confirm API contract', due_date: '2026-07-30T12:00:00Z', final_due_at: '2026-07-30T12:00:00Z',
   response_due_at: '2026-08-02T11:00:00Z', next_action_due_at: '2026-08-03T09:00:00Z',
-  manager_id: 'manager-1', assignee_id: 'developer-1', waiting_for_user_id: 'lawyer-1',
+  manager_id: 'manager-1', assignee_id: 'developer-1', assignee: { id: 'developer-1', username: 'ivan', full_name: 'Ivan Developer' },
+  next_action_owner_id: 'developer-1', waiting_for_user_id: 'lawyer-1',
   waiting_for_party: 'internal', risk_level: 'high', context: 'Long-form task context',
 }
 
@@ -61,6 +63,7 @@ function NavigationProbe() {
 beforeEach(() => {
   mocks.tasks = []
   useTaskStore.setState({ filter: {} })
+  useUIStore.setState({ modal: { isOpen: false, type: null, data: null } })
   mocks.communicationList.mockResolvedValue({ data: { items: [], total: 0, groups: {}, page: 1, per_page: 50 } })
   mocks.taskGet.mockResolvedValue({ data: task })
   mocks.createTask.mockResolvedValue(task)
@@ -89,6 +92,16 @@ describe('task drawer', () => {
     expect(await screen.findByText('Для задачи пока нет связанных коммуникаций.')).toBeVisible()
   })
 
+  it('uses the API total for communication counts and discloses truncation', async () => {
+    mocks.communicationList.mockResolvedValueOnce({ data: {
+      items: [{ id: 'c1', subject: 'API reply', sender_name: 'Developer', body_preview: 'Ready', source_type: 'manual', action_status: 'done' }],
+      total: 101, groups: {}, page: 1, per_page: 100,
+    } })
+    render(<Providers><TaskDetailDialog open onClose={vi.fn()} task={task} mode="view" /></Providers>)
+    fireEvent.click(screen.getAllByRole('tab')[2])
+    expect(await screen.findByRole('tab', { name: 'Коммуникации 101' })).toBeVisible()
+    expect(screen.getByText('Показана 1 из 101 коммуникаций. Полная история доступна во входящих.')).toBeVisible()
+  })
   it('uses the full viewport width on mobile', () => {
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
       matches: query.includes('max-width'), media: query, onchange: null,
@@ -97,8 +110,29 @@ describe('task drawer', () => {
     render(<Providers><TaskDetailDialog open onClose={vi.fn()} task={task} mode="view" /></Providers>)
     expect(screen.getByTestId('task-drawer-paper')).toHaveStyle({ width: '100%' })
     expect(screen.getByRole('button', { name: 'Закрыть' })).toHaveStyle({ minWidth: '44px', minHeight: '44px' })
+    expect(screen.getByRole('button', { name: 'Статус' })).toHaveStyle({ minHeight: '44px' })
+    expect(screen.getByRole('button', { name: 'Редактировать' })).toHaveStyle({ minWidth: '44px', minHeight: '44px' })
   })
 
+  it('keeps every mobile edit action at least 44px high', async () => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes('max-width'), media: query, onchange: null,
+      addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(),
+    }))
+    render(<Providers><TaskDetailDialog open onClose={vi.fn()} task={task} mode="edit" /></Providers>)
+    for (const name of ['Удалить', 'Отмена', 'Сохранить']) {
+      expect(await screen.findByRole('button', { name })).toHaveStyle({ minHeight: '44px' })
+    }
+  })
+
+  it('shows the next-action owner and resolves known responsibility identities', () => {
+    render(<Providers><TaskDetailDialog open onClose={vi.fn()} task={task} mode="view" /></Providers>)
+    const paper = screen.getByTestId('task-drawer-paper')
+    expect(paper).toHaveTextContent('Владелец действия')
+    expect(paper).toHaveTextContent('Ivan Developer')
+    expect(paper).toHaveTextContent('Manager')
+    expect(paper).not.toHaveTextContent('manager-1')
+  })
   it('opens from List, preserves URL state, closes on Escape and restores focus', async () => {
     mocks.tasks = [task]
     render(<Providers path="/tasks?view=list&preset=overdue&sort=priority"><Routes><Route path="/tasks" element={<><TasksPage /><LocationProbe /></>} /></Routes></Providers>)
@@ -116,6 +150,15 @@ describe('task drawer', () => {
     render(<Providers path="/tasks?view=kanban&project_id=p1&sort=priority"><Routes><Route path="/tasks" element={<><TasksPage /><LocationProbe /></>} /></Routes></Providers>)
     fireEvent.click(screen.getByRole('button', { name: 'Открыть задачу CRM-142' }))
     await waitFor(() => expect(screen.getByLabelText('current search').textContent).toBe('?view=kanban&project_id=p1&sort=priority&task=crm-142'))
+  })
+  it('does not show the previous task while a new direct task is loading', async () => {
+    mocks.tasks = [task]
+    mocks.taskGet.mockImplementationOnce(() => new Promise(() => {}))
+    render(<Providers path="/tasks?task=crm-142&view=list"><Routes><Route path="/tasks" element={<><TasksPage /><LocationProbe /><NavigationProbe /></>} /></Routes></Providers>)
+    expect(await screen.findByTestId('task-drawer-paper')).toHaveTextContent('CRM-142')
+    fireEvent.click(screen.getByRole('button', { name: 'Open second task', hidden: true }))
+    await waitFor(() => expect(mocks.taskGet).toHaveBeenCalledWith('second'))
+    await waitFor(() => expect(screen.queryByTestId('task-drawer-paper')).not.toBeInTheDocument())
   })
   it('loads a direct task URL when the task is outside the current list', async () => {
     render(<Providers path="/tasks?task=crm-142&preset=overdue"><Routes><Route path="/tasks" element={<TasksPage />} /></Routes></Providers>)
@@ -137,6 +180,15 @@ describe('task drawer', () => {
     await waitFor(() => expect(mocks.taskGet).toHaveBeenCalledWith('missing'))
     await waitFor(() => expect(screen.getByLabelText('current search').textContent).toBe('?view=list&sort=priority'))
     expect(screen.queryByTestId('task-drawer-paper')).not.toBeInTheDocument()
+  })
+  it('removes a stale task parameter before opening create from the global modal flow', async () => {
+    mocks.tasks = [task]
+    render(<Providers path="/tasks?task=crm-142&view=list&sort=priority"><Routes><Route path="/tasks" element={<><TasksPage /><LocationProbe /></>} /></Routes></Providers>)
+    expect(await screen.findByTestId('task-drawer-paper')).toHaveTextContent('CRM-142')
+    act(() => useUIStore.getState().openModal('task.create'))
+    await waitFor(() => expect(screen.getByLabelText('current search').textContent).toBe('?view=list&sort=priority'))
+    expect(await screen.findByRole('textbox', { name: /Название/ })).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'CRM-142' })).not.toBeInTheDocument()
   })
   it('preserves create and save behavior in the drawer', async () => {
     const onClose = vi.fn()

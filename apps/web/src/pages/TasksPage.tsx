@@ -105,6 +105,14 @@ export default function TasksPage() {
   useEffect(() => {
     if (!modalState.isOpen) return
     if (modalState.type === 'task.create') {
+      if (selectedTaskId) {
+        setSearchParams((current) => {
+          const next = new URLSearchParams(current)
+          next.delete('task')
+          return next
+        }, { replace: true })
+        return
+      }
       const data = modalState.data || {}
       setDialogInitialValues({
         due_date: typeof data.due_date === 'string' ? data.due_date : undefined,
@@ -114,7 +122,6 @@ export default function TasksPage() {
       setDialogTask(null)
       setDialogMode('create')
       setDialogOpen(true)
-      closeModal()
     } else if (modalState.type === 'task.detail') {
       const taskId = modalState.data?.taskId
       if (typeof taskId === 'string' && taskId) {
@@ -126,10 +133,18 @@ export default function TasksPage() {
       }
       closeModal()
     }
-  }, [modalState, closeModal, setSearchParams])
+  }, [modalState, closeModal, setSearchParams, selectedTaskId])
+
+  useEffect(() => {
+    if (
+      modalState.isOpen && modalState.type === 'task.create' &&
+      !selectedTaskId && dialogOpen && dialogMode === 'create'
+    ) closeModal()
+  }, [modalState.isOpen, modalState.type, selectedTaskId, dialogOpen, dialogMode, closeModal])
 
   useEffect(() => {
     const taskId = selectedTaskId
+    if (modalState.isOpen && modalState.type === 'task.create') return
     if (!taskId) {
       if (dialogMode === 'view') {
         setDialogOpen(false)
@@ -148,17 +163,21 @@ export default function TasksPage() {
       setDialogOpen(true)
     }
     if (listedTask) openTask(listedTask)
-    else void taskApi.get(taskId).then((response) => openTask(response.data)).catch(() => {
-      if (cancelled) return
-      addSnackbar({ message: 'Не удалось загрузить задачу', type: 'error', duration: 4000 })
-      setSearchParams((current) => {
-        const next = new URLSearchParams(current)
-        next.delete('task')
-        return next
-      }, { replace: true })
-    })
+    else {
+      setDialogOpen(false)
+      setDialogTask(null)
+      void taskApi.get(taskId).then((response) => openTask(response.data)).catch(() => {
+        if (cancelled) return
+        addSnackbar({ message: 'Не удалось загрузить задачу', type: 'error', duration: 4000 })
+        setSearchParams((current) => {
+          const next = new URLSearchParams(current)
+          next.delete('task')
+          return next
+        }, { replace: true })
+      })
+    }
     return () => { cancelled = true }
-  }, [selectedTaskId, tasks, dialogMode, addSnackbar, setSearchParams])
+  }, [selectedTaskId, tasks, dialogMode, addSnackbar, setSearchParams, modalState.isOpen, modalState.type])
 
   const closeTaskPanel = () => {
     setDialogOpen(false)
