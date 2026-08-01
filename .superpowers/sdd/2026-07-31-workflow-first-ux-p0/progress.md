@@ -47,3 +47,4 @@ CHECKPOINT: Workflow-first UX P0 plan complete at implementation HEAD d578244 on
 Task 7: final acceptance hardening closed responsive-width, pin-refresh, all-view persistence, offline-retry, rate-limit isolation, and Sensitive Data Guard fixture-flake coverage
 Task 7: final browser gate complete - Chromium and Firefox 10/10 across desktop, 1440/1024 acceptance, offline recovery, and 390x844 mobile
 CHECKPOINT: Workflow-first UX P0 acceptance re-audit complete; all 35 plan steps and seven manual-review checks are recorded as complete, browser gate 10/10, frontend 94/94, backend 21/21
+SAVED HANDOFF: verified implementation commit 845ac87 on codex/workflow-first-ux-p0; P0 is closed with no open Critical or Important findings; resume from a clean worktree by auditing and planning the next phase as a separate scope
