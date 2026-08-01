@@ -8,37 +8,44 @@
 
 ## RED / GREEN
 
-- Preserved Task 6 drawer tests were authored before the production integration during the initial attempt.
-- Recovery RED: `npm test -- src/components/tasks/drawer/TaskDrawer.test.tsx` produced 1 failure and 5 passes because tab labels now exposed available counts.
-- URL regression RED: the browser-navigation regression exposed the expected MUI `aria-hidden` test constraint; the selector was corrected without changing product behavior.
-- Review-fix RED: 5 new regressions failed for stale global create state, pending direct-task navigation, responsibility identity, mobile touch targets, and communication truncation/count.
-- Final focused GREEN: 1 file, 16 tests passed.
-- Final full frontend GREEN: 16 files, 87 tests passed.
+- Drawer tests were authored before production integration during the initial implementation.
+- Recovery RED exposed tab-count behavior; URL regression RED exposed the expected MUI test constraint.
+- Review-fix RED captured stale global create state, pending direct-task navigation, responsibility identity, mobile touch targets, and communication truncation/count.
+- Post-review hardening RED captured two remaining risks: fresh-database Alembic upgrade failed on duplicate `projects.workflow_config`, and task responses omitted `manager`.
+- Focused drawer GREEN: 1 file, 16 tests passed.
+- Full frontend GREEN: 16 files, 87 tests passed.
 - Production build: TypeScript and Vite passed.
-- Backend PostgreSQL integration: `test_action_inbox_can_filter_existing_items_by_task` passed in Docker Compose (`1 passed, 4 deselected`).
-- Backend static check: Ruff passed for the changed route and test.
+- Frontend lint passed with 0 errors; confirmed unused imports and variables were removed.
+- Backend PostgreSQL GREEN: 21 tests passed, including task identities and a disposable database upgraded from Alembic base to head.
+- Ruff passed for the changed migration, routes, schemas, and tests.
+- Runtime check: the migrated local API returns healthy from `/health`.
 
 ## Implementation
 
 - Replaced the desktop task dialog with a right-side drawer and full-width mobile presentation.
-- Split the header, overview, communications, and footer into focused display components.
-- Added the stable Overview, Documents, Communications, Testing, and Activity tabs with non-blocking counts.
-- Put next action, all three independent deadlines, next-action owner, result owner, assignee, waiting context, risk, and blocker ahead of long-form context.
-- Resolved known responsibility identities from the current user and assignee without exposing raw IDs.
-- Added task-linked communications with loading, error, empty, source, Inbox, API-total count, and explicit truncated-history states.
+- Split header, overview, communications, and footer into focused display components.
+- Added stable Overview, Documents, Communications, Testing, and Activity tabs with non-blocking counts.
+- Put next action, all three independent deadlines, ownership, waiting context, risk, and blocker ahead of long-form context.
+- Resolved manager, next-action owner, waiting user, current user, and assignee through nested public user DTOs without exposing raw IDs.
+- Added task-linked communications with loading, error, empty, source, Inbox, total-count, and truncated-history states.
 - Added accessible open triggers to List and Kanban.
 - Made `?task=<id>` the drawer source of truth while preserving view, preset, search, sort, project, and other query parameters.
 - Added direct task loading through the existing task GET API, invalid-id cleanup, browser-navigation close handling, Escape close, and focus restoration.
-- Cleared the previous task while an unloaded direct task is pending.
-- Routed Command Palette task details through the same URL-first path, including tasks outside the current filtered list.
-- Added a two-phase global-create handoff: remove only stale `task`, open local create state, then clear the global modal intent.
+- Routed Command Palette task details through the same URL-first path.
 - Preserved and tested create, edit/save, and delete behavior.
-- Enforced 44px minimum mobile targets for header and edit-footer actions.
+- Enforced 44px minimum mobile targets for header and footer actions.
+- Replaced the dynamic current-ORM Alembic bootstrap with an explicit historical core baseline so later migrations remain the sole owners of later schema changes.
+- Removed confirmed unused frontend imports and local variables without changing component behavior.
 
 ## Changed Files
 
 - `apps/api/app/api/v1/communication_items.py`
+- `apps/api/app/api/v1/tasks.py`
+- `apps/api/app/schemas/task.py`
+- `apps/api/alembic/versions/001_add_start_date_timezone.py`
 - `apps/api/tests/test_manager_workspace.py`
+- `apps/api/tests/test_migrations.py`
+- `apps/api/tests/test_tasks.py`
 - `apps/web/src/components/tasks/KanbanBoard.tsx`
 - `apps/web/src/components/tasks/TaskDetailDialog.tsx`
 - `apps/web/src/components/tasks/TaskItem.tsx`
@@ -49,36 +56,40 @@
 - `apps/web/src/components/tasks/drawer/TaskDrawerHeader.tsx`
 - `apps/web/src/components/tasks/drawer/TaskOverviewTab.tsx`
 - `apps/web/src/lib/api/communicationApi.ts`
+- `apps/web/src/lib/types.ts`
 - `apps/web/src/pages/TasksPage.tsx`
+- Mechanical unused-code cleanup in existing Search, Notification, Project, Task, Calendar, Profile, and offline-queue files.
 
 ## API And Migrations
 
 - Extended `GET /api/v1/communication-items` with optional `task_id` filtering.
-- Database schema and repository migrations: unchanged.
-- The primary local development database currently has Alembic drift: `workflow_config` exists while Alembic attempts migration `0007_workspace_context`. This is pre-existing local database state, not a Task 6 schema change. The isolated PostgreSQL test database passes.
+- Extended existing task responses additively with safe nested `manager`, `next_action_owner`, and `waiting_for_user` public profiles.
+- Create, get, list, and update reuse the same owned-task eager-loading query.
+- Corrected revision `001_add_start_date_timezone` to bootstrap only the historical core schema explicitly instead of importing current ORM metadata.
+- Added a disposable-PostgreSQL regression that upgrades an empty database to head and verifies P0 tables and responsibility columns.
+- Rebuilt the empty local development database through normal migrations; Docker now starts the API reliably.
 
 ## Decisions
 
-- The URL owns view-mode task selection; local state only owns create/edit and the loaded task payload.
+- URL state owns view-mode task selection; local state only owns create/edit and loaded payload.
 - Closing removes only `task`, preserving the surrounding workspace context.
-- Global create keeps its intent until URL cleanup and local create initialization complete.
-- A pending direct GET closes the old drawer instead of displaying stale task content under a new URL.
-- The Communications tab links to the existing Inbox without inventing an unsupported Inbox query contract.
-- Communication counts use API `total`; when the first 100 items are not the full history, the UI says so explicitly.
-- Known people are shown by display name; unresolved identities use a neutral label and never expose a raw UUID.
+- Pending direct GET closes the old drawer instead of displaying stale task content under a new URL.
+- Communications reuse Action Inbox and its permissions rather than creating another entity.
+- Nested public profiles are response-only; write DTOs continue to accept IDs.
+- Historical baseline DDL is explicit and covered by a real empty-database upgrade test; no Alembic stamping or manual schema mutation is used.
 
 ## Review Status
 
-- Independent review of `c6932da..bd66af9` found 4 Important and 1 Minor issues: stale global create URL, stale task during pending GET, missing next-action owner/raw IDs, incomplete 44px controls, and silent communication truncation.
+- Independent review of `c6932da..bd66af9` found 4 Important and 1 Minor issues.
 - All five findings were closed in `283daeb` with focused regression coverage.
-- Two direct post-fix reviewer attempts could not initialize the Windows linked-worktree shell and returned no code verdict.
-- A fresh independent tool-free patch review checked the exact review fixes and returned `APPROVED: Task 6 review fixes` after confirming the global-modal/local-drawer state contract.
-- Parent review covered the complete committed range `c6932da..283daeb`.
-- Task 6 is approved with no open Critical or Important findings.
+- A fresh independent tool-free patch review returned `APPROVED: Task 6 review fixes`.
+- Post-approval hardening closed both residual Task 6 risks with backend and frontend regression coverage.
+- A separate post-hardening reviewer did not return a verdict within two bounded waits and was stopped; parent review covered the final hardening diff.
+- Task 6 has no open Critical or Important findings.
 
 ## Residual Risks
 
-- Users other than the current user and nested assignee resolve to `Пользователь не найден`; a future shared people-directory DTO can enrich these labels without exposing IDs.
 - The existing Vite bundle-size warning remains and is outside Task 6 scope.
-- The primary local database Alembic drift must be reconciled before normal `docker compose up` can run migrations reliably; do not stamp or mutate it without a separate database-state audit.
+- `alembic check` reports legacy ORM/index metadata differences across older modules even though an empty database upgrades to head and runs successfully. These differences require a dedicated non-destructive schema audit, not blind autogeneration inside Task 6.
+- Frontend lint still reports 74 pre-existing type, hook-dependency, and fast-refresh warnings but no errors.
 - Docker reports existing Pydantic/passlib deprecation warnings unrelated to Task 6.

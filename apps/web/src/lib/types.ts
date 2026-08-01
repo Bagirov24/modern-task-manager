@@ -43,12 +43,15 @@ export interface Task {
   comment_count?: number
   task_type?: 'task' | 'bug' | 'request' | 'approval' | 'contract_approval' | 'incident' | 'release' | 'meeting' | 'follow_up' | 'requirement_clarification'
   manager_id?: string | null
+  manager?: UserSummary | null
   final_due_at?: string | null
   response_due_at?: string | null
   next_action_owner_id?: string | null
+  next_action_owner?: UserSummary | null
   next_action_description?: string | null
   next_action_due_at?: string | null
   waiting_for_user_id?: string | null
+  waiting_for_user?: UserSummary | null
   waiting_for_party?: 'internal' | 'client' | 'insurer' | 'vendor' | 'none'
   follow_up_action_description?: string | null
   risk_level?: 'low' | 'medium' | 'high' | 'critical'

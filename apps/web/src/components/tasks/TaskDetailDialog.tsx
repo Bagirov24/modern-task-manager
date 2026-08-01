@@ -6,8 +6,7 @@ import {
   Tab, Tabs, TextField, Typography, useMediaQuery, useTheme,
 } from '@mui/material'
 import {
-  Add, ArticleOutlined, Block, Close, DeleteOutline, EditOutlined, Launch, LinkOutlined, OpenInNew,
-  Save, ScienceOutlined, Send, Summarize, TimelineOutlined,
+  Add, ArticleOutlined, Close, Launch, LinkOutlined, OpenInNew, ScienceOutlined, Send,
 } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { useTasks } from '../../hooks/useTasks'
@@ -17,7 +16,7 @@ import { testDataApi } from '@/lib/api/testDataApi'
 import { commentApi } from '@/lib/api/commentApi'
 import { workspaceLinkApi } from '@/lib/api/workspaceLinkApi'
 import { managerStatusApi } from '@/lib/api/managerStatusApi'
-import type { Task, TaskCreate, TaskPriority, TaskStatus, WorkflowStatus } from '../../lib/types'
+import type { Task, TaskCreate, TaskPriority, WorkflowStatus } from '../../lib/types'
 import TaskDrawerHeader from './drawer/TaskDrawerHeader'
 import TaskOverviewTab from './drawer/TaskOverviewTab'
 import TaskCommunicationsTab from './drawer/TaskCommunicationsTab'

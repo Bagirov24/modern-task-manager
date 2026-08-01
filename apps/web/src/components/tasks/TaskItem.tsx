@@ -136,7 +136,7 @@ export default function TaskItem({ task, onOpen, onEdit, onDelete }: Props) {
                   sx={{
                     height: 24,
                     fontSize: '0.7rem',
-                    bgcolor: (t: any) => alpha(status.color, 0.15),
+                    bgcolor: alpha(status.color, 0.15),
                     color: status.color,
                     border: 'none',
                   }}

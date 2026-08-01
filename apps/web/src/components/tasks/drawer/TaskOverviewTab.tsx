@@ -8,7 +8,13 @@ const priorityLabels = { urgent: 'P0 · Критичный', high: 'P1 · Выс
 
 export default function TaskOverviewTab({ task }: { task: Task }) {
   const currentUser = useAuthStore((state) => state.user)
-  const identities = [currentUser, task.assignee]
+  const identities = [
+    currentUser,
+    task.assignee,
+    task.manager,
+    task.next_action_owner,
+    task.waiting_for_user,
+  ]
 
   return <Stack spacing={2}>
     {!task.is_planning_complete && <Alert severity="warning">Неполная постановка: заполните контекст, ожидаемый результат, acceptance criteria, проект и ответственного до Ready.</Alert>}

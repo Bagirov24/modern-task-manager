@@ -3,7 +3,7 @@ import {
   Box, Container, Typography, TextField, Button,
   Avatar, Paper, Grid, Divider, Alert, CircularProgress,
 } from '@mui/material'
-import { PhotoCamera, Save } from '@mui/icons-material'
+import { Save } from '@mui/icons-material'
 import { useAuth } from '../hooks/useAuth'
 import { useRequireAuth } from '../hooks/useAuth'
 

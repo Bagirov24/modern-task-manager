@@ -13,12 +13,11 @@ import {
   FormControl,
   InputLabel,
   Stack,
-  IconButton,
   Collapse,
   Box,
   CircularProgress,
 } from '@mui/material'
-import { Add as AddIcon, Close as CloseIcon } from '@mui/icons-material'
+import { Add as AddIcon } from '@mui/icons-material'
 
 export default function AddTask() {
   const [isOpen, setIsOpen] = useState(false)

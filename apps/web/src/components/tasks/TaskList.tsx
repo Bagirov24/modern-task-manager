@@ -19,7 +19,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { useTaskStore } from '@/lib/store/taskStore'
 import TaskItem from './TaskItem'
-import { staggerChildren, taskItem } from '@/lib/animations/variants'
+import { taskItem } from '@/lib/animations/variants'
 import { Stack, Typography, Box } from '@mui/material'
 import { InboxOutlined as EmptyIcon, DragIndicator as DragIcon } from '@mui/icons-material'
 import type { Task } from '@/lib/types'

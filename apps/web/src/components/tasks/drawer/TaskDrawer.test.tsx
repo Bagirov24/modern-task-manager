@@ -38,8 +38,10 @@ const task: Task = {
   workflow_status: 'in_progress', is_blocked: true, blocked_reason: 'Waiting for API contract',
   next_action_description: 'Confirm API contract', due_date: '2026-07-30T12:00:00Z', final_due_at: '2026-07-30T12:00:00Z',
   response_due_at: '2026-08-02T11:00:00Z', next_action_due_at: '2026-08-03T09:00:00Z',
-  manager_id: 'manager-1', assignee_id: 'developer-1', assignee: { id: 'developer-1', username: 'ivan', full_name: 'Ivan Developer' },
-  next_action_owner_id: 'developer-1', waiting_for_user_id: 'lawyer-1',
+  manager_id: 'manager-1', manager: { id: 'manager-1', username: 'manager', full_name: 'Manager' },
+  assignee_id: 'developer-1', assignee: { id: 'developer-1', username: 'ivan', full_name: 'Ivan Developer' },
+  next_action_owner_id: 'developer-1', next_action_owner: { id: 'developer-1', username: 'ivan', full_name: 'Ivan Developer' },
+  waiting_for_user_id: 'lawyer-1', waiting_for_user: { id: 'lawyer-1', username: 'lawyer', full_name: 'Legal Team' },
   waiting_for_party: 'internal', risk_level: 'high', context: 'Long-form task context',
 }
 
@@ -131,6 +133,7 @@ describe('task drawer', () => {
     expect(paper).toHaveTextContent('Владелец действия')
     expect(paper).toHaveTextContent('Ivan Developer')
     expect(paper).toHaveTextContent('Manager')
+    expect(paper).toHaveTextContent('Legal Team')
     expect(paper).not.toHaveTextContent('manager-1')
   })
   it('opens from List, preserves URL state, closes on Escape and restores focus', async () => {

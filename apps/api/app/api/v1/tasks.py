@@ -78,12 +78,24 @@ def _base_query(user_id):
         select(Task)
         .options(
             joinedload(Task.assignee),
+            joinedload(Task.manager),
+            joinedload(Task.next_action_owner),
+            joinedload(Task.waiting_for_user),
             joinedload(Task.project),
             joinedload(Task.labels),
             selectinload(Task.subtasks),
         )
         .where(Task.assignee_id == user_id)
     )
+
+
+async def _load_owned_task(
+    db: AsyncSession,
+    user_id: UUID,
+    task_id: UUID,
+) -> Optional[Task]:
+    result = await db.execute(_base_query(user_id).where(Task.id == task_id))
+    return result.scalars().unique().first()
 
 
 @router.get("/", response_model=TaskListResponse)
@@ -141,8 +153,10 @@ async def create_task(
     task = Task(**values)
     db.add(task)
     await db.commit()
-    await db.refresh(task)
-    return task
+    created = await _load_owned_task(db, current_user.id, task.id)
+    if created is None:
+        raise HTTPException(status_code=500, detail="Created task could not be reloaded")
+    return created
 
 
 @router.get("/{task_id}", response_model=TaskResponse)
@@ -151,10 +165,7 @@ async def get_task(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    result = await db.execute(
-        _base_query(current_user.id).where(Task.id == task_id)
-    )
-    task = result.scalars().unique().first()
+    task = await _load_owned_task(db, current_user.id, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     return task
@@ -208,8 +219,10 @@ async def update_task(
         setattr(task, field, value)
 
     await db.commit()
-    await db.refresh(task)
-    return task
+    updated = await _load_owned_task(db, current_user.id, task.id)
+    if updated is None:
+        raise HTTPException(status_code=500, detail="Updated task could not be reloaded")
+    return updated
 
 
 @router.delete("/{task_id}", status_code=204)

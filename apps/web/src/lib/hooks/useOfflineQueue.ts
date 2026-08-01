@@ -26,7 +26,11 @@ export function useOfflineQueue() {
     switch (mutation.type) {
       case 'task.create': {
         // Убираем служебные поля, оставляем только поля TaskCreate
-        const { id: _id, type: _type, enqueuedAt: _eq, retries: _r, ...rest } = p as Record<string, unknown>
+        const rest = { ...p }
+        delete rest.id
+        delete rest.type
+        delete rest.enqueuedAt
+        delete rest.retries
         if (typeof rest.title !== 'string' || !rest.title.trim()) {
           throw new Error('[offline queue] task.create: missing or invalid title')
         }
@@ -37,7 +41,8 @@ export function useOfflineQueue() {
       case 'task.status': {
         const id = typeof p.id === 'string' && p.id ? p.id : null
         if (!id) throw new Error(`[offline queue] task.update: missing or invalid id`)
-        const { id: _id, ...rest } = p
+        const rest = { ...p }
+        delete rest.id
         await taskApi.update(id, rest as TaskUpdate)
         break
       }

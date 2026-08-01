@@ -206,20 +206,8 @@ class TaskResponse(BaseModel):
     assignee_id: Optional[UUID] = None
     assignee: Optional[UserPublicResponse] = None
     parent_id: Optional[UUID] = None
-    assignee_id: Optional[UUID] = None
-    workflow_status: WorkflowStatus = "backlog"
-    is_blocked: bool = False
-    blocked_reason: Optional[str] = Field(None, max_length=2_000)
-    blocked_by_task_id: Optional[UUID] = None
-    context: Optional[str] = Field(None, max_length=20_000)
-    expected_result: Optional[str] = Field(None, max_length=20_000)
-    acceptance_criteria: Optional[str] = Field(None, max_length=20_000)
-    next_action: Optional[str] = Field(None, max_length=2_000)
-    estimate_minutes: Optional[int] = Field(None, ge=0, le=1_000_000)
-    milestone: Optional[str] = Field(None, max_length=255)
-    sprint: Optional[str] = Field(None, max_length=255)
     position: int = 0
-    workflow_status: str = "backlog"
+    workflow_status: WorkflowStatus = "backlog"
     is_blocked: bool = False
     blocked_reason: Optional[str] = None
     blocked_by_task_id: Optional[UUID] = None
@@ -230,17 +218,20 @@ class TaskResponse(BaseModel):
     estimate_minutes: Optional[int] = None
     milestone: Optional[str] = None
     sprint: Optional[str] = None
-    task_type: str = "task"
+    task_type: TaskType = "task"
     manager_id: Optional[UUID] = None
+    manager: Optional[UserPublicResponse] = None
     final_due_at: Optional[datetime] = None
     response_due_at: Optional[datetime] = None
     next_action_owner_id: Optional[UUID] = None
+    next_action_owner: Optional[UserPublicResponse] = None
     next_action_description: Optional[str] = None
     next_action_due_at: Optional[datetime] = None
     waiting_for_user_id: Optional[UUID] = None
-    waiting_for_party: str = "none"
+    waiting_for_user: Optional[UserPublicResponse] = None
+    waiting_for_party: WaitingParty = "none"
     follow_up_action_description: Optional[str] = None
-    risk_level: str = "low"
+    risk_level: RiskLevel = "low"
     last_activity_at: Optional[datetime] = None
     last_external_communication_at: Optional[datetime] = None
     communication_channel: Optional[str] = None
@@ -250,13 +241,10 @@ class TaskResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    # #ux-4 — checklist progress (populated by endpoint, default=empty)
     checklist_summary: ChecklistSummary = Field(
         default_factory=ChecklistSummary,
         description="Subtask completion summary; total=0 when no subtasks exist",
     )
-
-    # #ux-1 — overdue indicator
     is_overdue: bool = Field(
         False,
         description="True when due_date < now AND status not in {done, archived}",
@@ -265,7 +253,7 @@ class TaskResponse(BaseModel):
     model_config = {"from_attributes": True}
 
     @model_validator(mode="after")
-    def compute_is_overdue(self) -> "TaskResponse":
+    def compute_derived_fields(self) -> "TaskResponse":
         if (
             self.due_date
             and self.due_date < datetime.now(timezone.utc)
@@ -273,8 +261,11 @@ class TaskResponse(BaseModel):
         ):
             self.is_overdue = True
         self.is_planning_complete = bool(
-            self.context and self.expected_result and self.acceptance_criteria
-            and self.assignee_id and self.project_id
+            self.context
+            and self.expected_result
+            and self.acceptance_criteria
+            and self.assignee_id
+            and self.project_id
         )
         return self
 

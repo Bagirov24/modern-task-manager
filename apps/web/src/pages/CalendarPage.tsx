@@ -4,7 +4,7 @@ import {
   Chip, Tooltip, alpha, useTheme, Dialog, DialogTitle,
   DialogContent, DialogActions, Button, List, ListItem,
   ListItemButton, ListItemText, ListItemIcon, ToggleButtonGroup,
-  ToggleButton, Divider, TextField, Alert, LinearProgress,
+  ToggleButton, Alert, LinearProgress,
 } from '@mui/material'
 import {
   ChevronLeft, ChevronRight,
@@ -22,12 +22,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   startOfMonth, endOfMonth,
   startOfWeek, endOfWeek,
-  startOfDay, endOfDay,
   addDays, addWeeks, subWeeks,
   addMonths, subMonths,
   format, isSameMonth, isToday, isPast,
-  parseISO, differenceInCalendarDays, isSameDay,
-  eachHourOfInterval, setHours, setMinutes,
+  parseISO, differenceInCalendarDays,
 } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { useTasks } from '@/lib/hooks/useTasks'
@@ -95,7 +93,6 @@ function TaskPill({ task, onClick }: { task: Task; onClick: () => void }) {
 
 // ─── Overdue rail ─────────────────────────────────────────────────────────────
 function OverdueRail({ tasks, onTaskClick }: { tasks: Task[]; onTaskClick: (t: Task) => void }) {
-  const theme = useTheme()
   if (!tasks.length) return null
   return (
     <Paper
