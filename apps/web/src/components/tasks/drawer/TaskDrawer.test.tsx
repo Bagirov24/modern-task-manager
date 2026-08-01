@@ -50,9 +50,6 @@ function LocationProbe() { const location = useLocation(); return <output aria-l
 
 const originalMatchMedia = window.matchMedia
 
-beforeEach(() => {
-  mocks.tasks = []
-  useTaskStore.setState({ filter: {} })
 function NavigationProbe() {
   const navigate = useNavigate()
   return <>
@@ -61,8 +58,14 @@ function NavigationProbe() {
   </>
 }
 
+beforeEach(() => {
+  mocks.tasks = []
+  useTaskStore.setState({ filter: {} })
   mocks.communicationList.mockResolvedValue({ data: { items: [], total: 0, groups: {}, page: 1, per_page: 50 } })
   mocks.taskGet.mockResolvedValue({ data: task })
+  mocks.createTask.mockResolvedValue(task)
+  mocks.updateTask.mockResolvedValue(task)
+  mocks.deleteTask.mockResolvedValue(undefined)
 })
 afterEach(() => { cleanup(); vi.clearAllMocks(); window.matchMedia = originalMatchMedia })
 
@@ -71,9 +74,6 @@ describe('task drawer', () => {
     render(<Providers><TaskDetailDialog open onClose={vi.fn()} task={task} mode="view" /></Providers>)
     const text = screen.getByTestId('task-drawer-paper').textContent || ''
     expect(text.indexOf('Следующее действие')).toBeLessThan(text.indexOf('Контекст'))
-  mocks.createTask.mockResolvedValue(task)
-  mocks.updateTask.mockResolvedValue(task)
-  mocks.deleteTask.mockResolvedValue(undefined)
     expect(text.indexOf('Финальный срок')).toBeLessThan(text.indexOf('Контекст'))
     expect(text.indexOf('Срок ответа')).toBeLessThan(text.indexOf('Контекст'))
     expect(text.indexOf('Следующее действие до')).toBeLessThan(text.indexOf('Контекст'))
@@ -83,8 +83,8 @@ describe('task drawer', () => {
 
   it('keeps the stable five-tab order and loads communications by task id', async () => {
     render(<Providers><TaskDetailDialog open onClose={vi.fn()} task={task} mode="view" /></Providers>)
-    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Обзор', 'Документы', 'Коммуникации', 'Тестирование', 'Активность'])
-    fireEvent.click(screen.getByRole('tab', { name: 'Коммуникации' }))
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent?.replace(/\s+\d+$/, ''))).toEqual(['Обзор', 'Документы', 'Коммуникации', 'Тестирование', 'Активность'])
+    fireEvent.click(screen.getAllByRole('tab')[2])
     await waitFor(() => expect(mocks.communicationList).toHaveBeenCalledWith(expect.objectContaining({ task_id: 'crm-142' })))
     expect(await screen.findByText('Для задачи пока нет связанных коммуникаций.')).toBeVisible()
   })
@@ -121,5 +121,45 @@ describe('task drawer', () => {
     render(<Providers path="/tasks?task=crm-142&preset=overdue"><Routes><Route path="/tasks" element={<TasksPage />} /></Routes></Providers>)
     await waitFor(() => expect(mocks.taskGet).toHaveBeenCalledWith('crm-142'))
     expect((await screen.findAllByText('CRM-142')).length).toBeGreaterThan(0)
+  })
+  it('closes when browser navigation removes task and preserves the remaining URL state', async () => {
+    mocks.tasks = [task]
+    render(<Providers path="/tasks?task=crm-142&view=list&sort=priority"><Routes><Route path="/tasks" element={<><TasksPage /><LocationProbe /><NavigationProbe /></>} /></Routes></Providers>)
+    expect(await screen.findByTestId('task-drawer-paper')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Remove task parameter', hidden: true }))
+    await waitFor(() => expect(screen.queryByTestId('task-drawer-paper')).not.toBeInTheDocument())
+    expect(screen.getByLabelText('current search').textContent).toBe('?view=list&sort=priority')
+  })
+
+  it('removes only an invalid direct task id from the URL', async () => {
+    mocks.taskGet.mockRejectedValueOnce(new Error('not found'))
+    render(<Providers path="/tasks?task=missing&view=list&sort=priority"><Routes><Route path="/tasks" element={<><TasksPage /><LocationProbe /></>} /></Routes></Providers>)
+    await waitFor(() => expect(mocks.taskGet).toHaveBeenCalledWith('missing'))
+    await waitFor(() => expect(screen.getByLabelText('current search').textContent).toBe('?view=list&sort=priority'))
+    expect(screen.queryByTestId('task-drawer-paper')).not.toBeInTheDocument()
+  })
+  it('preserves create and save behavior in the drawer', async () => {
+    const onClose = vi.fn()
+    render(<Providers><TaskDetailDialog open onClose={onClose} task={null} mode="create" /></Providers>)
+    fireEvent.change(screen.getByRole('textbox', { name: /Название/ }), { target: { value: 'New manager task' } })
+    fireEvent.click(screen.getByRole('button', { name: /Сохранить/ }))
+    await waitFor(() => expect(mocks.createTask).toHaveBeenCalledWith(expect.objectContaining({ title: 'New manager task' })))
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('preserves edit and save behavior in the drawer', async () => {
+    render(<Providers><TaskDetailDialog open onClose={vi.fn()} task={task} mode="view" /></Providers>)
+    fireEvent.click(screen.getByRole('button', { name: 'Редактировать' }))
+    fireEvent.change(screen.getByRole('textbox', { name: /Название/ }), { target: { value: 'CRM-142 updated' } })
+    fireEvent.click(screen.getByRole('button', { name: /Сохранить/ }))
+    await waitFor(() => expect(mocks.updateTask).toHaveBeenCalledWith('crm-142', expect.objectContaining({ title: 'CRM-142 updated' })))
+  })
+
+  it('preserves delete behavior in the drawer', async () => {
+    const onClose = vi.fn()
+    render(<Providers><TaskDetailDialog open onClose={onClose} task={task} mode="edit" /></Providers>)
+    fireEvent.click(screen.getByRole('button', { name: /Удалить/ }))
+    await waitFor(() => expect(mocks.deleteTask).toHaveBeenCalledWith('crm-142'))
+    expect(onClose).toHaveBeenCalled()
   })
 })

@@ -117,15 +117,16 @@ export default function TasksPage() {
       closeModal()
     } else if (modalState.type === 'task.detail') {
       const taskId = modalState.data?.taskId
-      const task = tasks.find((item) => item.id === taskId)
-      if (task) {
-        const next = new URLSearchParams(searchParams)
-        next.set('task', task.id)
-        setSearchParams(next, { replace: true })
-        closeModal()
+      if (typeof taskId === 'string' && taskId) {
+        setSearchParams((current) => {
+          const next = new URLSearchParams(current)
+          next.set('task', taskId)
+          return next
+        }, { replace: true })
       }
+      closeModal()
     }
-  }, [modalState, closeModal, tasks])
+  }, [modalState, closeModal, setSearchParams])
 
   useEffect(() => {
     const taskId = selectedTaskId

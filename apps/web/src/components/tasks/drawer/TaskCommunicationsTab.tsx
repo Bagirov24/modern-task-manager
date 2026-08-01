@@ -23,6 +23,6 @@ export default function TaskCommunicationsTab({ task, onCountChange }: { task: T
         {item.source_url && <Button component="a" href={item.source_url} target="_blank" rel="noopener noreferrer" size="small" endIcon={<Launch />}>Источник</Button>}
       </Stack>
     </Paper>)}
-    <Button component="a" href={`/inbox?task_id=${task.id}`} size="small">Открыть во входящих</Button>
+    <Button component="a" href="/inbox" size="small">Открыть во входящих</Button>
   </Stack>
 }
